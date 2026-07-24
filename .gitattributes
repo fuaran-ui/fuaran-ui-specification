@@ -1,0 +1,6 @@
+# Pin canonical text-file line endings to LF. The fixture corpus is a
+# byte-level conformance artefact — hosts assert byte-identical canonical
+# output against these files, so line-ending churn is corpus corruption.
+* text=auto eol=lf
+
+*.png binary

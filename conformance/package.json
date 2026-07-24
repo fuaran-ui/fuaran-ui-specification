@@ -1,0 +1,13 @@
+{
+  "name": "@fuaran-ui/wire-conformance-runner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace-level cross-implementation wire-format conformance runner. Drives the TypeScript @fuaran-ui/ops codec over the wire-format-fixtures corpus and byte-diffs its canonical output against the F# canonical form (the committed corpus), failing loudly on any divergence. The other half of the gate — that the committed corpus is itself the current F# encoder's output — is asserted by the F# Fuaran.UI.JsonDecode.Tests suite (RoundTrip + Reject + SchemaConformance) run as the workflow's F# leg. See ../../fuaran/docs/WIRE_FORMAT.md.",
+  "scripts": {
+    "conformance": "node cross-host-conformance.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  }
+}

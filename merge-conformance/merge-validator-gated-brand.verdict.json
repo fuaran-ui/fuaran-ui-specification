@@ -1,0 +1,1 @@
+[{"code":"TESTBRAND001","facet":"style.tone","message":"Pane 'left' shares Brand tone with a sibling — at most one Brand pane per dashboard.","nodeId":"left"},{"code":"TESTBRAND001","facet":"style.tone","message":"Pane 'right' shares Brand tone with a sibling — at most one Brand pane per dashboard.","nodeId":"right"}]

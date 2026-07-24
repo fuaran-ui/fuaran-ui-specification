@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"month","yFields":["users"],"title":"Active users","stacked":false,"data":[{"month":"Jan","users":30},{"month":"Feb","users":45},{"month":"Mar","users":42},{"month":"Apr","users":60},{"month":"May","users":85}]}

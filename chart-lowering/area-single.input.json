@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"week","yFields":["signups"],"title":"Signups","stacked":false,"data":[{"week":"W1","signups":40},{"week":"W2","signups":55},{"week":"W3","signups":48},{"week":"W4","signups":70}]}

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "description": "Fuaran merge-conformance corpus (Phase 179 + 184, additive). merge-3way: decode base/a/b, run the deterministic 3-way tree merge, assert byte-equal to expectedFile and sha256(expected) == outcomeHash. merge-validator-gated (Phase 184): run the documented sample validator over the auto-merge, diff introduced defects vs both parents, assert encodeVerdict(introduced) byte-equal to verdictFile and sha256(verdict) == verdictHash. See fuaran/docs/WIRE_FORMAT.md.",
+  "fixtures": [
+    {
+      "id": "merge-disjoint",
+      "kind": "merge-3way",
+      "baseFile": "merge-disjoint.base.json",
+      "aFile": "merge-disjoint.a.json",
+      "bFile": "merge-disjoint.b.json",
+      "expectedFile": "merge-disjoint.expected.json",
+      "outcomeHash": "8657f07ed7d2ff6428b95c64913153a3d129ce7e38648096d6c65d629b60d35d",
+      "description": "Disjoint edits to different nodes (left tone vs right tone)"
+    },
+    {
+      "id": "merge-style-blend",
+      "kind": "merge-3way",
+      "baseFile": "merge-style-blend.base.json",
+      "aFile": "merge-style-blend.a.json",
+      "bFile": "merge-style-blend.b.json",
+      "expectedFile": "merge-style-blend.expected.json",
+      "outcomeHash": "1624e337745adbe95b61e686b89c385f3c2fd6556db8c5ed4ab1f86edb943383",
+      "description": "SemanticStyle sub-field blend (A tone + B voice on the same node)"
+    },
+    {
+      "id": "merge-insert-tiebreak",
+      "kind": "merge-3way",
+      "baseFile": "merge-insert-tiebreak.base.json",
+      "aFile": "merge-insert-tiebreak.a.json",
+      "bFile": "merge-insert-tiebreak.b.json",
+      "expectedFile": "merge-insert-tiebreak.expected.json",
+      "outcomeHash": "a80ded2fd16628751a7a5d3de2b65575c33fb8e460be775b03e423ffabc41937",
+      "description": "Disjoint structural inserts, NodeId-byte tie-break"
+    },
+    {
+      "id": "merge-validator-gated-brand",
+      "kind": "merge-validator-gated",
+      "baseFile": "merge-validator-gated-brand.base.json",
+      "aFile": "merge-validator-gated-brand.a.json",
+      "bFile": "merge-validator-gated-brand.b.json",
+      "verdictFile": "merge-validator-gated-brand.verdict.json",
+      "verdictHash": "81f5fd4c1ed6868855d57c92ed094b7079fdcbcf18db57986154ecb275b06216",
+      "description": "Disjoint Brand-tone edits to sibling panes — the merge introduces a duplicate-Brand sibling-invariant violation"
+    }
+  ]
+}

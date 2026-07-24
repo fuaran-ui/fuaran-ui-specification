@@ -1,0 +1,1 @@
+{"kind":"Scatter","xField":"delta","yFields":["gain","loss"],"title":null,"stacked":false,"data":[{"delta":-10,"gain":5,"loss":-3},{"delta":-2.5,"gain":-1.5,"loss":2},{"delta":0,"gain":0,"loss":6},{"delta":4,"gain":7.25,"loss":-4.5},{"delta":12,"gain":11,"loss":1}]}

@@ -1,0 +1,8 @@
+{
+  "$comment": "Canonical Fuaran accessibility contract. SINGLE SOURCE OF TRUTH for the axe-core rule set + severity threshold, shared between the F# accessibility release gate and the TS renderer's own a11y suite (fuaran-ts/packages/renderer/test/a11y.test.tsx). One a11y contract, not two: both consumers read THIS file directly from the shared wire-format-fixtures corpus, so the rule set + threshold cannot drift.",
+  "version": 1,
+  "severityThreshold": ["critical", "serious"],
+  "disabledRules": {
+    "color-contrast": "Requires real layout / canvas metrics that JSDOM does not provide; visual contrast is a real-browser (Playwright) concern, not a static-emission gate."
+  }
+}

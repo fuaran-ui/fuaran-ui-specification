@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form. See fuaran/docs/WIRE_FORMAT.md.",
+  "fixtures": [
+    {
+      "id": "dag-genesis",
+      "kind": "dag-record-round-trip",
+      "inputFile": "dag-genesis.json",
+      "expectedFile": "dag-genesis.json",
+      "description": "Genesis DAG record (no parents)"
+    },
+    {
+      "id": "dag-linear-step",
+      "kind": "dag-record-round-trip",
+      "inputFile": "dag-linear-step.json",
+      "expectedFile": "dag-linear-step.json",
+      "description": "Single-parent DAG record (linear step, promptId present)"
+    },
+    {
+      "id": "dag-merge",
+      "kind": "dag-record-round-trip",
+      "inputFile": "dag-merge.json",
+      "expectedFile": "dag-merge.json",
+      "description": "Two-parent merge node (outcome hash; author-order parents)"
+    },
+    {
+      "id": "dag-tombstone",
+      "kind": "dag-record-round-trip",
+      "inputFile": "dag-tombstone.json",
+      "expectedFile": "dag-tombstone.json",
+      "description": "Tombstoned record (payload pruned, hash + parents preserved)"
+    }
+  ]
+}

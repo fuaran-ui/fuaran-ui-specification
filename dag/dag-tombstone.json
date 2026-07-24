@@ -1,0 +1,1 @@
+{"hash":"b9ed57f07749d1cb0fe26fe8f6268149b838ac0cadf43a4b1ca7c42035599b38","op":{"$type":"Batch","ops":[]},"parents":["63e9b99eaf137d6a3443a8a890a7194bb0a572b9dea961cc042c039cb916a872"],"promptId":"prompt-1","resultEnvelope":{"$type":"Success"},"streamId":"s1","timestamp":1700000060,"tombstoned":true,"userId":"u1"}

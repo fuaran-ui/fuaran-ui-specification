@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"holder","yFields":["share"],"title":"Ownership by holder class","stacked":false,"data":[{"holder":"Founders","share":40},{"holder":"Series A","share":30},{"holder":"Employees","share":20},{"holder":"Advisors","share":10},{"holder":"Treasury","share":0}]}

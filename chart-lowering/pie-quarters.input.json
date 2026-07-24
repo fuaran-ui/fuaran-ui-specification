@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"region","yFields":["sales"],"title":null,"stacked":false,"data":[{"region":"N","sales":25},{"region":"E","sales":25},{"region":"S","sales":25},{"region":"W","sales":25}]}

@@ -1,0 +1,849 @@
+{
+  "description": "Cross-host function-registry golden set (Phase 558). A canonical registry + findBySignature (EXACT/SUBSUMES) queries + compose-path queries with expected results, derived from the SHIPPED Python reference (fuaran_py.function), the twin of the F# Fuaran.Core.Function findBySignature engine. Every host (F#, py, ts, go, rs) must resolve these identically. The query set avoids the one documented F#/py divergence (F# AnyString-required subsumes an Enum-available; py does not), so all hosts agree. registryShape is the 548-style attestation pin: each host re-derives these per-entry shape descriptors from its parsed registry and asserts equality.",
+  "registry": [
+    {
+      "id": "single-metric",
+      "resultType": "Metric",
+      "holes": [
+        {
+          "addr": "metric.label",
+          "name": "metric.label",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "metric.value",
+          "name": "metric.value",
+          "kind": "value",
+          "space": {
+            "kind": "intRange",
+            "min": 0,
+            "max": 1000000
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "compute-metric",
+      "resultType": "Metric",
+      "holes": [
+        {
+          "addr": "metric.label",
+          "name": "metric.label",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "metric-strip",
+      "resultType": "Box",
+      "holes": [
+        {
+          "addr": "m0.label",
+          "name": "m0.label",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "m0.value",
+          "name": "m0.value",
+          "kind": "value",
+          "space": {
+            "kind": "intRange",
+            "min": 0,
+            "max": 1000000
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "m1.label",
+          "name": "m1.label",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "m1.value",
+          "name": "m1.value",
+          "kind": "value",
+          "space": {
+            "kind": "intRange",
+            "min": 0,
+            "max": 1000000
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "callout-info",
+      "resultType": "Callout",
+      "holes": [
+        {
+          "addr": "heading",
+          "name": "heading",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "body",
+          "name": "body",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "empty-state",
+      "resultType": "Callout",
+      "holes": [
+        {
+          "addr": "message",
+          "name": "message",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "paragraph",
+      "resultType": "Paragraph",
+      "holes": [
+        {
+          "addr": "text",
+          "name": "text",
+          "kind": "value",
+          "space": {
+            "kind": "stringLen",
+            "min": 1,
+            "max": 500
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "titled-body",
+      "resultType": "Box",
+      "holes": [
+        {
+          "addr": "title",
+          "name": "title",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "body",
+          "name": "body",
+          "kind": "slot",
+          "space": null,
+          "slot": "Paragraph",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "title-only",
+      "resultType": "Box",
+      "holes": [
+        {
+          "addr": "title",
+          "name": "title",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "boxed",
+      "resultType": "Box",
+      "holes": [
+        {
+          "addr": "inner",
+          "name": "inner",
+          "kind": "slot",
+          "space": null,
+          "slot": "Paragraph",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "bounded-gauge",
+      "resultType": "Gauge",
+      "holes": [
+        {
+          "addr": "level",
+          "name": "level",
+          "kind": "value",
+          "space": {
+            "kind": "intRange",
+            "min": 0,
+            "max": 100
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "enum-badge",
+      "resultType": "Badge",
+      "holes": [
+        {
+          "addr": "tone",
+          "name": "tone",
+          "kind": "value",
+          "space": {
+            "kind": "enum",
+            "choices": [
+              "info",
+              "warn",
+              "error"
+            ]
+          },
+          "slot": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "optional-note",
+      "resultType": "Note",
+      "holes": [
+        {
+          "addr": "title",
+          "name": "title",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "subtitle",
+          "name": "subtitle",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "doc-shell",
+      "resultType": "Document",
+      "holes": [
+        {
+          "addr": "docTitle",
+          "name": "docTitle",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "main",
+          "name": "main",
+          "kind": "slot",
+          "space": null,
+          "slot": "Box",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "registryShape": [
+    "bounded-gauge|Gauge|level:value:intRange(0,100):-:req",
+    "boxed|Box|inner:slot:-:Paragraph:req",
+    "callout-info|Callout|heading:value:anyString:-:req;body:value:anyString:-:req",
+    "compute-metric|Metric|metric.label:value:anyString:-:req",
+    "doc-shell|Document|docTitle:value:anyString:-:req;main:slot:-:Box:req",
+    "empty-state|Callout|message:value:anyString:-:req",
+    "enum-badge|Badge|tone:value:enum(info|warn|error):-:req",
+    "metric-strip|Box|m0.label:value:anyString:-:req;m0.value:value:intRange(0,1000000):-:req;m1.label:value:anyString:-:req;m1.value:value:intRange(0,1000000):-:req",
+    "optional-note|Note|title:value:anyString:-:req;subtitle:value:anyString:-:opt",
+    "paragraph|Paragraph|text:value:stringLen(1,500):-:req",
+    "single-metric|Metric|metric.label:value:anyString:-:req;metric.value:value:intRange(0,1000000):-:req",
+    "title-only|Box|title:value:anyString:-:req",
+    "titled-body|Box|title:value:anyString:-:req;body:slot:-:Paragraph:req"
+  ],
+  "findBySignature": [
+    {
+      "name": "subsumes-metric-both",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Metric",
+        "available": [
+          {
+            "addr": "metric.label",
+            "name": "metric.label",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          },
+          {
+            "addr": "metric.value",
+            "name": "metric.value",
+            "kind": "value",
+            "space": {
+              "kind": "intRange",
+              "min": 0,
+              "max": 1000000
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "compute-metric",
+        "single-metric"
+      ]
+    },
+    {
+      "name": "subsumes-metric-label-only",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Metric",
+        "available": [
+          {
+            "addr": "metric.label",
+            "name": "metric.label",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "compute-metric"
+      ]
+    },
+    {
+      "name": "subsumes-wildcard-message",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": null,
+        "available": [
+          {
+            "addr": "message",
+            "name": "message",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "empty-state"
+      ]
+    },
+    {
+      "name": "exact-compute-metric",
+      "mode": "Exact",
+      "query": {
+        "resultType": "Metric",
+        "available": [
+          {
+            "addr": "metric.label",
+            "name": "metric.label",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "compute-metric"
+      ]
+    },
+    {
+      "name": "exact-single-metric",
+      "mode": "Exact",
+      "query": {
+        "resultType": "Metric",
+        "available": [
+          {
+            "addr": "metric.label",
+            "name": "metric.label",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          },
+          {
+            "addr": "metric.value",
+            "name": "metric.value",
+            "kind": "value",
+            "space": {
+              "kind": "intRange",
+              "min": 0,
+              "max": 1000000
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "single-metric"
+      ]
+    },
+    {
+      "name": "subsumes-gauge-inbounds",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Gauge",
+        "available": [
+          {
+            "addr": "level",
+            "name": "level",
+            "kind": "value",
+            "space": {
+              "kind": "intRange",
+              "min": 10,
+              "max": 20
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "bounded-gauge"
+      ]
+    },
+    {
+      "name": "subsumes-gauge-outofbounds",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Gauge",
+        "available": [
+          {
+            "addr": "level",
+            "name": "level",
+            "kind": "value",
+            "space": {
+              "kind": "intRange",
+              "min": 0,
+              "max": 200
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": []
+    },
+    {
+      "name": "subsumes-badge-enum-subset",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Badge",
+        "available": [
+          {
+            "addr": "tone",
+            "name": "tone",
+            "kind": "value",
+            "space": {
+              "kind": "enum",
+              "choices": [
+                "info",
+                "warn"
+              ]
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "enum-badge"
+      ]
+    },
+    {
+      "name": "subsumes-badge-enum-superset",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Badge",
+        "available": [
+          {
+            "addr": "tone",
+            "name": "tone",
+            "kind": "value",
+            "space": {
+              "kind": "enum",
+              "choices": [
+                "info",
+                "warn",
+                "error",
+                "debug"
+              ]
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": []
+    },
+    {
+      "name": "subsumes-paragraph-stringlen",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Paragraph",
+        "available": [
+          {
+            "addr": "text",
+            "name": "text",
+            "kind": "value",
+            "space": {
+              "kind": "stringLen",
+              "min": 1,
+              "max": 500
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "paragraph"
+      ]
+    },
+    {
+      "name": "subsumes-optional-hole-title-only",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Note",
+        "available": [
+          {
+            "addr": "title",
+            "name": "title",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "optional-note"
+      ]
+    },
+    {
+      "name": "subsumes-box-slot",
+      "mode": "Subsumes",
+      "query": {
+        "resultType": "Box",
+        "available": [
+          {
+            "addr": "title",
+            "name": "title",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          },
+          {
+            "addr": "body",
+            "name": "body",
+            "kind": "slot",
+            "space": null,
+            "slot": "Paragraph",
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": [
+        "title-only",
+        "titled-body"
+      ]
+    },
+    {
+      "name": "exact-no-match-empty",
+      "mode": "Exact",
+      "query": {
+        "resultType": "Gauge",
+        "available": [
+          {
+            "addr": "nope",
+            "name": "nope",
+            "kind": "value",
+            "space": {
+              "kind": "anyString"
+            },
+            "slot": null,
+            "required": true
+          }
+        ]
+      },
+      "expectedIds": []
+    }
+  ],
+  "compose": [
+    {
+      "name": "direct-metric",
+      "output": "Metric",
+      "inputs": [
+        {
+          "addr": "metric.label",
+          "name": "metric.label",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "metric.value",
+          "name": "metric.value",
+          "kind": "value",
+          "space": {
+            "kind": "intRange",
+            "min": 0,
+            "max": 1000000
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "steps": [
+          {
+            "functionId": "compute-metric",
+            "fillsSlot": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "direct-note-optional",
+      "output": "Note",
+      "inputs": [
+        {
+          "addr": "title",
+          "name": "title",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "steps": [
+          {
+            "functionId": "optional-note",
+            "fillsSlot": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "recurse-1-level-document",
+      "output": "Document",
+      "inputs": [
+        {
+          "addr": "docTitle",
+          "name": "docTitle",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "title",
+          "name": "title",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "text",
+          "name": "text",
+          "kind": "value",
+          "space": {
+            "kind": "stringLen",
+            "min": 1,
+            "max": 500
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "steps": [
+          {
+            "functionId": "title-only",
+            "fillsSlot": "main"
+          },
+          {
+            "functionId": "doc-shell",
+            "fillsSlot": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "recurse-2-level-document",
+      "output": "Document",
+      "inputs": [
+        {
+          "addr": "docTitle",
+          "name": "docTitle",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        },
+        {
+          "addr": "text",
+          "name": "text",
+          "kind": "value",
+          "space": {
+            "kind": "stringLen",
+            "min": 1,
+            "max": 500
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "steps": [
+          {
+            "functionId": "paragraph",
+            "fillsSlot": "inner"
+          },
+          {
+            "functionId": "boxed",
+            "fillsSlot": "main"
+          },
+          {
+            "functionId": "doc-shell",
+            "fillsSlot": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "nopath-unknown-output",
+      "output": "Chart",
+      "inputs": [
+        {
+          "addr": "anything",
+          "name": "anything",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "no deterministic function chain reaches 'Chart' from the given context"
+      }
+    },
+    {
+      "name": "nopath-unsatisfiable-document",
+      "output": "Document",
+      "inputs": [
+        {
+          "addr": "docTitle",
+          "name": "docTitle",
+          "kind": "value",
+          "space": {
+            "kind": "anyString"
+          },
+          "slot": null,
+          "required": true
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "no deterministic function chain reaches 'Document' from the given context"
+      }
+    }
+  ]
+}

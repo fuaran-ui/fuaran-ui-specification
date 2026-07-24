@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"day","yFields":["cpu","mem"],"title":null,"stacked":false,"data":[{"day":"Mon","cpu":20,"mem":55},{"day":"Tue","cpu":35,"mem":60},{"day":"Wed","cpu":28,"mem":52}]}

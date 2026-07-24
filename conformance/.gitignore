@@ -1,0 +1,5 @@
+node_modules/
+
+# Phase 101 cross-host fuzz samples are generated on demand by
+# --emit-fuzz-samples + property-cross-host.mjs; never committed.
+fuzz-samples/
