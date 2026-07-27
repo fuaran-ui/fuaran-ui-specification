@@ -6,7 +6,7 @@
 //  GENERATED tree-space the curated fixtures can't reach.
 //
 //  Leg A (F# → TS): read the F#-canonical fuzz samples emitted by
-//    `dotnet run --project fuaran/src/Fuaran.UI.JsonDecode.Tests \
+//    `dotnet run --project fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests \
 //        -- --emit-fuzz-samples <corpus>/conformance/fuzz-samples <count>`
 //  into <fuzz-samples>/fsharp/, decode + re-encode each through the TS codec,
 //  and assert the TS canonical form is byte-identical to the F# input. Writes
@@ -51,7 +51,7 @@ const { encodeNode, encodeOp, decodeNode, decodeOp } = mod;
 if (!existsSync(fsharpDir)) {
   console.error(
     `\n  FATAL: F# fuzz samples not found at\n    ${fsharpDir}\n` +
-      `  Emit them first: dotnet run --project fuaran/src/Fuaran.UI.JsonDecode.Tests ` +
+      `  Emit them first: dotnet run --project fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests ` +
       `-- --emit-fuzz-samples ${samplesDir} 300`,
   );
   process.exit(2);

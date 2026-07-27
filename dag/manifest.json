@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form. See fuaran/docs/WIRE_FORMAT.md.",
+  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form. See fuaran-dotnet/docs/WIRE_FORMAT.md.",
   "fixtures": [
     {
       "id": "dag-genesis",

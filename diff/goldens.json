@@ -485,8 +485,7 @@
                 }
               }
             },
-            "parentId": "card",
-            "position": 1
+            "parentId": "card"
           }
         ],
         "rs": [
@@ -507,8 +506,7 @@
                 }
               }
             },
-            "parentId": "card",
-            "position": 1
+            "parentId": "card"
           }
         ],
         "py": [
@@ -616,8 +614,7 @@
                 }
               }
             },
-            "parentId": "root",
-            "position": 0
+            "parentId": "root"
           }
         ],
         "rs": [
@@ -634,8 +631,7 @@
                 "text": "Updated daily."
               }
             },
-            "parentId": "modal",
-            "position": 0
+            "parentId": "modal"
           }
         ],
         "py": [
@@ -746,8 +742,7 @@
                 "orientation": "Vertical"
               }
             },
-            "parentId": "root",
-            "position": 0
+            "parentId": "root"
           }
         ],
         "rs": [
@@ -764,8 +759,7 @@
                 "text": "Line two."
               }
             },
-            "parentId": "scroll",
-            "position": 0
+            "parentId": "scroll"
           }
         ],
         "py": [

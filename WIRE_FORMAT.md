@@ -1,8 +1,8 @@
 # Fuaran wire format (canonical JSON)
 
-**Status:** stable (see [`STABILITY.md`](../fuaran/STABILITY.md) → "Wire format"). **Version:** wire format v1 – profile `core@1.0`, language rev **0.2.0** (see §15 for the version/profile + forward-compatibility contract, and §1.1 for the 0.2.0 revision summary).
+**Status:** stable (see [`STABILITY.md`](../fuaran-dotnet/STABILITY.md) → "Wire format"). **Version:** wire format v1 – profile `core@1.0`, language rev **0.2.0** (see §15 for the version/profile + forward-compatibility contract, and §1.1 for the 0.2.0 revision summary).
 
-This document is the **permanent, language-neutral specification** of the Fuaran UI tree's JSON wire format. It is the authority; the F# encoder ([`Fuaran.UI.OpStream.Abstractions.CanonicalJson`](../fuaran/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs)) and decoder ([`Fuaran.UI.Ops.JsonDecode`](../fuaran/src/Fuaran.UI.Ops/JsonDecode.fs)) are one *conformant host* – the reference – of this contract. The other conformant codec hosts (TypeScript, Python, Go, Rust) and any third-party host implement the same contract from this doc + the conformance corpus – **without reading F# source**. The **§11.0 roster** is the authoritative list of hosts and their roles (codec host vs native render projection).
+This document is the **permanent, language-neutral specification** of the Fuaran UI tree's JSON wire format. It is the authority; the F# encoder ([`Fuaran.UI.OpStream.Abstractions.CanonicalJson`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs)) and decoder ([`Fuaran.UI.Ops.JsonDecode`](../fuaran-dotnet/src/Fuaran.UI.Ops/JsonDecode.fs)) are one *conformant host* – the reference – of this contract. The other conformant codec hosts (TypeScript, Python, Go, Rust) and any third-party host implement the same contract from this doc + the conformance corpus – **without reading F# source**. The **§11.0 roster** is the authoritative list of hosts and their roles (codec host vs native render projection).
 
 The executable conformance suite is the fixture corpus [in this repository](./), indexed by [`manifest.json`](./manifest.json) – the authoritative enumeration of every fixture family and count. A decoder/encoder pair built from this document alone must pass every fixture assertion the manifest enumerates.
 
@@ -81,6 +81,10 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
 3. **Lists / arrays preserve source order.** A list is an *ordered* structure (sibling order matters for layout). Empty arrays render `[]`.
 
 4. **`None` / null fields are EXCLUDED from object output.** An `option` that is `None` does **not** render as `"key":null` – the key is omitted entirely. `Some x` renders the unwrapped `x`. This keeps emissions minimal. **Corollary for decoders:** an absent optional key means `None`; never synthesise `null`.
+
+   **There is NO exception (Phase 677).** `null` does not appear anywhere in a canonical Fuaran emission. It is not a value in this model: **absence is structural**, expressed by a missing key. Until 0.2.x the obj-erased `Binding.Static` seam and `Binding.State.defaultValue` carved themselves out and emitted `"value":null` / `"defaultValue":null`; they now omit the key, and the carve-out is gone. That exception was not free — it left `Fuaran.Core.Wire.JVal` unable to parse two of this corpus's own fixtures, and produced a host bridge that silently turned a null into an empty string.
+
+   **Decoders still ACCEPT `null` at those two positions** as a §16 lenient shorthand for absence (models emit null naturally, and the intent is unambiguous), normalising it to the omitted form. Accepting is not emitting: `encode(decode(x))` never reproduces a null. Everywhere else — the rule 12 structured-payload positions — `null` remains a hard decode error.
 
 5. **Numbers.**
    - **Integers** render as decimal with no leading zeroes, no decimal point, no exponent (`42`, `-7`, `0`).
@@ -180,7 +184,7 @@ The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`)
 
 The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direction,wrap},role:"Group"}`; `gridLayout` → `{layout:{$type:Grid,cols},role:"Group"}`; `dashboard` → `{layout:{$type:Auto},role:"Dashboard"}`; `card` → `{layout:{$type:Flex,Vertical,false},heading,role:"Card"}`. See `nodes/stack-1.json`, `nodes/glayout-1.json`, `nodes/dash-empty.json`, `nodes/card-1.json`.
 
-**Legacy container tags decode-upgrade; `Spacer` / `Divider` are rejected.** Decoders still accept the four legacy container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and upgrade each to the equivalent `Box` on read (permalink / op-stream compatibility – a legacy tag re-encodes as `Box`, never round-tripping to its old form), pinned by the `lenient/legacy-upgrade-*` fixtures. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
+**Retired container tags are rejected, as are `Spacer` / `Divider`.** The four superseded container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and the superseded `Table` tag are **hard-retired (Phase 673)**: a bare `"$type":"Stack"` is a decode error, not an upgrade. They briefly decode-upgraded to `Box` / `DataGrid` for permalink and op-stream compatibility; that seam was removed once measurement showed nothing depended on it (no persisted artefact carried the tags, and across 6,561 eval runs no model emitted one without being taught it). This restores §1.1's stated 0.2.0 posture — *retired vocabulary is a hard decode error, not a deprecation* — which the upgrade seam had quietly contradicted. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
 
 #### Vocabulary-completion primitives (Phases 287–293)
 
@@ -280,6 +284,35 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
 For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
+
+
+**Membership and order are separate ops (0.4.0).** `InsertChild` and `MoveNode` change which children
+a parent has, and **both append**; `ReorderChildren` states the order by naming ids. Placing a node
+anywhere but last is `Batch [InsertChild …, ReorderChildren …]`.
+
+```jsonc
+{"$type":"InsertChild","child":{…},"parentId":"grid"}   // appends
+{"$type":"MoveNode","newParentId":"grid","target":"card"} // appends under the new parent
+```
+
+These two ops previously carried an integer `position` / `newPosition`. **The rule that removed it:
+where a collection's members have identity, they are addressed by it.** Every node has an id, every
+other op addresses by one, and `ReorderChildren` already stated order that way — so the ordinal was
+the one place the structural surface departed from the tree's own identity model. It also named
+something the tree does not store: children are a list, so order is structural and no index exists in
+the state. An index is therefore a projection over that list, meaningful only against one snapshot of
+it and silently wrong after any preceding or concurrent edit, where a wrong id fails loudly.
+
+**This does not apply to contained data.** `Columns[i]`, `Fields[i]`, `TabHeaders[i]`, `YFields[i]`
+and the like stay positional: those are bounded payload collections inside one node, not tree
+structure, and their items have no identity to address. An ordinal is legitimate exactly where
+identity is absent.
+
+**Migration window.** A decoder currently ACCEPTS AND IGNORES a legacy `position` / `newPosition` on
+these two ops, so a stored v1 emission still applies (as an append) while hosts adopt independently.
+That tolerance is a migration mechanism, not a second dialect: nothing in this spec, the corpus, or
+the prompt pack offers the field, and a conformant encoder must never write it. The window closes
+when every host is positionless, after which the field is a decode error.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -818,7 +851,7 @@ Three fields on the `Node` record are **never** emitted, and a decoder always se
 | Field | Default on decode | Why omitted |
 |---|---|---|
 | `Node.Motion` (`Motion option`) | `None` | Motion is consumer-authored, not AI-authored. |
-| `Node.ExtraAttributes` (`Map<string,string> option`) | `None` | The "AI-opaque consumer-side hatch" for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit (see [`Types.fs`](../fuaran/src/Fuaran.UI/Types.fs) ~lines 211–251). |
+| `Node.ExtraAttributes` (`Map<string,string> option`) | `None` | The "AI-opaque consumer-side hatch" for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit (see [`Types.fs`](../fuaran-dotnet/src/Fuaran.UI/Types.fs) ~lines 211–251). |
 | `Node.Accessibility` (`Accessibility option`) | `None` when the `accessibility` key is absent | Optional per rule 4; present only when authored. |
 
 A conformant host that emits these fields would diverge from the canonical wire shape and fail the corpus.
@@ -881,12 +914,12 @@ authoritative.**
 
 Adding a new `NodeKind` / `Spec` / `TreeOp` / `Binding<'T>` / `Action<'Msg>` case MUST, **in the same commit**:
 
-1. update the encoder ([`CanonicalJson.fs`](../fuaran/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs)),
-2. update the decoder ([`JsonDecode.fs`](../fuaran/src/Fuaran.UI.Ops/JsonDecode.fs)),
-3. update the **JSON Schema generator** ([`SchemaGen.fs`](../fuaran/src/Fuaran.UI.Ops/SchemaGen.fs)) – add the new `$type` branch / `$def` so the schema keeps describing the wire shape exactly,
-4. add a fixture to [`Fixtures.fs`](../fuaran/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) (or a reject case to `RejectFixtures.fs`) **and regenerate the `wire-format-fixtures/` corpus + `schema.json`** (`dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <workspace-root>/wire-format-fixtures` – the same command writes the corpus payloads *and* the schema), and
+1. update the encoder ([`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs)),
+2. update the decoder ([`JsonDecode.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/JsonDecode.fs)),
+3. update the **JSON Schema generator** ([`SchemaGen.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/SchemaGen.fs)) – add the new `$type` branch / `$def` so the schema keeps describing the wire shape exactly,
+4. add a fixture to [`Fixtures.fs`](../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) (or a reject case to `RejectFixtures.fs`) **and regenerate the `wire-format-fixtures/` corpus + `schema.json`** (`dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <workspace-root>/wire-format-fixtures` – the same command writes the corpus payloads *and* the schema), and
 5. **bump every non-reference codec host in the §11.0 roster** to match – the F# reference is covered by steps 1–4; each *other* codec host gets the same encoder/decoder (+ schema-shape) update: the TypeScript host's `@fuaran-ui/schema` shape + `@fuaran-ui/ui` smart-ctor (when applicable) + TS encoder/decoder, and the equivalent codec update in the Python (`fuaran-py`), Go (`fuaran-go`), and Rust (`fuaran-rs`) hosts. The render-projection surfaces (Swift/Kotlin) take a renderer arm, **not** a codec change – see §11.0, and
-6. **update the in-repo authoring veneers + analyzer vocabulary** (applies to `NodeKind` cases – ops/bindings have no veneer surface): the C# fluent-factory facade ([`src/Fuaran.UI.CSharp/`](../fuaran/src/Fuaran.UI.CSharp/) – a factory + options record for the new kind, plus its conformance expectations), the VB XML-literal mapping ([`src/Fuaran.UI.VisualBasic/Mapping/`](../fuaran/src/Fuaran.UI.VisualBasic/Mapping/) – an element registration driving that factory), and the VB analyzer's embedded vocabulary ([`src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs`](../fuaran/src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs) – the kind name, any new structural sub-elements, and their attribute rows).
+6. **update the in-repo authoring veneers + analyzer vocabulary** (applies to `NodeKind` cases – ops/bindings have no veneer surface): the C# fluent-factory facade ([`src/Fuaran.UI.CSharp/`](../fuaran-dotnet/src/Fuaran.UI.CSharp/) – a factory + options record for the new kind, plus its conformance expectations), the VB XML-literal mapping ([`src/Fuaran.UI.VisualBasic/Mapping/`](../fuaran-dotnet/src/Fuaran.UI.VisualBasic/Mapping/) – an element registration driving that factory), and the VB analyzer's embedded vocabulary ([`src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs`](../fuaran-dotnet/src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs) – the kind name, any new structural sub-elements, and their attribute rows).
 
 **Native render surfaces (roster render projections).** A `NodeKind` addition also obliges a renderer
 arm in every render-projection surface – the Swift/Kotlin native tiers
@@ -916,10 +949,10 @@ Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate 
 
 ## 12. Regenerating / consuming the corpus
 
-The corpus is generated from the F# fixture values (the authoritative `Node`/`TreeOp` constructions in [`Fixtures.fs`](../fuaran/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) + [`RejectFixtures.fs`](../fuaran/src/Fuaran.UI.JsonDecode.Tests/RejectFixtures.fs)):
+The corpus is generated from the F# fixture values (the authoritative `Node`/`TreeOp` constructions in [`Fixtures.fs`](../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) + [`RejectFixtures.fs`](../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/RejectFixtures.fs)):
 
 ```powershell
-# from fuaran/
+# from fuaran-dotnet/
 dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus ..\wire-format-fixtures
 ```
 
@@ -949,7 +982,7 @@ Third-party implementations do not need to hand-build the harness above: the pub
 The corpus ships a machine-readable **Draft 2020-12 JSON Schema** at [`wire-format-fixtures/schema.json`](./schema.json) – the third co-equal expression of this contract, alongside this prose spec and the fixture corpus. It is the enabling input for provider-native constrained emission, a drop-in artefact for external validators and editor tooling, and a second executable check on the wire shape.
 
 - **`$id`:** `https://fuaran.dev/wire-format/v1/schema.json`. The `/v1/` segment pins the wire-format major version (see the **Version** banner at the top of this doc).
-- **Generated, not hand-authored.** It is emitted by [`Fuaran.UI.Ops.SchemaGen`](../fuaran/src/Fuaran.UI.Ops/SchemaGen.fs) – a structural hand-walk of the same DU surface [`CanonicalJson.fs`](../fuaran/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs) walks, so it *describes* the canonical JSON the encoder produces (and the decoder accepts) rather than introducing a parallel contract. It is regenerated by the same `--emit-corpus` command that writes the fixture payloads (§12).
+- **Generated, not hand-authored.** It is emitted by [`Fuaran.UI.Ops.SchemaGen`](../fuaran-dotnet/src/Fuaran.UI.Ops/SchemaGen.fs) – a structural hand-walk of the same DU surface [`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs) walks, so it *describes* the canonical JSON the encoder produces (and the decoder accepts) rather than introducing a parallel contract. It is regenerated by the same `--emit-corpus` command that writes the fixture payloads (§12).
 - **Shape.** DU positions encode as `oneOf` of branch objects, each pinned by a `$type` `const` discriminator (an unrecognised `$type` matches no branch – mirroring `UNKNOWN_DU_CASE` / `WRONG_NODE_KIND`). Bare-string enums (§3.5) encode as `{ "type":"string", "enum":[…] }`. Closure slots (§4) are the `const "<closure>"`. Opaque `Binding.Static` values (§5) are `true` (any JSON); structured JSON payload positions (rule 12) are likewise `true` – any JSON except `null`, which the decoder rejects – the schema deliberately does not constrain content the encoder cannot decompose. Wire-omitted fields (§9, §10.1) are absent from the schema. The schema does **not** set `additionalProperties:false`, matching the decoder's tolerance of unknown keys (§2 rule 2). The top-level schema is `oneOf: [ {$ref Node}, {$ref TreeOp} ]`; `$defs/Node` and `$defs/TreeOp` are exposed directly for hosts that want to validate one shape.
 - **Conformance.** `SchemaConformanceTests.fs` validates every accept-fixture (must validate) and every reject-fixture (must fail) against `schema.json` using an off-the-shelf Draft 2020-12 validator, and runs the stale-schema guard (§11). The schema describes the *existing* wire shape only – it introduced no change to the canonical JSON (additive-only; the fixture payloads are byte-unchanged by Phase 96).
 
@@ -966,7 +999,7 @@ by the TS and Python hosts. It has its own conformance corpus at
 [`wire-format-fixtures/markdown/corpus.json`](./markdown/corpus.json) and its
 own cross-host gate, mirroring §11.1. The supported GFM subset, the IN/OUT/DEFERRED buckets, and the
 Phase 292 behaviour change (npm `marked` + Markdig removed) are documented in
-[`MARKDOWN.md`](../fuaran/docs/MARKDOWN.md).
+[`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md).
 
 ---
 
@@ -1049,6 +1082,14 @@ and `encode(decode(x)) == encode(verbose(x))`.
   **non-conformant** – an AI author must be host-independent.
 - A conformant decoder **MUST NOT** extend the profile with shorthands not listed here (a private
   leniency is a second dialect and a silent cross-host divergence).
+**What earns a place in this profile (Phase 673).** A shorthand is admitted only when it is a
+**genuine assist to the emitting model** — evidence that models actually produce that form, and that
+its intent is unambiguous. §16's own origin is exactly that: 38 of 122 first-time parse failures in
+the first 0.2.0 cohort. **Backward compatibility is NOT an admission ground.** Accepting a superseded
+spelling so that older output still parses is a deprecation seam, and §1.1 rules those out for this
+language. The distinction matters because the two are easy to confuse in review: both look like
+"the decoder accepts more", but only one of them pays for itself at the point where models fail.
+
 - The profile is **enforced by the corpus**: the `lenient-accept` fixture family
   (`wire-format-fixtures/lenient/`, manifest kind `lenient-accept`) asserts
   `encode(decode(shorthandInput)) == expectedFile` for every shorthand. A host's conformance run
@@ -1343,7 +1384,7 @@ own shape is normative here. F# (`Fuaran.UI.OpStream.Abstractions`) and TypeScri
 
 ## See also
 
-- [`MARKDOWN.md`](../fuaran/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
-- [`STABILITY.md`](../fuaran/STABILITY.md) → "Wire format" – the stability declaration + breaking-change criteria.
-- [`AI_AUTHORING_GUIDE.md`](../fuaran/docs/AI_AUTHORING_GUIDE.md) "Self-checking before you emit" – the encoder-side pre-emit gate; the wire format is what it validates against.
-- [`../src/Fuaran.UI/Types.fs`](../fuaran/src/Fuaran.UI/Types.fs) – the §4b record contract this format serialises.
+- [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
+- [`STABILITY.md`](../fuaran-dotnet/STABILITY.md) → "Wire format" – the stability declaration + breaking-change criteria.
+- [`AI_AUTHORING_GUIDE.md`](../fuaran-dotnet/docs/AI_AUTHORING_GUIDE.md) "Self-checking before you emit" – the encoder-side pre-emit gate; the wire format is what it validates against.
+- [`../src/Fuaran.UI/Types.fs`](../fuaran-dotnet/src/Fuaran.UI/Types.fs) – the §4b record contract this format serialises.

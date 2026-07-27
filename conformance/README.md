@@ -1,6 +1,6 @@
 # Cross-implementation wire-format conformance runner
 
-The mechanical enforcement of the **forward-coupling rule** ([`WIRE_FORMAT.md` §11](../../fuaran/docs/WIRE_FORMAT.md)) **across the three conformant hosts** of the canonical Fuaran UI wire format:
+The mechanical enforcement of the **forward-coupling rule** ([`WIRE_FORMAT.md` §11](../../fuaran-dotnet/docs/WIRE_FORMAT.md)) **across the three conformant hosts** of the canonical Fuaran UI wire format:
 
 - the **F#** `Fuaran.UI` tier (`CanonicalJson` encoder + `JsonDecode` decoder),
 - the **TypeScript** `@fuaran-ui/ops` tier (`encodeNode`/`encodeOp` + `decodeNode`/`decodeOp`), and
@@ -14,7 +14,7 @@ The committed [`wire-format-fixtures/`](..) corpus **is** the F# encoder's canon
 
 | Leg | Runner | Proves |
 |---|---|---|
-| **A — F#** | `dotnet run --project fuaran/src/Fuaran.UI.JsonDecode.Tests -c Release` (Expecto: `RoundTrip` + `Reject` + `SchemaConformance`) | The **current** F# encoder/decoder re-produces the committed corpus byte-for-byte, and every payload is schema-valid (+ the stale-schema guard). ⇒ `F# == corpus`. |
+| **A — F#** | `dotnet run --project fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests -c Release` (Expecto: `RoundTrip` + `Reject` + `SchemaConformance`) | The **current** F# encoder/decoder re-produces the committed corpus byte-for-byte, and every payload is schema-valid (+ the stale-schema guard). ⇒ `F# == corpus`. |
 | **B — cross-host (TS)** | `node cross-host-conformance.mjs` (this directory) | The TS `@fuaran-ui/ops` codec, run over the same corpus, produces canonical output **byte-identical to the F# canonical form** and **schema-valid** against `schema.json` (off-the-shelf Draft 2020-12 validator, `ajv`). ⇒ `TS == corpus`. |
 | **E — Python** | `python -m pytest` in `fuaran-py/` (`test_roundtrip` + `test_reject` + `test_canonical_numbers` + `test_schema_conformance` + `test_bridge` + `test_corpus_sync` + `test_generative_parity`) | The `fuaran_py` codec re-encodes the corpus **byte-identical to the F# canonical form**, surfaces the canonical reject code/path, matches the canonical float layout (§5), re-encodes to **schema-valid** wire (Draft 2020-12, `jsonschema`), and certifies through the kit's stdio bridge. ⇒ `Python == corpus`. |
 
@@ -51,7 +51,7 @@ npm install
 npm run conformance
 
 # 3. (the F# leg, for completeness)
-dotnet run --project ..\..\fuaran\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release
+dotnet run --project ..\..\fuaran-dotnet\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release
 ```
 
 A green run prints `✓ cross-implementation conformance: 85 fixtures …` and exits `0`. Any divergence prints a per-fixture report (fixture id, kind, host, byte offset + a `F#`/`TS` context window with a `^` caret) and exits `1`.
@@ -70,7 +70,7 @@ Move-Item -Force ..\..\fuaran-ts\packages\ops\dist\index.js.bak ..\..\fuaran-ts\
 
 ## Generative cross-host parity (Phase 101)
 
-The two-leg gate above pins each host to the **fixed** corpus. [`property-cross-host.mjs`](property-cross-host.mjs) extends parity to the **generated** tree-space the curated fixtures can't reach: the F# FsCheck generators and the TS `fast-check` arbitraries ([`fuaran/src/Fuaran.UI.JsonDecode.Tests/Generators.fs`](../../fuaran/src/Fuaran.UI.JsonDecode.Tests/Generators.fs) / [`fuaran-ts/packages/ops/test/arbitraries.ts`](../../fuaran-ts/packages/ops/test/arbitraries.ts)) cover every DU arm, and the generators emit only the **cross-host-safe** value subspace (plain-decimal int53 floats etc. — `.NET "R"` and JS `toString()` agree there byte-for-byte; see `WIRE_FORMAT.md` §5).
+The two-leg gate above pins each host to the **fixed** corpus. [`property-cross-host.mjs`](property-cross-host.mjs) extends parity to the **generated** tree-space the curated fixtures can't reach: the F# FsCheck generators and the TS `fast-check` arbitraries ([`fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Generators.fs`](../../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Generators.fs) / [`fuaran-ts/packages/ops/test/arbitraries.ts`](../../fuaran-ts/packages/ops/test/arbitraries.ts)) cover every DU arm, and the generators emit only the **cross-host-safe** value subspace (plain-decimal int53 floats etc. — `.NET "R"` and JS `toString()` agree there byte-for-byte; see `WIRE_FORMAT.md` §5).
 
 Two extra legs, run after Legs A/B (samples land in the git-ignored `fuzz-samples/`):
 
@@ -83,11 +83,11 @@ Two extra legs, run after Legs A/B (samples land in the git-ignored `fuzz-sample
 
 ```powershell
 $s = "$PWD\fuzz-samples"
-dotnet run --project ..\..\fuaran\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release -- --emit-fuzz-samples $s 300
+dotnet run --project ..\..\fuaran-dotnet\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release -- --emit-fuzz-samples $s 300
 node property-cross-host.mjs                                                                                   # Leg C (F# → TS)
-dotnet run --project ..\..\fuaran\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release -- --check-fuzz-samples $s   # Leg D (TS → F#)
+dotnet run --project ..\..\fuaran-dotnet\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release -- --check-fuzz-samples $s   # Leg D (TS → F#)
 ```
 
 ## Layout note (separate-repo CI)
 
-`fuaran/`, `fuaran-ts/`, `fuaran-py/`, and the workspace repo (which owns `wire-format-fixtures/` + this runner + the workflow) are **separate git repos** cloned side-by-side. Leg B resolves the TS host at `../../fuaran-ts/packages/ops/dist/index.js`, Leg E resolves the corpus at `../wire-format-fixtures` from `fuaran-py/`, and both resolve the corpus at `..`, so they require the canonical workspace layout on disk. The CI workflow assembles that layout by checking out all repos into the right relative paths — see the workflow's header comment for the cross-repo checkout token requirement.
+`fuaran-dotnet/`, `fuaran-ts/`, `fuaran-py/`, and the workspace repo (which owns `wire-format-fixtures/` + this runner + the workflow) are **separate git repos** cloned side-by-side. Leg B resolves the TS host at `../../fuaran-ts/packages/ops/dist/index.js`, Leg E resolves the corpus at `../wire-format-fixtures` from `fuaran-py/`, and both resolve the corpus at `..`, so they require the canonical workspace layout on disk. The CI workflow assembles that layout by checking out all repos into the right relative paths — see the workflow's header comment for the cross-repo checkout token requirement.

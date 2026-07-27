@@ -211,7 +211,7 @@ for (const d of failures) {
 console.error(
   `  The two hosts disagree on the canonical wire format. Per WIRE_FORMAT.md §11 the\n` +
     `  encoder + decoder + schema + corpus + BOTH host implementations move in one commit.\n` +
-    `  Regenerate the corpus from F# (\`dotnet run --project fuaran/src/Fuaran.UI.JsonDecode.Tests\n` +
+    `  Regenerate the corpus from F# (\`dotnet run --project fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests\n` +
     `  -- --emit-corpus wire-format-fixtures\`) and bring the TS @fuaran-ui/ops codec into line.\n`,
 );
 process.exit(1);

@@ -4,7 +4,7 @@
   "genesisPreviousHash": "0000000000000000000000000000000000000000000000000000000000000000",
   "records": [
     { "opFixture": "ops/op-removenode.json", "sequence": 1, "actor": {"kind":"human","id":"u"}, "promptId": null, "result": {"kind":"success"}, "timestampUnixSeconds": 1700000000, "previousHash": "0000000000000000000000000000000000000000000000000000000000000000", "hash": "914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c" },
-    { "opFixture": "ops/op-movenode.json", "sequence": 2, "actor": {"kind":"agent","model":"claude","version":"4.8","id":"planner"}, "promptId": "p-42", "result": {"kind":"success"}, "timestampUnixSeconds": 1700000001, "previousHash": "914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c", "hash": "ec60c763225cbd6c4c70188bf1a22f4cdda167f5b8b9e607cf3dbd239bab290f" },
-    { "opFixture": "ops/op-reorderchildren.json", "sequence": 3, "actor": {"kind":"human","id":"u"}, "promptId": null, "result": {"kind":"success"}, "timestampUnixSeconds": 1700000002, "previousHash": "ec60c763225cbd6c4c70188bf1a22f4cdda167f5b8b9e607cf3dbd239bab290f", "hash": "a2ed44276ae522d539636c6e5d11ccda76843e2e29b47fa71f300246a026dcac" }
+    { "opFixture": "ops/op-movenode.json", "sequence": 2, "actor": {"kind":"agent","model":"claude","version":"4.8","id":"planner"}, "promptId": "p-42", "result": {"kind":"success"}, "timestampUnixSeconds": 1700000001, "previousHash": "914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c", "hash": "5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05" },
+    { "opFixture": "ops/op-reorderchildren.json", "sequence": 3, "actor": {"kind":"human","id":"u"}, "promptId": null, "result": {"kind":"success"}, "timestampUnixSeconds": 1700000002, "previousHash": "5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05", "hash": "2b195656cc9bda16bdf52c4550ffde1c73a2b6ddb6c222aa3d64f19b231e9da4" }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "schema": "schema.json",
-  "description": "Fuaran canonical wire-format conformance corpus. node-round-trip / op-round-trip fixtures: decode inputFile, re-encode, assert byte-equal to expectedFile. reject fixtures: decode inputFile, assert DecodeError.Code = expectedErrorCode and DecodeError.Path starts with expectedPath. lenient-accept fixtures (WIRE_FORMAT 16): decode the SHORTHAND inputFile, re-encode, assert byte-equal to expectedFile (the verbose canonical form) — a conformant host MUST accept the shorthand and normalise it; rejecting it, or decoding it to different bytes, is non-conformant. envelope-round-trip / envelope-reject fixtures (WIRE_FORMAT 15): read the $profile/$payload envelope, negotiate the authored profile against the host's own core@1.0, then either re-render byte-equal to expectedFile (Current/Behind — unknown kinds preserved verbatim, must-ignore-but-preserve) or refuse a Foreign profile with expectedErrorCode FOREIGN_PROFILE at expectedPath. elicitation-round-trip / elicitation-reject fixtures (WIRE_FORMAT 18): decode with the decoder-named entry point (elicitation = the envelope codec, elicitation-outcome = the outcome codec), then either re-encode byte-equal to expectedFile or assert the structured refusal (expectedErrorCode at a path starting with expectedPath). elicitation-answer-accept / elicitation-answer-reject fixtures (WIRE_FORMAT 18.4): the inputFile pairs {answer, contract}; run the host's answer-conformance validation and assert acceptance or the expected refusal. See fuaran/docs/WIRE_FORMAT.md.",
+  "description": "Fuaran canonical wire-format conformance corpus. node-round-trip / op-round-trip fixtures: decode inputFile, re-encode, assert byte-equal to expectedFile. reject fixtures: decode inputFile, assert DecodeError.Code = expectedErrorCode and DecodeError.Path starts with expectedPath. lenient-accept fixtures (WIRE_FORMAT 16): decode the SHORTHAND inputFile, re-encode, assert byte-equal to expectedFile (the verbose canonical form) — a conformant host MUST accept the shorthand and normalise it; rejecting it, or decoding it to different bytes, is non-conformant. envelope-round-trip / envelope-reject fixtures (WIRE_FORMAT 15): read the $profile/$payload envelope, negotiate the authored profile against the host's own core@1.0, then either re-render byte-equal to expectedFile (Current/Behind — unknown kinds preserved verbatim, must-ignore-but-preserve) or refuse a Foreign profile with expectedErrorCode FOREIGN_PROFILE at expectedPath. elicitation-round-trip / elicitation-reject fixtures (WIRE_FORMAT 18): decode with the decoder-named entry point (elicitation = the envelope codec, elicitation-outcome = the outcome codec), then either re-encode byte-equal to expectedFile or assert the structured refusal (expectedErrorCode at a path starting with expectedPath). elicitation-answer-accept / elicitation-answer-reject fixtures (WIRE_FORMAT 18.4): the inputFile pairs {answer, contract}; run the host's answer-conformance validation and assert acceptance or the expected refusal. See fuaran-dotnet/docs/WIRE_FORMAT.md.",
   "kinds": [
     "Badge",
     "Box",
@@ -371,46 +371,6 @@
       "inputFile": "envelope/envelope-unknown-required-profile.json",
       "expectedFile": "envelope/envelope-unknown-required-profile.json",
       "description": "Behind unknown kind declaring requiredProfile core@1.4 — preserved + degrade label surfaced (WIRE_FORMAT 15.3)"
-    },
-    {
-      "id": "legacy-upgrade-card",
-      "kind": "lenient-accept",
-      "decoder": "node",
-      "inputFile": "lenient/legacy-upgrade-card.json",
-      "expectedFile": "lenient/legacy-upgrade-card.expected.json",
-      "description": "Legacy `Card` tag decode-upgrades to a Flex/Card Box preserving the heading (Phase 390)"
-    },
-    {
-      "id": "legacy-upgrade-dashboard",
-      "kind": "lenient-accept",
-      "decoder": "node",
-      "inputFile": "lenient/legacy-upgrade-dashboard.json",
-      "expectedFile": "lenient/legacy-upgrade-dashboard.expected.json",
-      "description": "Legacy `Dashboard` tag decode-upgrades to an Auto/Dashboard Box (Phase 390)"
-    },
-    {
-      "id": "legacy-upgrade-gridlayout",
-      "kind": "lenient-accept",
-      "decoder": "node",
-      "inputFile": "lenient/legacy-upgrade-gridlayout.json",
-      "expectedFile": "lenient/legacy-upgrade-gridlayout.expected.json",
-      "description": "Legacy `GridLayout` tag decode-upgrades to a Grid/Group Box (Phase 390)"
-    },
-    {
-      "id": "legacy-upgrade-stack",
-      "kind": "lenient-accept",
-      "decoder": "node",
-      "inputFile": "lenient/legacy-upgrade-stack.json",
-      "expectedFile": "lenient/legacy-upgrade-stack.expected.json",
-      "description": "Legacy `Stack` tag decode-upgrades to a Flex/Group Box (Phase 390)"
-    },
-    {
-      "id": "legacy-upgrade-table",
-      "kind": "lenient-accept",
-      "decoder": "node",
-      "inputFile": "lenient/legacy-upgrade-table.json",
-      "expectedFile": "lenient/legacy-upgrade-table.expected.json",
-      "description": "Legacy `Table` tag decode-upgrades to a static read-only DataGrid (Phase 393)"
     },
     {
       "id": "lenient-022-lvr-emphasis-loud",
@@ -827,6 +787,14 @@
       "inputFile": "nodes/btn-invoke.json",
       "expectedFile": "nodes/btn-invoke.json",
       "description": "Input/Button (Phase 283 — Action.Invoke capability effect)"
+    },
+    {
+      "id": "btn-json-payloads",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/btn-json-payloads.json",
+      "expectedFile": "nodes/btn-json-payloads.json",
+      "description": "Input/Button (Notify / SetState / AiTool — JSON payloads)"
     },
     {
       "id": "btn-read-workbook",
@@ -1943,13 +1911,13 @@
       "description": "Top-level kind 'Widget' is not a recognised node kind"
     },
     {
-      "id": "reject-wrongtype-dashboard-children",
+      "id": "reject-wrongtype-box-children",
       "kind": "reject",
       "decoder": "node",
-      "inputFile": "reject/reject-wrongtype-dashboard-children.json",
+      "inputFile": "reject/reject-wrongtype-box-children.json",
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.children",
-      "description": "Dashboard children is object not array"
+      "description": "Box children is object not array"
     },
     {
       "id": "reject-wrongtype-discriminator",
