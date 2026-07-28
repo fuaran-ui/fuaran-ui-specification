@@ -965,8 +965,17 @@ authoritative.**
 
 Adding a new `NodeKind` / `Spec` / `TreeOp` / `Binding<'T>` / `Action<'Msg>` case MUST, **in the same commit**:
 
-1. update the encoder ([`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs)),
-2. update the decoder ([`JsonDecode.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/JsonDecode.fs)),
+1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
+   declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/fuaran-ui/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
+   regenerating (`dotnet run --project tests/Fuaran.Core.Tests -- --regen-snapshots`) and syncing
+   (`fuaran-dotnet` [`scripts/sync-generated-layer.ps1`](../fuaran-dotnet/scripts/sync-generated-layer.ps1))
+   emits the generated `Fuaran.UI.Generated` module — the **type, canonical encoder, structural
+   decoder and `mk` constructor** for the case, never hand-edited. There is no hand-written node
+   encoder to update: the F# op codec ([`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs))
+   splices the generated encoder and adding a kind does not touch it. _(A `TreeOp` case is the
+   exception — the op envelope codec itself is hand-maintained there.)_
+2. update the **policy decoder** ([`JsonDecode.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/JsonDecode.fs)) —
+   the diagnostics / §16 lenient-accept layer above the generated structural decoder,
 3. update the **JSON Schema generator** ([`SchemaGen.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/SchemaGen.fs)) – add the new `$type` branch / `$def` so the schema keeps describing the wire shape exactly,
 4. add a fixture to [`Fixtures.fs`](../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) (or a reject case to `RejectFixtures.fs`) **and regenerate the `wire-format-fixtures/` corpus + `schema.json`** (`dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <workspace-root>/wire-format-fixtures` – the same command writes the corpus payloads *and* the schema), and
 5. **bump every non-reference codec host in the §11.0 roster** to match – the F# reference is covered by steps 1–4; each *other* codec host gets the same encoder/decoder (+ schema-shape) update: the TypeScript host's `@fuaran-ui/schema` shape + `@fuaran-ui/ui` smart-ctor (when applicable) + TS encoder/decoder, and the equivalent codec update in the Python (`fuaran-py`), Go (`fuaran-go`), and Rust (`fuaran-rs`) hosts. The render-projection surfaces (Swift/Kotlin) take a renderer arm, **not** a codec change – see §11.0, and
