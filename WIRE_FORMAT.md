@@ -317,6 +317,10 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 **`FormFieldKind.Range` (0.2.0)** is the dual-thumb numeric range control (absorbing the retired `FilterKind.RangeFilter`): `{"$type":"Range","onChange"?:"<closure>","value":<Binding<float*float>>,"min"?:<number>,"max"?:<number>,"step"?:<number>}`. A `Static` pair rides as the **bare** `{"max":<number>,"min":<number>}` object – no `Static` envelope (the Phase 423 range shape, kept as the canonical bytes); a decoder also accepts the `[min,max]` two-element array leniently (the §3.6 bare-array coercion) and the enveloped form. In a filter context the `value` may be omitted per the auto-binding rule. `min`/`max`/`step` bounds are omitted when absent (rule 4).
 
+**`FormFieldKind.DateRange` (0.7.0)** is the single-control date range – `Range`'s pair mechanics with `Date`'s value conventions: `{"$type":"DateRange","onChange"?:"<closure>","value":<Binding<string*string>>,"variant":"Date"|"Time"|"DateTime","min"?:<string>,"max"?:<string>,"step"?:<number>}`. The pair is `(from, to)`, each an ISO-8601 string in the `variant`'s shape (`YYYY-MM-DD` / `HH:MM` / `YYYY-MM-DDTHH:MM`), and it is **ordered**: a *literal* pair whose `from` sorts after its `to` is a decode error (`WRONG_TYPE` at the `value` path, with a message naming the rule – see `reject/reject-daterange-unordered.json`). Same-variant ISO-8601 strings compare lexicographically in chronological order, so the check is an ordinal string compare – no date parsing, no locale, total for every variant. A bound pair is not checked; its ordering is a runtime concern.
+
+A `Static` pair rides as the **bare** `{"from":<iso>,"to":<iso>}` object – no `Static` envelope, exactly the `Range` posture above; a decoder also accepts the `[from,to]` two-element array leniently (the §3.6 bare-array coercion, `lenient/lenient-daterange-bare-array.json`) and the enveloped form (`lenient/lenient-daterange-static-envelope.json`). `variant` is always emitted; `min` / `max` (ISO strings) and `step` (seconds) bound **both** ends and are omitted when absent (rule 4), mirroring `RangedNumber`. In a filter context the `value` may be omitted per the auto-binding rule, and the pair then binds **one** filter param, not two – the reason the case exists rather than two coordinated `Date` fields. See `nodes/form-date-range.json` (all three variants + bound combinations) and `nodes/filters-date-range.json` (the auto-bound chip).
+
 `Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (`dateStyle` bare-enum), `RelativeTime` (`unit` bare-enum). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
@@ -624,6 +628,7 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 | `SparklineSpec.source` | `float seq` | array of numbers (rule 5 layout) | `[]` |
 | `MapSpec.source` | `MapMarker seq` | array of `{"label":<TextSource>,"latitude":<number>,"longitude":<number>}` | `[]` |
 | `FormFieldKind.Range.value` | `float * float` | bare `{"max":<number>,"min":<number>}` – no `Static` envelope (Phase 423 shape, kept at 0.2.0) | – (both bounds always present) |
+| `FormFieldKind.DateRange.value` | `string * string` | bare `{"from":<iso>,"to":<iso>}` – no `Static` envelope (the `Range` posture, 0.7.0); ordered, `from <= to` by ordinal compare | – (both ends always present) |
 
 The typed encoding applies at the binding's `State.defaultValue` position too, and recursively through `Local.initialFrom` – the whole `Binding` in a typed slot is typed, not just the `Static` case.
 
@@ -739,6 +744,7 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.RangedNumber` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.SegmentedChoice` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 
 _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
 
