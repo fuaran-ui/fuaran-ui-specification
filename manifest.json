@@ -1434,7 +1434,7 @@
       "decoder": "node",
       "inputFile": "nodes/table-1.json",
       "expectedFile": "nodes/table-1.json",
-      "description": "Visualisation/Table"
+      "description": "Visualisation/Grid (static-table mode — staticRows; absorbed the retired Table kind)"
     },
     {
       "id": "tabs-1",
