@@ -24,6 +24,10 @@ Fixtures are **generated** by the reference implementation's emitter, which prov
 family's law at generation time — do not hand-edit fixture payloads; corpus updates arrive
 as regenerated sets.
 
+**Accepted ≠ preferred.** Conformance ranks nothing: a host must accept every lenient form, but an
+*emitting* host or authoring surface should also read WIRE_FORMAT.md §16.1 ("Emitter preference"),
+which states which of the accepted forms to write.
+
 ## Licence
 
 Apache-2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

@@ -522,6 +522,9 @@ admitted); a bare **object without `$type`** in a Binding slot – more plausibl
 than a `Static` value; and `null` in a Binding slot (ambiguous with absent). Pinned cross-host by
 `lenient/lenient-shape-*` fixtures.
 
+This table is a decoder obligation – it says what is **accepted**, not which form to write. For which
+of these forms an *author* should emit, see §16.1 (Emitter preference).
+
 **The `Fact` kind (same date).** The complementary kind the same evidence demanded: a labeled
 TEXT fact (`{"$type":"Fact","label":…,"value":…}` – "Patient: Alice Smith"). `Metric` stays
 numeric-only by design (widening it would leave `trend`/`format` semantically dead for text);
@@ -1124,6 +1127,40 @@ hash-identical – a comparer that needs spelling-independence compares post-app
 hashes.
 
 The profile is additive and does not change the negotiated wire version (§15).
+
+### 16.1 Emitter preference – accepted is not the same as preferred
+
+§16 and the shape-coercion table in §3.6 say what a decoder **MUST accept**. They deliberately say
+nothing about which of the accepted forms an author should *write*, and the choice is otherwise
+rediscovered by every emitting surface. This subsection states it once. It binds **authoring
+emissions only** – any surface producing a tree for the first time, whether generated or built
+through a programmatic authoring API – and it is a **SHOULD**: nothing here narrows what a conformant
+decoder accepts, and an emission that ignores it is still conformant, merely more verbose than it
+needs to be.
+
+**Why it is worth stating.** Several accepted forms are strictly more compact than the verbose form
+they normalise to, and the verbose form is the one an author reaches for by default. The difference
+is not only emission budget: a long run of low-information literal tokens – a `validity` mask that is
+`true` all the way down, a `schema` restating types the cells already carry – is an error surface in
+its own right. The longer the mechanical run, the more chances to drop an element, mis-align a column
+against its neighbour, or disagree with the data sitting beside it. Preferring the compact form
+removes the run rather than checking it.
+
+| Prefer | Over | Rule |
+|---|---|---|
+| a column as a bare array – `"amount": [100, 200]` | `{"values":[100,200],"validity":[true,true]}` | an embedded `Transform` source column whose cells are **all valid** SHOULD be emitted bare. The wire has no JSON null, so the bare array already denotes all-present – the mask carries no information (§3.6) |
+| an embedded `Transform` source with **no** `schema` | `"schema":[{"name":"amount","type":"int"},…]` | when every column's type is **inferable** – `string` / `int` / `float` / `bool` – `schema` SHOULD be omitted and left to inference. Emit it explicitly only where inference cannot decide: an empty or mixed column, or a `date` / `timestamp` type, which never infers (§3.6) |
+| a `Static` source carrying the values | a `Binding.Transform` whose `pipeline` is `[]` | literal data the author already holds SHOULD be emitted as the slot's own `Static` source. `Transform` is the declarative-**compute** case; with an empty pipeline it buys a schema, a columnar re-shaping of data already in hand, and an empty step array, for no computation. Reach for it when the pipeline does work – `filter` / `groupBy` / `sort` / `derive`. (§5.1 still governs *survivability* where a slot's `Static` payload is not one the language enumerates; this row ranks compactness, it does not re-rank that boundary) |
+
+The same preference for the omitted form applies to every omitted-when-default field (§3.6): an
+emission carrying only the semantic fields is the preferred one, not merely an accepted one.
+
+**Boundary – canonical encoding is UNCHANGED.** Every row above is about which accepted form an
+author emits, never about what a host produces. `encode(decode(x))` still emits the canonical
+envelope form in each case – a bare column re-encodes to `{values, validity}`, an inferred schema
+re-encodes explicitly, a `Static` payload re-encodes per §5 – exactly as §16's normalisation law
+requires. Hosts' byte-parity conformance legs (§11) are therefore untouched by this subsection, and
+no round-trip or lenient-accept fixture changes on account of it.
 
 ---
 
