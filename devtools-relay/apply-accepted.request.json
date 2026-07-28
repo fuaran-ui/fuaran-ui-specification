@@ -1,0 +1,18 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-9",
+  "type": "apply",
+  "payload": {
+    "op": {
+      "$type": "UpdateProp",
+      "path": "Columns[0].Label",
+      "target": "grid-1",
+      "value": "Channel name"
+    },
+    "attribution": {
+      "actor": "fuaran-devtools",
+      "reason": "renamed column from the inspector"
+    }
+  }
+}

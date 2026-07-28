@@ -1,0 +1,11 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-1",
+  "type": "refusal",
+  "payload": {
+    "class": "NOT_OPTED_IN",
+    "requestType": "hello",
+    "message": "The relay is not enabled on this host."
+  }
+}

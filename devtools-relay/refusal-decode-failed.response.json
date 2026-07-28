@@ -1,0 +1,17 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-14",
+  "type": "refusal",
+  "payload": {
+    "class": "DECODE_FAILED",
+    "requestType": "apply",
+    "message": "The op is not a recognised TreeOp.",
+    "detail": {
+      "Code": "UNKNOWN_DU_CASE",
+      "Path": "$.$type",
+      "Message": "Unknown TreeOp case 'UpdatePropertyValue'.",
+      "ExpectedShape": "UpdateProp | EditNode | InsertChild | RemoveNode | MoveNode | ReorderChildren | ReplaceBinding | ReplaceRoot | Batch"
+    }
+  }
+}

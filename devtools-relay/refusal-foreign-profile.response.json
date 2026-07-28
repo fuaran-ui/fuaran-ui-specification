@@ -1,0 +1,17 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-17",
+  "type": "refusal",
+  "payload": {
+    "class": "FOREIGN_PROFILE",
+    "requestType": "hello",
+    "message": "Incompatible relay profile.",
+    "detail": {
+      "received": "relay@2.0",
+      "supported": [
+        "relay@1.0"
+      ]
+    }
+  }
+}

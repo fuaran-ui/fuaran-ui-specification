@@ -1,0 +1,11 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-13",
+  "type": "refusal",
+  "payload": {
+    "class": "POLICY_DENIED",
+    "requestType": "apply",
+    "message": "The host's policy layer refused this mutation."
+  }
+}

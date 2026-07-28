@@ -1,0 +1,18 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-2",
+  "type": "read.nodeState.ok",
+  "payload": {
+    "id": "metric-1",
+    "kind": "Metric",
+    "bindings": [
+      {
+        "slot": "Value",
+        "expression": "$state.revenue",
+        "source": "State"
+      }
+    ],
+    "childIds": []
+  }
+}

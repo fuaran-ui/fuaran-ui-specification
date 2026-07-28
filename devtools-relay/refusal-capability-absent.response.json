@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-15",
+  "type": "refusal",
+  "payload": {
+    "class": "CAPABILITY_ABSENT",
+    "requestType": "apply",
+    "message": "This host does not offer the apply capability.",
+    "detail": {
+      "capability": "apply"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-20",
+  "type": "read.bindingValue",
+  "payload": {
+    "nodeId": "metric-1",
+    "slot": "Source"
+  }
+}

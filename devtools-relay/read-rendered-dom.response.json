@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-6",
+  "type": "read.renderedDom.ok",
+  "payload": {
+    "x": 24,
+    "y": 180.5,
+    "width": 320,
+    "height": 96,
+    "overflowing": false,
+    "hidden": false
+  }
+}

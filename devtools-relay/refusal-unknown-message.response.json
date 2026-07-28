@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-16",
+  "type": "refusal",
+  "payload": {
+    "class": "UNKNOWN_MESSAGE",
+    "requestType": "read.runtimeErrors",
+    "message": "Unrecognised message type.",
+    "detail": {
+      "received": "read.runtimeErrors"
+    }
+  }
+}

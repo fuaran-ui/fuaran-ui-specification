@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-12",
+  "type": "refusal",
+  "payload": {
+    "class": "VALIDATOR_REJECT",
+    "requestType": "apply",
+    "message": "The op decoded but the apply engine rejected it.",
+    "detail": {
+      "code": "FUARAN-APPLY-ROOT-REMOVAL"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-18",
+  "type": "refusal",
+  "payload": {
+    "class": "MALFORMED_MESSAGE",
+    "requestType": "subscribe",
+    "message": "events must be a non-empty array.",
+    "detail": {
+      "path": "payload.events"
+    }
+  }
+}

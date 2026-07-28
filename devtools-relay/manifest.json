@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "profile": "relay@1.0",
+  "spec": "../DEVTOOLS_RELAY.md",
+  "description": "Fuaran DevTools relay conformance corpus (relay@1.0). Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. See ../DEVTOOLS_RELAY.md section 12.",
+  "fixtures": [
+    {
+      "id": "hello-read-only",
+      "kind": "relay-exchange",
+      "requestFile": "hello-read-only.request.json",
+      "responseFile": "hello-read-only.response.json",
+      "description": "Detection handshake against a read-only host: the five read capabilities, no apply, no subscribe. The read-only host is fully conformant (DEVTOOLS_RELAY 6.4)."
+    },
+    {
+      "id": "hello-apply-capable",
+      "kind": "relay-exchange",
+      "requestFile": "hello-apply-capable.request.json",
+      "responseFile": "hello-apply-capable.response.json",
+      "description": "Detection handshake against a host that additionally offers apply + subscribe."
+    },
+    {
+      "id": "read-node-state",
+      "kind": "relay-exchange",
+      "requestFile": "read-node-state.request.json",
+      "responseFile": "read-node-state.response.json",
+      "description": "Typed node snapshot: kind discriminator, bound binding slots with wire-form expressions, child ids (DEVTOOLS_RELAY 7.1)."
+    },
+    {
+      "id": "read-tree",
+      "kind": "relay-exchange",
+      "requestFile": "read-tree.request.json",
+      "responseFile": "read-tree.response.json",
+      "description": "Recursive structural snapshot; children mirrors childIds in order, leaves carry an empty children array (DEVTOOLS_RELAY 7.2)."
+    },
+    {
+      "id": "read-binding-value-resolved",
+      "kind": "relay-exchange",
+      "requestFile": "read-binding-value-resolved.request.json",
+      "responseFile": "read-binding-value-resolved.response.json",
+      "description": "Slot resolution, resolved status — value plus the binding identity (expression + source) the relay carries on every status (DEVTOOLS_RELAY 7.3)."
+    },
+    {
+      "id": "read-binding-value-no-override",
+      "kind": "relay-exchange",
+      "requestFile": "read-binding-value-no-override.request.json",
+      "responseFile": "read-binding-value-no-override.response.json",
+      "description": "Slot resolution, noOverride status — the slot is declared on this kind and currently holds nothing. Distinct from the SLOT_NOT_DECLARED refusal (DEVTOOLS_RELAY 7.3)."
+    },
+    {
+      "id": "read-rendered-dom",
+      "kind": "relay-exchange",
+      "requestFile": "read-rendered-dom.request.json",
+      "responseFile": "read-rendered-dom.response.json",
+      "description": "Live geometry of the node rendered element: viewport-relative box plus overflow and hidden flags (DEVTOOLS_RELAY 7.4)."
+    },
+    {
+      "id": "read-find-nodes",
+      "kind": "relay-exchange",
+      "requestFile": "read-find-nodes.request.json",
+      "responseFile": "read-find-nodes.response.json",
+      "description": "Ids of every node whose kind discriminator matches, in depth-first tree order (DEVTOOLS_RELAY 7.5)."
+    },
+    {
+      "id": "read-find-nodes-empty",
+      "kind": "relay-exchange",
+      "requestFile": "read-find-nodes-empty.request.json",
+      "responseFile": "read-find-nodes-empty.response.json",
+      "description": "An unmatched kind yields an empty array, never a refusal — \"which nodes have this kind\" has the honest answer \"none\" (DEVTOOLS_RELAY 7.5)."
+    },
+    {
+      "id": "apply-accepted",
+      "kind": "relay-exchange",
+      "requestFile": "apply-accepted.request.json",
+      "responseFile": "apply-accepted.response.json",
+      "description": "Capability-gated mutation accepted: a canonical TreeOp embedded as a JSON object, advisory attribution, and the post-op tree revision (DEVTOOLS_RELAY 8.2)."
+    },
+    {
+      "id": "subscribe",
+      "kind": "relay-exchange",
+      "requestFile": "subscribe.request.json",
+      "responseFile": "subscribe.response.json",
+      "description": "Change subscription established; the response carries a baseline tree revision so the client has a known starting point (DEVTOOLS_RELAY 8.5)."
+    },
+    {
+      "id": "unsubscribe",
+      "kind": "relay-exchange",
+      "requestFile": "unsubscribe.request.json",
+      "responseFile": "unsubscribe.response.json",
+      "description": "Subscription released. Releasing an unknown or already-released subscriptionId also returns ok — the caller desired end state is reached either way (DEVTOOLS_RELAY 8.5)."
+    },
+    {
+      "id": "changed-apply",
+      "kind": "relay-event",
+      "eventFile": "changed-apply.event.json",
+      "description": "Change event caused by a relay apply; id is the subscribe request id, treeRevision is the state after the change (DEVTOOLS_RELAY 8.5)."
+    },
+    {
+      "id": "changed-host",
+      "kind": "relay-event",
+      "eventFile": "changed-host.event.json",
+      "description": "Change event the host caused itself. A peer that cannot distinguish the cause must emit \"host\" (DEVTOOLS_RELAY 8.5)."
+    },
+    {
+      "id": "refusal-not-opted-in",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-not-opted-in.request.json",
+      "responseFile": "refusal-not-opted-in.response.json",
+      "expectedClass": "NOT_OPTED_IN",
+      "description": "MANDATED CLASS 1 of 3. The host has not opted into relay exposure; nothing about the request was examined. Applies to any request type including hello (DEVTOOLS_RELAY 8.4, 11.1)."
+    },
+    {
+      "id": "refusal-validator-reject",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-validator-reject.request.json",
+      "responseFile": "refusal-validator-reject.response.json",
+      "expectedClass": "VALIDATOR_REJECT",
+      "description": "MANDATED CLASS 2 of 3. The op decoded but is not a legal edit of this tree — the user should change the edit (DEVTOOLS_RELAY 8.3, 8.4)."
+    },
+    {
+      "id": "refusal-policy-denied",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-policy-denied.request.json",
+      "responseFile": "refusal-policy-denied.response.json",
+      "expectedClass": "POLICY_DENIED",
+      "description": "MANDATED CLASS 3 of 3. The op was understood and legal, but the host policy layer refused it — nothing the edit can fix. detail is deliberately empty: a refusal explaining why policy refused hands out a map of the policy (DEVTOOLS_RELAY 8.4, 11.5)."
+    },
+    {
+      "id": "refusal-decode-failed",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-decode-failed.request.json",
+      "responseFile": "refusal-decode-failed.response.json",
+      "expectedClass": "DECODE_FAILED",
+      "description": "The apply op is not decodable as a TreeOp. detail carries the wire format DecodeError envelope verbatim (WIRE_FORMAT 6)."
+    },
+    {
+      "id": "refusal-capability-absent",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-capability-absent.request.json",
+      "responseFile": "refusal-capability-absent.response.json",
+      "expectedClass": "CAPABILITY_ABSENT",
+      "description": "A recognised request type whose capability was not advertised. Distinct from UNKNOWN_MESSAGE: the entry point exists, this host simply does not offer it (DEVTOOLS_RELAY 6.4, 10.1)."
+    },
+    {
+      "id": "refusal-unknown-message",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-unknown-message.request.json",
+      "responseFile": "refusal-unknown-message.response.json",
+      "expectedClass": "UNKNOWN_MESSAGE",
+      "description": "A type outside the closed set. A well-formed message from a verified peer always gets an answer — silence is reserved for messages failing the origin checks (DEVTOOLS_RELAY 10.1)."
+    },
+    {
+      "id": "refusal-foreign-profile",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-foreign-profile.request.json",
+      "responseFile": "refusal-foreign-profile.response.json",
+      "expectedClass": "FOREIGN_PROFILE",
+      "description": "Profile negotiation returned Foreign — a different major is never tolerable, since it may have removed a shape this peer relies on (DEVTOOLS_RELAY 5.2)."
+    },
+    {
+      "id": "refusal-malformed-message",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-malformed-message.request.json",
+      "responseFile": "refusal-malformed-message.response.json",
+      "expectedClass": "MALFORMED_MESSAGE",
+      "description": "Structurally invalid payload — subscribe with an empty events array (DEVTOOLS_RELAY 8.5, 9.3)."
+    },
+    {
+      "id": "refusal-node-not-found",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-node-not-found.request.json",
+      "responseFile": "refusal-node-not-found.response.json",
+      "expectedClass": "NODE_NOT_FOUND",
+      "description": "No node with the requested id. For read.renderedDom a node present in the tree but not currently rendered uses reason \"not-rendered\", so a client can tell \"no such node\" from \"not on screen\" (DEVTOOLS_RELAY 7.4)."
+    },
+    {
+      "id": "refusal-slot-not-declared",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-slot-not-declared.request.json",
+      "responseFile": "refusal-slot-not-declared.response.json",
+      "expectedClass": "SLOT_NOT_DECLARED",
+      "description": "The named slot is not a binding slot on that node kind. Distinct from the noOverride STATUS, which means the slot exists and holds nothing (DEVTOOLS_RELAY 7.3)."
+    }
+  ]
+}

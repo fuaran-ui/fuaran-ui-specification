@@ -10,8 +10,9 @@ conformance corpus**.
 |---|---|
 | [`WIRE_FORMAT.md`](WIRE_FORMAT.md) | The specification. The authority on the contract — every host (F#, TypeScript, Python, Go, Rust, and any third-party implementation) implements from this document, not from another host's source. |
 | [`schema.json`](schema.json) | Canonical JSON Schema (Draft 2020-12) describing the wire shape. Generated from the reference encoder's surface — never hand-edited. |
-| [`manifest.json`](manifest.json) | The authoritative index of every fixture family and count. |
+| [`manifest.json`](manifest.json) | The authoritative index of every **wire-format codec** fixture family and count. |
 | Fixture directories (`nodes/`, `ops/`, `reject/`, `lenient/`, `envelope/`, `markdown/`, …) | The executable conformance suite: round-trip, reject, and lenient-accept families. A conformant codec must pass every assertion the manifest enumerates. |
+| [`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) + [`devtools-relay/`](devtools-relay/) | The **DevTools relay contract** — a companion specification and its own fixture family. See below. |
 
 ## Conformance
 
@@ -27,6 +28,42 @@ as regenerated sets.
 **Accepted ≠ preferred.** Conformance ranks nothing: a host must accept every lenient form, but an
 *emitting* host or authoring surface should also read WIRE_FORMAT.md §16.1 ("Emitter preference"),
 which states which of the accepted forms to write.
+
+## The DevTools relay contract
+
+[`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) specifies the **page ↔ extension relay** (`relay@1.0`): a
+`postMessage` envelope that carries a host's in-page introspection surface across the page/extension
+boundary, so a browser extension — or any same-page peer — can inspect a live Fuaran UI and, where
+the host permits, edit it.
+
+It is a **companion specification, not part of the wire format**. It is a *client of* the wire format:
+it borrows the profile-id grammar and negotiation table (WIRE_FORMAT.md §15), the `DecodeError`
+envelope (§6), and canonical `TreeOp` JSON for its one mutating entry point — and nothing else. The
+two profiles version independently.
+
+What it covers: a detection handshake with capability advertisement, five read entry points, a
+capability-gated `apply(op)`, change subscription, a closed set of ten machine-readable refusal
+classes (three of them mandated and deliberately distinct for `apply` — not-opted-in, validator
+reject, and policy denied), a defined unknown-message posture, and a normative security section
+(opt-in default-off, origin discipline, and why the relay has no side door around a host's own
+decode → validate → policy path).
+
+**A read-only host is fully conformant.** Nothing in the contract obliges a host to offer mutation;
+capabilities are the whole authorisation surface.
+
+### Enumeration
+
+The relay fixtures live in [`devtools-relay/`](devtools-relay/) and are enumerated by their **own**
+[`devtools-relay/manifest.json`](devtools-relay/manifest.json). They are deliberately **not** indexed
+by the root `manifest.json`, which indexes the canonical wire-format codec families only — the same
+posture [`merge-conformance/`](merge-conformance/) already takes. A codec host's conformance runner
+reads the root manifest and dispatches on `kind`; a relay exchange is not a codec round-trip, so
+listing it there would put entries in front of every host that each would have to learn to skip.
+
+Relay fixtures are **shape fixtures, not byte-parity fixtures**: they pin message structure and
+refusal classification, carry no canonical-ordering obligation, and are not produced by the reference
+emitter. A runner compares shapes and enumerated values — tree-revision tokens, geometry numbers,
+resolved binding values and human-readable messages are environment-specific and legitimately differ.
 
 ## Licence
 

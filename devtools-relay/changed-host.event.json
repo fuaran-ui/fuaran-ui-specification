@@ -1,0 +1,12 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "event",
+  "id": "c-10",
+  "type": "changed",
+  "payload": {
+    "subscriptionId": "s-1",
+    "event": "tree",
+    "treeRevision": "r-43",
+    "cause": "host"
+  }
+}

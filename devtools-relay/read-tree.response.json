@@ -1,0 +1,43 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-3",
+  "type": "read.tree.ok",
+  "payload": {
+    "id": "root",
+    "kind": "Box",
+    "bindings": [],
+    "childIds": [
+      "metric-1",
+      "grid-1"
+    ],
+    "children": [
+      {
+        "id": "metric-1",
+        "kind": "Metric",
+        "bindings": [
+          {
+            "slot": "Value",
+            "expression": "$state.revenue",
+            "source": "State"
+          }
+        ],
+        "childIds": [],
+        "children": []
+      },
+      {
+        "id": "grid-1",
+        "kind": "DataGrid",
+        "bindings": [
+          {
+            "slot": "Source",
+            "expression": "$queries.channels",
+            "source": "Query"
+          }
+        ],
+        "childIds": [],
+        "children": []
+      }
+    ]
+  }
+}

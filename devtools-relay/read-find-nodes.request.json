@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-7",
+  "type": "read.findNodes",
+  "payload": {
+    "kind": "Metric"
+  }
+}

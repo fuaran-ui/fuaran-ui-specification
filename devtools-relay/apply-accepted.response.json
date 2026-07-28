@@ -1,0 +1,10 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-9",
+  "type": "apply.ok",
+  "payload": {
+    "applied": true,
+    "treeRevision": "r-42"
+  }
+}

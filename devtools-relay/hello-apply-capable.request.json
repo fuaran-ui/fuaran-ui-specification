@@ -1,0 +1,13 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-1",
+  "type": "hello",
+  "payload": {
+    "client": "fuaran-devtools",
+    "clientVersion": "1.0.0",
+    "accepts": [
+      "relay@1.0"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-11",
+  "type": "unsubscribe",
+  "payload": {
+    "subscriptionId": "s-1"
+  }
+}

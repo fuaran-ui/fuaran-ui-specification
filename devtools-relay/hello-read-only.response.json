@@ -1,0 +1,20 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-1",
+  "type": "hello.ok",
+  "payload": {
+    "host": "fuaran-ts",
+    "hostVersion": "0.6.0",
+    "surfaceVersion": "0.1.0",
+    "profile": "relay@1.0",
+    "capabilities": [
+      "read.nodeState",
+      "read.bindingValue",
+      "read.renderedDom",
+      "read.tree",
+      "read.findNodes"
+    ],
+    "treeRevision": "r-41"
+  }
+}

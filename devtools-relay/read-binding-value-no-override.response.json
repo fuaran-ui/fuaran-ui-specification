@@ -1,0 +1,11 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-5",
+  "type": "read.bindingValue.ok",
+  "payload": {
+    "status": "noOverride",
+    "expression": "$none",
+    "source": "Static"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-8",
+  "type": "read.findNodes.ok",
+  "payload": {
+    "nodeIds": []
+  }
+}

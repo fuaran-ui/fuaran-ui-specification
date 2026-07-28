@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-18",
+  "type": "subscribe",
+  "payload": {
+    "events": []
+  }
+}

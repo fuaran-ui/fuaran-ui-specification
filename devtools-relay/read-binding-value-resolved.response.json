@@ -1,0 +1,12 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-4",
+  "type": "read.bindingValue.ok",
+  "payload": {
+    "status": "resolved",
+    "value": 42,
+    "expression": "$state.revenue",
+    "source": "State"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-12",
+  "type": "apply",
+  "payload": {
+    "op": {
+      "$type": "RemoveNode",
+      "target": "root"
+    }
+  }
+}

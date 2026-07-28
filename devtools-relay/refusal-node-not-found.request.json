@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "request",
+  "id": "c-19",
+  "type": "read.renderedDom",
+  "payload": {
+    "nodeId": "metric-9"
+  }
+}

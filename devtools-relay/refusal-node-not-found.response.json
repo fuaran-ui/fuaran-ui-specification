@@ -1,0 +1,15 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-19",
+  "type": "refusal",
+  "payload": {
+    "class": "NODE_NOT_FOUND",
+    "requestType": "read.renderedDom",
+    "message": "No rendered element for node 'metric-9'.",
+    "detail": {
+      "nodeId": "metric-9",
+      "reason": "not-rendered"
+    }
+  }
+}

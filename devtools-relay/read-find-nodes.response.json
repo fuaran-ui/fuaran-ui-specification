@@ -1,0 +1,12 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-7",
+  "type": "read.findNodes.ok",
+  "payload": {
+    "nodeIds": [
+      "metric-1",
+      "metric-2"
+    ]
+  }
+}

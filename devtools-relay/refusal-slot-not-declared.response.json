@@ -1,0 +1,16 @@
+{
+  "$relay": "relay@1.0",
+  "dir": "response",
+  "id": "c-20",
+  "type": "refusal",
+  "payload": {
+    "class": "SLOT_NOT_DECLARED",
+    "requestType": "read.bindingValue",
+    "message": "Slot 'Source' is not a binding slot on node 'metric-1' (kind=Metric).",
+    "detail": {
+      "nodeId": "metric-1",
+      "slot": "Source",
+      "kind": "Metric"
+    }
+  }
+}
