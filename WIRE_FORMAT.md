@@ -158,7 +158,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | _Display_ | `Heading`,`Markdown`,`Metric`,`Badge`,`Sparkline`,`Callout`,`Progress`,`Skeleton`,`LabelValueRow`,`Fact`,`Link`,`Image`,`List`,`Toast`,`CodeBlock`,`Math`,`Drawing` | the spec's fields |
 | _Input_ | `Form`,`Button`,`FileUpload`,`Select` | the spec's fields |
 | _Input_ | `Filters` | `{ "items": [ … ] }` |
-| _Visualisation_ | `DataGrid`,`Chart`,`Table`,`Map` | the spec's fields |
+| _Visualisation_ | `DataGrid`,`Chart`,`Map` | the spec's fields |
 | _(structural)_ | `Custom` | `{ "moduleId", "componentId", "props", "contentHash"?, "exposedNodeIds"? }` |
 | _(structural)_ | `ErrorBoundary` | `{ "child": <Node>, "fallback": <Node> }` |
 | _(structural)_ | `FragmentDecl` | `{ "name": <string>, "body": <Node>, "holes"?: [ <HoleDecl> ], "effect"?: <EffectClass> }` |
@@ -244,6 +244,44 @@ The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures
 
 **Overlay + overflow render-fidelity contract (Phase 289).** `Modal` / `Toast` / `ScrollArea` are render-fidelity-sensitive, so the renderers pin an explicit SSR↔CSR contract: overlays render **inline (no React portal)**, positioned + z-indexed purely by CSS, and a closed overlay stays in the DOM behind the native `[hidden]` attribute (never an absent node). The server and client therefore emit **byte-identical class + ARIA structure** (`role="dialog"`+`aria-modal` for Modal; `role="status"`+`aria-live="polite"` for Toast; `role="region"`+`tabindex="0"` for ScrollArea), so React hydration finds the DOM it expects with no mismatch. Focus management is an additive client-only enhancement that does not alter the hydrated DOM. The contract is executable in the SSR-parity corpus (Phase 142). Full narrative: `docs/SSR.md`.
 
+#### `DataGrid` static-table mode (`staticRows`, Phase 393)
+
+`DataGrid` carries **two** surfaces under one discriminator: the ordinary **data-bound grid**, and a
+**static read-only table** selected by the OPTIONAL `staticRows` field. This is where the retired
+`Table` kind's surface went (§"The `Box` container" records the retirement; `"$type":"Table"` is a
+hard decode error, not an upgrade) — one tabular kind now owns both the static and the data-bound
+form, so a host implements one decoder and one renderer branch instead of two primitives.
+
+```json
+{"$type":"DataGrid","columns":[],"source":{"$type":"Static","value":"<opaque>"},
+ "staticRows":{"headers":[<TextSource>,…],"rows":[[<TextSource>,…],…]}}
+```
+
+- **Shape.** `staticRows` is an object with exactly two REQUIRED fields: `headers`, an array of
+  `TextSource`; and `rows`, an array of rows, each row an array of `TextSource` cells. A missing
+  `headers` or `rows` is `MISSING_FIELD`; a non-array in either position is `TYPE_MISMATCH`. Both
+  arrays may be empty. The wire does **not** constrain `rows[i]` to the length of `headers` — a
+  ragged matrix decodes, and cell/header alignment is a renderer concern.
+- **`TextSource` cells.** Headers and cells are full `TextSource` values, not bare strings by type —
+  so the bare-string `Literal` (the canonical form since 0.2.0, §16 rule 1), `Bound`, and `I18n` all
+  apply inside a static table. Localisation and binding substitution therefore reach table content;
+  this is the reason the mode carries `TextSource` rather than `string`.
+- **Optionality — omitted means data-bound.** `staticRows` is emitted **only when present**
+  (rule 4). Every ordinary data-bound grid omits it, so the canonical bytes of a bound grid are
+  exactly what they were before the mode existed. `nodes/grid-1.json` pins the omitted form;
+  `nodes/table-1.json` pins the present form.
+- **Mode semantics.** `staticRows` present ⇒ the node **is** a static read-only table: a conformant
+  renderer emits semantic `<table>` markup from the headers and cells, and **ignores `source` and
+  `columns`** entirely. The mode is **non-interactive** — no row-click surface, no editing, no cell
+  kinds; a static table participates in no store write-back.
+- **What `source` / `columns` carry canonically.** They remain REQUIRED fields of the spec (§13), so
+  a static-mode grid still emits both, carrying the degenerate values the encoder produces for a
+  table that has no data feed and no column model: `"columns":[]` and `"source"` the opaque `Static`
+  sentinel `{"$type":"Static","value":"<opaque>"}` (§5 — an `obj seq` source is residual-opaque).
+  An emitter authoring a static table SHOULD write exactly those two values; see
+  `nodes/table-1.json`, which is the byte-exact canonical corner for the whole mode. A decoder MUST
+  NOT read meaning into either field when `staticRows` is present.
+
 #### Parameterised fragments (`holes` / `effect` / `args`)
 
 A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares typed **holes**, a ref **applies** it by binding **args**. These fields are **additive** – a zero-hole, pure-deterministic decl omits `holes`+`effect` and a zero-arg ref omits `args`, so a fixed-body fragment is byte-identical to the pre-parameterisation shape (the degenerate case).
@@ -263,7 +301,7 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 `$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). Field names and presence are pinned by the corpus.
 
-`Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to `Binding<obj seq>` use at a data-bearing node (`DataGrid` / `Chart` / `Table` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source. See `nodes/grid-transform.json` for the canonical shape.
+`Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to `Binding<obj seq>` use at a data-bearing node (`DataGrid` / `Chart` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source. See `nodes/grid-transform.json` for the canonical shape.
 
 **`Binding.Transform` params (Phase 424).** The Transform binding gains an OPTIONAL `params` field: `"params":[{"from":<Binding>,"name":<string>},…]`, each entry binding a `ColExpr.param` name the pipeline references (a `{"$type":"param","name":…}` scalar expression, `fuaran-core#77`) to a scalar `Binding` source (`Filter` / `State` / `Static` / `Selection`). **Omitted when empty**, so a param-free Transform is byte-identical to the Phase 282 wire. The host resolves each param to a `Cell`, prunes any `filter` step whose params are unbound (an unset choice filter ⇒ no constraint – the one lenient UI rule), and evaluates the pipeline in that env – so a `filter` step comparing a `col` to a `param` scopes the rows by a live filter/state value, the declarative-data twin of `Query.dependsOn`. The filter→consumer edge is *derived* from the pipeline's params, never separately declared. See `nodes/grid-transform-param.json` (a filter param from a chip) vs the byte-unchanged `nodes/grid-transform.json`.
 
@@ -563,7 +601,7 @@ Every function-typed payload the encoder cannot observe renders as the sentinel 
 - `Action.ReadFileBody(file, encoding, _)` → `file.Id` carried as the `fileRef` string + `encoding` as a bare enum; the blob (`file.Handle`) never serialises and `onRead` is `"<closure>"`. The decoded `FileRef` carries `Handle = None`.
 - `FormFieldKind.*` `onChange` / `onToggle`; `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` stay always-emitted closures decoding to a no-op action.
 - `CellKindErased.*` handlers (`onEdit` / `onToggle` / `onClick` / `get` / `labelFn` / `hrefFn` / `toneFn` / `fractionFn` / `fn`).
-- `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `TableSpec.OnRowClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`.
+- `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`. (There is no separate table spec record: a static table is the `staticRows` mode of `GridSpec` (§3.2) and is non-interactive, so it contributes no closure slot.)
 - `Binding.Query` / `Binding.Selection` accessors – 0.2.0: **OFF the wire entirely** (the encoder omits the `accessor` key; no decoder ever read it). A decoded case synthesises the **identity projection** (Phases 421/427), so the host-fed `queryResults` / store-written selection flows through. `Binding.Computed` `fn`, `Column.Value`, `GridSpec.RowKey` keep their `"<closure>"` sentinels.
 - `Binding.Local` `onCommit` / `format` / `parse` (the `flushOn` DU and `initialFrom` binding ARE encoded).
 - `StateBehaviour.OnError` (the whole `ErrorPayload -> Node` callback).
@@ -708,10 +746,14 @@ _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind
 
 | Case | Wire | Recoverable alternative |
 |---|---|---|
-| `VisKind.DataGrid` | partial | use Column.Field + CellFormat instead of a closure Value; RowKeyField instead of RowKey; the click write-back default for OnRowClick |
+| `VisKind.DataGrid` | partial | use Column.Field + CellFormat instead of a closure Value; RowKeyField instead of RowKey; the click write-back default for OnRowClick; for a **static text table** use the survivable `staticRows` mode (§3.2) rather than a literal row payload on `source`, which erases to `"<opaque>"` |
 | `VisKind.Chart` | partial | – |
-| `VisKind.Table` | partial | – |
 | `VisKind.Map` | partial | – |
+
+`GridSpec.staticRows` is itself **survivable**: its `TextSource` headers and cells round-trip
+value-faithfully, so a static table's content is visible to op-stream replay, structural diffing,
+and every host — unlike the `obj seq` row payload a data-bound grid's `source` carries. There is no
+separate table spec record on the wire (§3.2); the retired `Table` kind's surface lives here.
 
 **`CellKindErased`**
 
@@ -1151,6 +1193,7 @@ removes the run rather than checking it.
 | a column as a bare array – `"amount": [100, 200]` | `{"values":[100,200],"validity":[true,true]}` | an embedded `Transform` source column whose cells are **all valid** SHOULD be emitted bare. The wire has no JSON null, so the bare array already denotes all-present – the mask carries no information (§3.6) |
 | an embedded `Transform` source with **no** `schema` | `"schema":[{"name":"amount","type":"int"},…]` | when every column's type is **inferable** – `string` / `int` / `float` / `bool` – `schema` SHOULD be omitted and left to inference. Emit it explicitly only where inference cannot decide: an empty or mixed column, or a `date` / `timestamp` type, which never infers (§3.6) |
 | a `Static` source carrying the values | a `Binding.Transform` whose `pipeline` is `[]` | literal data the author already holds SHOULD be emitted as the slot's own `Static` source. `Transform` is the declarative-**compute** case; with an empty pipeline it buys a schema, a columnar re-shaping of data already in hand, and an empty step array, for no computation. Reach for it when the pipeline does work – `filter` / `groupBy` / `sort` / `derive`. (§5.1 still governs *survivability* where a slot's `Static` payload is not one the language enumerates; this row ranks compactness, it does not re-rank that boundary) |
+| a `DataGrid` with `staticRows` | a `DataGrid` whose literal rows sit in `source` | a **static table of literal text** SHOULD be authored as the `staticRows` mode (§3.2). This row ranks **survivability**, not compactness: `staticRows` cells are `TextSource` and round-trip value-faithfully, whereas a grid `source` carrying literal rows is a non-enumerated `Static` payload and erases to `"<opaque>"` (§5.1) – the content is simply gone from the re-encoded tree. The preference is stated for *literal text* tables; how a **data-bound** grid should best carry its rows is ranked by the rows above, not here |
 
 The same preference for the omitted form applies to every omitted-when-default field (§3.6): an
 emission carrying only the semantic fields is the preferred one, not merely an accepted one.
