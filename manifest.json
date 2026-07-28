@@ -565,6 +565,38 @@
       "description": "Fact (the new labeled text-fact kind) — explicit-default `tone`/`emphasis` decode and canonicalise away (omitted-when-default on both boundaries from day one), and the bare-string TextSource shorthand applies to `label`/`value`. The canonical minimal Fact is exactly the two-field form models want to write."
     },
     {
+      "id": "lenient-filterable-static-dashboard-compact",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-filterable-static-dashboard-compact.json",
+      "expectedFile": "lenient/lenient-filterable-static-dashboard-compact.expected.json",
+      "description": "Phase 719 — the compact authoring twin of `filterable-static-dashboard`: all-valid columns as bare arrays (Core#88) and the inferable schema omitted; the canonical envelope stays the encoder's output. The pack teaches this form by example — the exemplar/prose contradiction measurably taught the envelope (claude-opus 81% envelope share, 2026-07-28 census)."
+    },
+    {
+      "id": "lenient-grid-field-named-compact",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-grid-field-named-compact.json",
+      "expectedFile": "lenient/lenient-grid-field-named-compact.expected.json",
+      "description": "Phase 719 — the compact authoring twin of `grid-field-named`: all-valid columns as bare arrays (Core#88) and the inferable schema omitted; the canonical envelope stays the encoder's output. The pack teaches this form by example — the exemplar/prose contradiction measurably taught the envelope (claude-opus 81% envelope share, 2026-07-28 census)."
+    },
+    {
+      "id": "lenient-grid-transform-param-compact",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-grid-transform-param-compact.json",
+      "expectedFile": "lenient/lenient-grid-transform-param-compact.expected.json",
+      "description": "Phase 719 — the compact authoring twin of `grid-transform-param`: all-valid columns as bare arrays (Core#88) and the inferable schema omitted; the canonical envelope stays the encoder's output. The pack teaches this form by example — the exemplar/prose contradiction measurably taught the envelope (claude-opus 81% envelope share, 2026-07-28 census)."
+    },
+    {
+      "id": "lenient-master-detail-preselected-compact",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-master-detail-preselected-compact.json",
+      "expectedFile": "lenient/lenient-master-detail-preselected-compact.expected.json",
+      "description": "Phase 719 — the compact authoring twin of `master-detail-preselected`: all-valid columns as bare arrays (Core#88) and the inferable schema omitted; the canonical envelope stays the encoder's output. The pack teaches this form by example — the exemplar/prose contradiction measurably taught the envelope (claude-opus 81% envelope share, 2026-07-28 census)."
+    },
+    {
       "id": "lenient-null-static-options",
       "kind": "lenient-accept",
       "decoder": "node",
@@ -603,6 +635,14 @@
       "inputFile": "lenient/lenient-opaque-static-values.json",
       "expectedFile": "lenient/lenient-opaque-static-values.expected.json",
       "description": "Pre-429 opaque multi-select values decode to the tagged placeholder list and re-encode typed"
+    },
+    {
+      "id": "lenient-scalar-transform-composition-compact",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-scalar-transform-composition-compact.json",
+      "expectedFile": "lenient/lenient-scalar-transform-composition-compact.expected.json",
+      "description": "Phase 719 — the compact authoring twin of `scalar-transform-composition`: all-valid columns as bare arrays (Core#88) and the inferable schema omitted; the canonical envelope stays the encoder's output. The pack teaches this form by example — the exemplar/prose contradiction measurably taught the envelope (claude-opus 81% envelope share, 2026-07-28 census)."
     },
     {
       "id": "lenient-shape-binding-scalar-fraction",
