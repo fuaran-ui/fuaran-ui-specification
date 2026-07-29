@@ -1,0 +1,36 @@
+name: Notify cross-host conformance gate
+
+# This repo is the canonical wire-format specification + conformance corpus. Every
+# conformant host certifies against it, so a push HERE is precisely the change the
+# cross-implementation conformance gate exists to check — yet a corpus-only push
+# (a fixture regeneration, a spec-text edit) previously fired nothing: path
+# filters in the gate's own repo cannot see pushes to THIS repo, and the nightly
+# schedule was the only backstop. This minimal workflow closes that gap by
+# POSTing a `wire-conformance` repository_dispatch to the repo whose
+# wire-conformance workflow listens on `repository_dispatch: types:
+# [wire-conformance]` — the same mechanism the host repos already use on their
+# own push-to-main.
+#
+# Requires a repo/Actions secret WORKSPACE_DISPATCH_TOKEN — a fine-grained PAT or
+# GitHub App token with `Contents: write` on the dispatch target (the scope the
+# repository_dispatch REST endpoint requires; classic-PAT equivalent is the
+# `repo` scope). The default GITHUB_TOKEN is scoped to THIS repo only and cannot
+# dispatch cross-repo.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cross-host wire-format conformance gate
+        env:
+          GH_TOKEN: ${{ secrets.WORKSPACE_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/fuaran-ui/workspace/dispatches \
+            --method POST \
+            -f event_type=wire-conformance \
+            -f 'client_payload[source_repo]=fuaran-ui-specification' \
+            -f 'client_payload[sha]=${{ github.sha }}'
