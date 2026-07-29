@@ -958,12 +958,22 @@ the cheap side of the host/surface line precisely because it inherits the certif
 Rust core rather than re-implementing one – the §11 forward-coupling tax lands on `fuaran-rs` once and
 the native surface rides it.
 
-A machine-readable mirror of this roster (plus a generated kind enumeration) is the intended
-executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
+A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
+the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
 authoritative.**
 
-Adding a new `NodeKind` / `Spec` / `TreeOp` / `Binding<'T>` / `Action<'Msg>` case MUST, **in the same commit**:
+Adding a case to **any discriminator family on the wire** MUST, **in the same commit**, do all of the
+following. A *discriminator family* is any union whose members are distinguished by a `$type` tag —
+`NodeKind` and the per-kind `Spec`s are the visible ones, but the rule is deliberately stated over the
+whole class, because the families nested *inside* a spec are exactly the ones that get missed:
+`FormFieldKind` (the control vocabulary shared by `Form.fields[]` and `Filters.items[]`),
+`CellKindErased` / `CellFormat` / `CellValue` / `ColumnWidth` (grid columns), `Binding<'T>`,
+`Action<'Msg>`, `TextSource`, `Format`, `LayoutKind` / `BoxLayout` / `DisplayKind` / `VisKind` /
+`InputKind`, `Shape` / `CurveCommand` (drawing), `HoleDecl` / `HoleValueSpace` / `FragmentArg` /
+`Scalar` / `EffectClass` (fragments), `LocalFlushTrigger`, `CallResultTarget`, and `TreeOp`. A case
+added to any of them is invisible to the F# compiler at the wire boundary in every host but the
+reference, so only the corpus and the §11.2 attestations can catch it.
 
 1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
    declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/fuaran-ui/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
@@ -1004,6 +1014,36 @@ Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate 
 - **`fuaran-go` (Go) / `fuaran-rs` (Rust):** each host pins itself to the **same** corpus in its own repo's conformance suite (`fuaran-go/conformance/`, `fuaran-rs/tests/conformance.rs`), consuming the workspace corpus directly (no bundled snapshot). ⇒ `Go == corpus`, `Rust == corpus`.
 
 **Enforcement topology (current).** Legs A–E run in the workspace CI gate `.github/workflows/wire-conformance.yml`, driving [`wire-format-fixtures/conformance/`](./conformance/); the host repos POST a `repository_dispatch` on push-to-main so a host-side change fires the workspace gate. The Go and Rust legs run in their own repos' `run.ps1` suites today; their **workspace** CI legs (so a corpus change fails centrally for all five codec hosts, not only F#/TS/Python) are pending. A one-byte divergence in any host's encoder turns its leg red with a per-fixture byte diff naming the fixture, host, and first differing byte. This is the mechanical enforcement of the forward-coupling rule **across the roster** – see [`wire-format-fixtures/conformance/README.md`](./conformance/README.md).
+
+### 11.2 Vocabulary attestation (the discriminator-family enumerations)
+
+Step 5's byte-identity legs certify that every host agrees on the fixtures the corpus *contains*. They
+say nothing about a case a host has never met — a host that simply lacks a decode arm for a new
+discriminator still passes every fixture that does not exercise it, and the corpus grows a fixture the
+unadopted host quietly skips or fails as an ordinary decode error attributable to anything.
+**Vocabulary attestation is the separate leg that names the gap.**
+
+`manifest.json` therefore carries a generated enumeration per attested family, derived from the encoded
+node fixtures by `Corpus.emit` (never hand-authored), and each codec host pins its own declared
+vocabulary against it in **both** directions — *the manifest names a case this host lacks* and *this
+host declares a case the corpus does not know*. Both failures name the offending case, so the report is
+"host X lacks `DateRange`", not a diff.
+
+| Manifest array | Family | Wire position(s) | Attested in |
+|---|---|---|---|
+| `kinds` | `NodeKind` | `$.kind.$type`, recursively | all five codec hosts (since the kind-set pin landed) |
+| `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python; Go and Rust pending |
+
+**Match a carrier by its parent discriminator, never by property name.** `DataGrid.columns[].kind.$type`
+is a `CellKindErased` and shares the token `Text` with `FormFieldKind`; a sweep keyed on the property
+name `kind` under any array silently attests the wrong family and reports green.
+
+Every other family in the list above is **unattested**: a case added to one of them is caught only by
+the fixture it ships with, in the hosts that decode that fixture. Their case sets *are* already
+published — `schema.json` carries a `$defs` entry per family with a `const` `$type` per case — so the
+attestation is extendable without a further manifest change; the families are enumerated here so the
+scope is a stated one rather than an assumed one. Adding a family to the table above is the way to
+close one.
 
 ---
 
