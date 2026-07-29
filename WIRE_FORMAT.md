@@ -969,11 +969,17 @@ following. A *discriminator family* is any union whose members are distinguished
 whole class, because the families nested *inside* a spec are exactly the ones that get missed:
 `FormFieldKind` (the control vocabulary shared by `Form.fields[]` and `Filters.items[]`),
 `CellKindErased` / `CellFormat` / `CellValue` / `ColumnWidth` (grid columns), `Binding<'T>`,
-`Action<'Msg>`, `TextSource`, `Format`, `LayoutKind` / `BoxLayout` / `DisplayKind` / `VisKind` /
-`InputKind`, `Shape` / `CurveCommand` (drawing), `HoleDecl` / `HoleValueSpace` / `FragmentArg` /
-`Scalar` / `EffectClass` (fragments), `LocalFlushTrigger`, `CallResultTarget`, and `TreeOp`. A case
-added to any of them is invisible to the F# compiler at the wire boundary in every host but the
-reference, so only the corpus and the §11.2 attestations can catch it.
+`Action<'Msg>`, `CallResultTarget`, `TextSource`, `Format` / `LocaleSource`, `BoxLayout`,
+`Shape` / `CurveCommand` (drawing), `HoleDecl` / `HoleValueSpace` / `FragmentArg` / `Scalar`
+(fragments), `LocalFlushTrigger`, and `TreeOp`. A case added to any of them is invisible to the F#
+compiler at the wire boundary in every host but the reference, so only the corpus and the §11.2
+attestations can catch it.
+
+`LayoutKind` / `DisplayKind` / `VisKind` / `InputKind` are **not** separate families for this purpose:
+they are the NodeKind primitive groups (WIRE_FORMAT §3.2), and their `$type`s *are* NodeKind names, so
+`manifest.kinds` already enumerates them. `EffectClass` is a record, not a `$type` union. Both are
+called out because a list of families that quietly over- or under-counts is the failure this section
+exists to end.
 
 1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
    declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/fuaran-ui/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
@@ -1038,12 +1044,14 @@ host declares a case the corpus does not know*. Both failures name the offending
 is a `CellKindErased` and shares the token `Text` with `FormFieldKind`; a sweep keyed on the property
 name `kind` under any array silently attests the wrong family and reports green.
 
-Every other family in the list above is **unattested**: a case added to one of them is caught only by
-the fixture it ships with, in the hosts that decode that fixture. Their case sets *are* already
-published — `schema.json` carries a `$defs` entry per family with a `const` `$type` per case — so the
-attestation is extendable without a further manifest change; the families are enumerated here so the
-scope is a stated one rather than an assumed one. Adding a family to the table above is the way to
-close one.
+Every other family named above is **unattested**: a case added to one of them is caught only by the
+fixture it ships with, in the hosts that decode that fixture. Most of their case sets *are* already
+published — `schema.json` carries a `$defs` entry per family, with a `const` `$type` per case — so
+those are extendable without a further manifest change. Two shapes are not directly readable that way
+and would need the manifest route this phase took: `TextSource`, whose §16 bare-string shorthand makes
+one `oneOf` branch a plain string rather than a discriminated object, and any family whose cases are
+spread across sibling `$defs`. The families are enumerated so the scope is a stated one rather than an
+assumed one. Adding a row to the table above is the way to close one.
 
 ---
 
