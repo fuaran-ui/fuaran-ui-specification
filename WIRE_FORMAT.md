@@ -465,6 +465,7 @@ read-compat):
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle`, `FactSpec` |
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |
+| `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` – the tone for a value the `map` does not mention (Phase 750) |
 | `editable` | `bool` | `false` | `GridSpec` (DataGrid) – 0.2.0 |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` – 0.2.0 |
 | `dismissable` | `bool` | `false` | `CalloutSpec` – 0.2.0 |
@@ -539,8 +540,14 @@ normalises to the canonical name. Pinned cross-host by the `lenient/lenient-alia
 | `ColumnErased` | `header`, `title` | `label` |
 | form field | `name` | `id` |
 | `Box` / `Modal` / `Disclosure` / `SummaryList` / `Callout` | `title` | `heading` |
+| `CellKindErased.TonedPill` | `toneMap`, `tones` | `map` – 2026-07-30 (Phase 750); `map` is the shortest honest name for a value→tone dictionary and the least descriptive |
 
 (`title` is scoped: `Chart.title` and `Drawing.title` are *real canonical fields* and take no alias.)
+
+The **enum-value** aliases above apply inside a `TonedPill`'s `map` values and its `default` exactly
+as they do at a `tone` field (`Danger`→`Critical`, `Positive`→`Success`, `Neutral`→`Default`) – the map
+values are an ordinary `ToneVariant` position, and a host that read them through a second, private
+tone reader would diverge. Pinned by `lenient/lenient-tonedpill-tone-aliases`.
 
 **Lenient-ingest SHAPE coercions (decode-only; 2026-07-17).** The same admission law extended from
 *names* to *structure*, driven by observed authoring data (two independent models emitted a choice
@@ -557,6 +564,7 @@ objects). A shape is coerced only when the foreign shape can denote **exactly on
 | `Grid` layout with **no** `cols`/`columns`/`templateColumns` | `{"$type":"Grid"}` | `{"$type":"Auto"}` – the CSS auto-grid prior maps to the language's existing responsive auto-tile layout (accept-and-canonicalise) |
 | embedded `Transform` source with **no** `schema` | `{"columns":{…}}` | the explicit-schema form – column types INFER deterministically from the cells (all-int→int, any fractional→float, all-bool→bool, all-string→string; NEVER date/timestamp; empty/mixed → didactic reject). Authority: the Fuaran.Core columnar codec (fuaran-core#88); 2026-07-18 |
 | embedded `Transform` source column as a bare **array** | `"amount": [100, 200]` | `{"values":[…],"validity":[true,…]}` – the just-the-data prior; the wire has no JSON null, so a bare array can only mean all-present. Same authority; 2026-07-18 |
+| grid column `kind` tagged `{"$type":"Pill"}` **carrying** `map` / `toneMap` / `tones` | `{"$type":"Pill","field":"status","map":{…}}` | `{"$type":"TonedPill","field":"status","map":{…}}` – "pill" is the word for the thing, so the declarative tone rule arrives under the closure case's tag. Unambiguous: a closure `Pill` carries only `labelFn`/`toneFn` and can never carry a tone map. **This coercion prevents silent data loss**, not merely a parse failure: before Phase 750 the extra keys were accepted and DISCARDED, so the author's whole intent vanished with no error at any host. 2026-07-30 |
 
 Refused, per the law: the value→label **map** form (`"options": {"A":"Alpha"}`) – JSON object key
 order IS meaningful for a displayed option list (contrast `params`, a keyed set, where the map is
@@ -594,7 +602,7 @@ default is neutral there: vertical and horizontal stacks are both common). Pinne
 
 ### The declarative floor (Phase 430)
 
-The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`). A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
+The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
 
 ## 4. Closure-bearing slots → `"<closure>"`
 
@@ -773,7 +781,8 @@ separate table spec record on the wire (§3.2); the retired `Table` kind's surfa
 | `CellKindErased.Button` | partial | – |
 | `CellKindErased.ButtonGroup` | partial | – |
 | `CellKindErased.Link` | **host-only** | Column.Field projecting the href row property + a Text cell |
-| `CellKindErased.Pill` | **host-only** | – |
+| `CellKindErased.Pill` | **host-only** | `CellKindErased.TonedPill` – a `field` + value→tone `map`, fully wire-expressible |
+| `CellKindErased.TonedPill` | survivable | – |
 | `CellKindErased.Progress` | **host-only** | – |
 | `CellKindErased.Custom` | **host-only** | – |
 
