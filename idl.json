@@ -134,6 +134,19 @@
     },
     {
       "cases": [
+        "polite",
+        "assertive",
+        "off"
+      ],
+      "hostCases": [
+        "Polite",
+        "Assertive",
+        "Off"
+      ],
+      "name": "LiveRegionKind"
+    },
+    {
+      "cases": [
         "Inline",
         "Block"
       ],
@@ -2532,13 +2545,8 @@
             "$type": "optional"
           },
           "type": {
-            "$type": "hosted",
-            "hostSurface": {
-              "decode": "Fuaran.UI.HostPrelude.decLiveRegionKind",
-              "encode": "Fuaran.UI.HostPrelude.encLiveRegionKind",
-              "fsharp": "Fuaran.UI.HostPrelude.LiveRegionKind"
-            },
-            "wire": "json"
+            "$type": "enum",
+            "name": "LiveRegionKind"
           }
         },
         {
