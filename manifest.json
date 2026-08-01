@@ -1329,6 +1329,14 @@
       "description": "Display/Markdown"
     },
     {
+      "id": "master-detail-multi-field",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/master-detail-multi-field.json",
+      "expectedFile": "nodes/master-detail-multi-field.json",
+      "description": "Layout/Box (master-detail — ONE selection feeding N slots, each projecting a DIFFERENT field)"
+    },
+    {
       "id": "master-detail-preselected",
       "kind": "node-round-trip",
       "decoder": "node",
