@@ -1115,6 +1115,33 @@ The corpus ships a machine-readable **Draft 2020-12 JSON Schema** at [`wire-form
 - **Shape.** DU positions encode as `oneOf` of branch objects, each pinned by a `$type` `const` discriminator (an unrecognised `$type` matches no branch – mirroring `UNKNOWN_DU_CASE` / `WRONG_NODE_KIND`). Bare-string enums (§3.5) encode as `{ "type":"string", "enum":[…] }`. Closure slots (§4) are the `const "<closure>"`. Opaque `Binding.Static` values (§5) are `true` (any JSON); structured JSON payload positions (rule 12) are likewise `true` – any JSON except `null`, which the decoder rejects – the schema deliberately does not constrain content the encoder cannot decompose. Wire-omitted fields (§9, §10.1) are absent from the schema. The schema does **not** set `additionalProperties:false`, matching the decoder's tolerance of unknown keys (§2 rule 2). The top-level schema is `oneOf: [ {$ref Node}, {$ref TreeOp} ]`; `$defs/Node` and `$defs/TreeOp` are exposed directly for hosts that want to validate one shape.
 - **Conformance.** `SchemaConformanceTests.fs` validates every accept-fixture (must validate) and every reject-fixture (must fail) against `schema.json` using an off-the-shelf Draft 2020-12 validator, and runs the stale-schema guard (§11). The schema describes the *existing* wire shape only – it introduced no change to the canonical JSON (additive-only; the fixture payloads are byte-unchanged by Phase 96).
 
+### Canonical IDL vocabulary artefact (`idl.json`)
+
+The corpus also ships [`wire-format-fixtures/idl.json`](./idl.json) – a canonical data rendering of the **IDL**, the declarative model of this wire vocabulary. `manifest.json` points at it under the `idl` key, exactly as it points at the schema under `schema`.
+
+**The two artefacts answer different questions, and neither subsumes the other.** `schema.json` is the **validation surface**: given a payload, is it legal? `idl.json` is the **structural source**: what *is* the vocabulary? A JSON Schema is lossy about precisely the things a vocabulary consumer needs, because validation does not need them:
+
+- **Optionality collapses.** Draft 2020-12 can say a property is `required`; it has no way to say "omitted when equal to this value". So every omit-at-default field (§3.6) is indistinguishable from a plain optional one in the schema, and the identity default **value** is absent entirely. `idl.json` carries a four-way optionality class per field – `required` / `optional` / `omitDefault` (with the default value) / `hostOnly` – which is what makes §3.6 and §9 mechanically derivable rather than prose-only.
+- **Unions flatten** into `oneOf` branches; `idl.json` keeps the union, its named cases, its type parameters, and its transparent case (the bare-value encoding of `TextSource.Literal`, §3.5).
+- **Host-surface declarations have nowhere to live** in a schema at all.
+
+Consequences for a consumer:
+
+- **Where they disagree about legality, `schema.json` governs** – it is the artefact validators actually run, and the fixture corpus is the arbiter above both.
+- **Today the two are independent expressions of one vocabulary, not one derived from the other.** `schema.json` is emitted by a structural hand-walk of the same DU surface the encoder walks (above); `idl.json` is emitted from the IDL. Each carries its own regenerate-and-byte-compare drift guard, and the shared fixture corpus is what holds them to the same contract. Do not assume a change to one has reached the other.
+- **`hostSurface` keys are not wire spec.** Function-typed slots (`fn`) and host-codec slots (`hosted`) carry the host-language declarations the F# and TypeScript tiers generate from. Nothing in them is observable on the wire – the accompanying `wire` key states the fixed wire form (`"<closure>"`, or arbitrary JSON) – and a host building a codec from this artefact must ignore them.
+
+- **Shape.** A single JSON object: `version` (the *encoding* version, bumped when this artefact's shape changes, never when the vocabulary does), `description`, then `kinds`, `unions`, `enums`, `records`, `defaults` and `nodeFields` (the node envelope, §3.1). Object keys are Ordinal-sorted throughout, per §2 rule 1. **Ordering is a contract, so the artefact is diffable:** the top-level collections are sorted by identity (kinds by tag; unions, enums and records by name; defaults by kind then field), so reordering a vocabulary declaration produces no diff and an addition lands as one clean insert – while *within* an entry the declared order is preserved verbatim, because union-case fields and type parameters are positional and a reorder there is a real change.
+- **Generated, not hand-authored** – and **not** by the `--emit-corpus` command that writes the fixtures and `schema.json` (§12). The encoder ([`Fuaran.Core.Idl.Artifact`](../../Fuaran-Core/src/Fuaran.Core.Idl/Idl.fs)) and the vocabulary it renders both live in the `Fuaran-Core` sibling, so the artefact is emitted from there:
+
+  ```
+  cd Fuaran-Core
+  dotnet run --project tests/Fuaran.Core.Tests -- --emit-idl ../Fuaran-UI/wire-format-fixtures
+  ```
+
+- **Conformance.** A stale-artefact guard on the `Fuaran-Core` side asserts byte-equality between the committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
+- **Scope.** The IDL models the **node** vocabulary. `TreeOp`s (§3.4) are outside it, as are decode-side policy surfaces a structural model cannot state: the §16 lenient-accept profile, the reject semantics of §6, and the §15/§17/§18 envelopes. For those, this prose spec and the corpus remain the only sources.
+
 ---
 
 ## 14. Markdown rendering (render-only; not a wire concern)
