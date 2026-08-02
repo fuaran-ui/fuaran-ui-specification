@@ -2488,6 +2488,277 @@
       }
     }
   ],
+  "ops": [
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "ops",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "list",
+            "of": {
+              "$type": "op"
+            }
+          }
+        }
+      ],
+      "tag": "Batch"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "newKind",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "kind"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "EditNode"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "child",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "node"
+          }
+        },
+        {
+          "name": "parentId",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "InsertChild"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "newParentId",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "MoveNode"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "RemoveNode"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "newOrder",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "list",
+            "of": {
+              "$type": "str"
+            }
+          }
+        },
+        {
+          "name": "parentId",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "ReorderChildren"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "binding",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "json"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
+          "name": "slot",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "ReplaceBinding"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "node",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "node"
+          }
+        }
+      ],
+      "tag": "ReplaceRoot"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "path",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "value",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "json"
+          }
+        }
+      ],
+      "tag": "UpdateProp"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "state",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "record",
+            "name": "StateBehaviour"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "UpdateState"
+    },
+    {
+      "category": "op",
+      "fields": [
+        {
+          "name": "style",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "record",
+            "name": "SemanticStyle"
+          }
+        },
+        {
+          "name": "target",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "UpdateStyle"
+    }
+  ],
   "records": [
     {
       "fields": [
