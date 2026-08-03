@@ -1442,6 +1442,14 @@
       "description": "Input/Select (multi-select — list value)"
     },
     {
+      "id": "now-environment-binding",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/now-environment-binding.json",
+      "expectedFile": "nodes/now-environment-binding.json",
+      "description": "Binding/Now (Phase 765 — the host-furnished instant: a text slot + a Transform param feeding dateDiffDays)"
+    },
+    {
       "id": "progress-1",
       "kind": "node-round-trip",
       "decoder": "node",
