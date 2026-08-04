@@ -54,7 +54,8 @@
     "RangedNumber",
     "SegmentedChoice",
     "Text",
-    "TextArea"
+    "TextArea",
+    "Toggle"
   ],
   "fixtures": [
     {
@@ -1152,6 +1153,14 @@
       "inputFile": "nodes/form-segmented.json",
       "expectedFile": "nodes/form-segmented.json",
       "description": "Input/Form (SegmentedChoice horizontal + vertical)"
+    },
+    {
+      "id": "form-toggle",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-toggle.json",
+      "expectedFile": "nodes/form-toggle.json",
+      "description": "Input/Form (Phase 766 — the Toggle switch affordance beside a Checkbox)"
     },
     {
       "id": "format-bindings",
