@@ -1035,6 +1035,14 @@
       "description": "Display/Drawing (degenerate — empty)"
     },
     {
+      "id": "empty-state-card",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/empty-state-card.json",
+      "expectedFile": "nodes/empty-state-card.json",
+      "description": "Layout/Box (Phase 767 — the canonical empty state with a CTA: one Card region, no nested Callout)"
+    },
+    {
       "id": "fact-1",
       "kind": "node-round-trip",
       "decoder": "node",
