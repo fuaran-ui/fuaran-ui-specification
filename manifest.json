@@ -1571,6 +1571,14 @@
       "description": "Switch (view state → details/summary cases + info default)"
     },
     {
+      "id": "switch-on-selection",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/switch-on-selection.json",
+      "expectedFile": "nodes/switch-on-selection.json",
+      "description": "Meta/Switch (Phase 768 — the selector widened: `on` takes a Selection, the branch follows the clicked row)"
+    },
+    {
       "id": "table-1",
       "kind": "node-round-trip",
       "decoder": "node",
