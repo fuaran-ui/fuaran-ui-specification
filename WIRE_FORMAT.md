@@ -112,7 +112,7 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
 
 11. **`obj`-typed values** (the remaining erased seams: untyped `Binding.Static` statics, a `PropValue.Native` op value) are best-effort: if the runtime type matches a recognised JSON primitive (string, bool, `int`, `int64`, `float`, `float32`, `DateTimeOffset`, `DateTime`), encode that. `DateTimeOffset`/`DateTime` encode as Unix **seconds** (`int64`). Anything else renders the sentinel `"<opaque>"`. **No reflection over arbitrary CLR objects.** The slot-typed `Static` payloads the language enumerates (options / values / series / markers / **row feeds**) bypass this rule with typed encodings – see §5 for the table and the residual-opaque boundary. Rule 11 still governs *inside* a row, at the individual cell.
 
-12. **Structured JSON payload positions** – `Custom` props, `Action.Notify` / `SetState` / `AiTool` payloads, `I18n` args, and a wire-form `UpdateProp` value – carry a structured JSON value (`JVal` on the F# host) and round-trip **faithfully at any nesting depth**: objects re-encode with Ordinal-sorted keys, numbers under rule 5, no `"<opaque>"` collapse. A JSON `null` anywhere inside such a position is **rejected at decode** (`WRONG_TYPE`, message naming the rule) – the wire model has no null (rule 4): omit the field instead.
+12. **Structured JSON payload positions** – `Custom` props, `Action.Notify` / `SetState` / `AiTool` payloads, `I18n` args, and a wire-form `UpdateProp` value – carry a structured JSON value (`JVal` on the F# host) and round-trip **faithfully at any nesting depth within the §21 resource limits**: objects re-encode with Ordinal-sorted keys, numbers under rule 5, no `"<opaque>"` collapse. (This rule read "at any nesting depth" unqualified until §21 landed, which made unboundedness normative and put the format's totality guarantee out of reach – see §21.3.) A JSON `null` anywhere inside such a position is **rejected at decode** (`WRONG_TYPE`, message naming the rule) – the wire model has no null (rule 4): omit the field instead.
 
 ### 2.1 Reserved `$`-prefixed keys
 
@@ -866,18 +866,18 @@ blocker.
 
 ---
 
-## 6. `DecodeError` envelope + the six codes
+## 6. `DecodeError` envelope + the seven codes
 
 Every wire-shape violation surfaces a **structured, recoverable** error (never a throw). The envelope:
 
 ```json
-{ "Code": "<one of the six codes>",
+{ "Code": "<one of the seven codes>",
   "Path": "<JSONPath-ish location, e.g. $.kind.text>",
   "Message": "<human/AI-readable description>",
   "ExpectedShape": "<optional hint string>" }
 ```
 
-`Path` uses a `$`-rooted dotted form; `$type` appears literally in the path when the discriminator is at fault (e.g. `$.kind.$type`). The six codes:
+`Path` uses a `$`-rooted dotted form; `$type` appears literally in the path when the discriminator is at fault (e.g. `$.kind.$type`). The seven codes:
 
 | Code | Raised when |
 |---|---|
@@ -887,8 +887,9 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `UNKNOWN_DU_CASE` | A `$type` discriminator (or bare-enum string) is not a recognised case. `ExpectedShape` enumerates valid cases. |
 | `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the flat Layout/Display/Input/Visualisation primitives (§3.2) nor Custom/ErrorBoundary/FragmentDecl/FragmentRef. Raised at `$.kind.$type`. (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
+| `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 
-The 30 reject fixtures in the corpus exercise every code; each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The 30 reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1691,6 +1692,161 @@ across encoder, decoder, corpus and every host. Fixtures pinning them are delibe
 corpus yet: the corpus is a shared gate that every host runs, so a fixture landing ahead of the hosts
 turns their builds red for a rule none of them has adopted. The fixtures land with the hosts, not
 before them.
+
+---
+
+## 21. Resource limits (normative)
+
+§6 promises that every wire-shape violation surfaces a **structured, recoverable** error, never a
+throw. That promise held on *semantics* — a wrong-typed field, an unrecognised discriminator — and
+was silent on *shape*. A decoder for this format is a recursive descent over a recursive document,
+and nothing in §1–§20 bounded the recursion. A payload of a few hundred kilobytes consisting only of
+`[[[[[…` — two bytes per level — drives a host off the end of its stack, and that is **not** a
+`DecodeError`. On several host languages it is not even a catchable condition: the .NET
+`StackOverflowException` cannot be caught and terminates the process outright, and Python's
+`RecursionError` and JavaScript's `RangeError` escape a decoder that catches only its own error
+type. Any host decoding untrusted input therefore had a one-request remote kill — and this document
+mandated it, because rule 12 required structured payloads to round-trip "at any nesting depth".
+
+This section closes that. The limits below are **part of the format**, not a per-host deployment
+choice: a document within them is a valid wire document that every conformant host MUST be able to
+decode, and a document beyond them is one that every conformant host MUST refuse, with the same
+typed error.
+
+### 21.1 The limits
+
+| Limit | Value | Bounds |
+|---|---|---|
+| **max node depth** | **24** | NODE nesting – the longest root-to-leaf chain of `Node` objects, the root counting as 1. |
+| **max JSON depth** | **256** | SYNTACTIC nesting – the depth of the underlying JSON document; every `{` and `[` counts, whether it carries a node, a spec, or a rule-12 payload. |
+| **max string length** | **1 048 576** | Characters in a single decoded JSON string. |
+| **max array length** | **100 000** | Elements in a single JSON array, and members in a single JSON object. |
+| **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
+
+**Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
+other in either direction. One tree level costs several JSON levels — a `Box` costs three (the node
+object, its `children` array, the child object) and the worst-shaped kinds about five — so a single
+figure cannot express both. More importantly they bound different things: a rule-12 structured
+payload position nests freely *within* one node and consumes no node depth at all, so the node bound
+does not constrain it and the syntactic bound is the only thing that does. 256 is chosen so that it
+comfortably admits a maximally-deep tree of any kind shape with payload room left over — a host must
+never report a node-depth breach as a syntax-depth breach, because that diagnosis sends the author to
+repair the wrong thing.
+
+**Why a total-node bound is needed once depth is bounded.** Depth, string length and array length
+together still admit a document that is hostile by being **wide**: 24 levels of 100 000 siblings is
+within every other limit. Its cost is linear in the input, but the constant is not — a decoded tree
+is far larger in memory than the bytes that produced it.
+
+**What these limits do not bound.** They bound *structure*, not total payload size, and a host still
+owns the transport-level size limit (a request-body cap) separately. The two are complementary: a
+size limit cannot express "not more than 24 levels deep", and a structural limit cannot express "not
+more than 8 MB".
+
+### 21.2 Host obligations
+
+1. A conformant host **MUST accept** any document within every limit above. Refusing one is not
+   conservatism, it is non-conformance: a tree vetted on one host would not be decodable on another.
+2. A conformant host **MUST refuse** any document exceeding any limit above, with a `LIMIT_EXCEEDED`
+   error in the §6 envelope. `Path` names the position at which the limit was breached; `Message`
+   names the limit and the observed value, so an author repairing the document knows which bound to
+   come back under. A limit breach **MUST NOT** be reported as `INVALID_JSON` — the input is
+   well-formed and merely too large to walk, and calling it malformed is an actively wrong diagnosis.
+3. The refusal **MUST NOT** be an exception, a panic, a process exit, or any escape from the host's
+   declared error type. This is the obligation the section exists for, and the one a host is most
+   likely to satisfy partially: catching a language-level recursion error is **not** equivalent to
+   counting depth, because in at least one host language the condition is not catchable at all, and
+   in others it is catchable only outside the decoder's own error contract.
+4. The bound **MUST be enforced on the way down**, before the recursion that would breach it — never
+   detected afterwards by measuring the structure that was built. A check that runs after the walk it
+   is meant to bound has already paid the cost it exists to refuse, and on a host with a hard stack
+   limit it never runs at all.
+5. **Every walk over a decoded tree is subject to the node-depth bound, not only the decoder** —
+   validation, transformation, cost accounting, and rendering alike. A document that decodes must not
+   be able to kill a later stage. Where a host's walk has a signature that cannot express refusal (a
+   total `tree -> markup` renderer, say), it MUST still bound the walk rather than recurse, and MUST
+   make the truncation observable in its output rather than silently emitting a shortened tree.
+6. A host **MAY** apply a **tighter** operational ceiling than the values above — a per-tenant node
+   budget, for instance. A tighter ceiling is deployment policy, not a conformance claim: the host
+   MUST document it, and MUST NOT describe a document it refuses under a tighter ceiling as
+   malformed.
+
+### 21.3 Amendment to rule 12
+
+Rule 12's "faithfully at any nesting depth" is amended by this section to "faithfully at any nesting
+depth within the §21 limits". Nothing else about rule 12 changes: within the bound the round-trip
+guarantee is exactly as strong as it was, and the key-ordering, number and no-null rules are
+untouched.
+
+### 21.4 How the values were chosen
+
+The node-depth figure is the only one derived from measurement rather than judgement, and it is the
+tightest, so the derivation is recorded rather than asserted. Each walk in the reference (F#) host
+was bisected for its true overflow depth, with the guards raised out of the way, on a thread with an
+explicitly-sized 1 MB stack — the platform default — in both build configurations. Because a stack
+overflow terminates the process, each probe ran as its own process; the figures are the deepest
+level that survived.
+
+| Walk | Optimised | Unoptimised | Unit |
+|---|---|---|---|
+| JSON parser | 2 095 | 805 | JSON nesting |
+| structural node decoder | 186 | 31 | tree nesting |
+| canonical encoder | 348 | – | tree nesting |
+| pre-emit validator | 294 | 151 | tree nesting |
+| server-side renderer | 67 | 30 | tree nesting |
+
+Depth scales linearly with stack size (512 KB / 1 MB / 4 MB gave 31 / 67 / 285 for the renderer), so
+these are genuine per-frame costs rather than an artefact of one stack size. The **binding
+constraint is the server-side renderer** at roughly 15 KB of stack per node level optimised and 34 KB
+unoptimised — its per-kind dispatch is one large function whose frame carries every branch's locals.
+**24** is the largest round figure that keeps a real margin on that walk in *both* configurations. A
+larger figure was rejected deliberately: 32 fits the optimised build comfortably but is past the
+unoptimised renderer's and unoptimised decoder's budget, which would leave the guard working only in
+the configuration hosts ship and not in the one they debug — and a guard with a hole is worse than a
+smaller limit, because it reads as covered.
+
+For scale, the deepest tree in this corpus is 3 levels, and a deliberately deep application tree
+(dashboard > grid > card > stack > tabs > panel > split > disclosure > form > field) reaches about
+16. Other hosts' per-frame costs will differ; the limit does not, because it is a protocol number.
+A host that measures a *tighter* budget than 24 on some walk of its own should bound that walk
+by §21.2 rule 5 rather than propose a smaller wire limit.
+
+### 21.5 Conformance status
+
+The reference (F#) host enforces all five limits. Specifically: its JSON parser enforces the
+syntactic-depth, string-length and array-length bounds; its structural decoder enforces the
+node-depth and total-node bounds; its **op** decoder enforces the same node-depth figure over
+`TreeOp.Batch` nesting, counted on its own axis; and — per rule 5 — its pre-emit validator, its
+server-side renderer and its interaction-cost accounting each enforce the node-depth bound on their
+own walks, the renderer by the visible-marker route rule 5 allows for a total signature.
+
+**A note for implementers, because it cost this host a second pass.** Bounding the node decoder is
+not sufficient. `TreeOp.Batch` makes the *op* decoder self-recursive on a separate axis, and the
+syntactic bound looks like adequate cover for it (two JSON levels per Batch level, so 256 admits only
+about 127) — it is not. On the reference host, 2.6 KB of 100 nested Batches killed the process with
+every other bound already in place. Enumerate every recursive entry point, including the ones whose
+recursion is over ops rather than nodes.
+
+The remaining hosts have **not** adopted them, and their behaviour on over-deep input is the uncaught
+language-level recursion error §21.2 rule 3 forbids:
+
+- **TypeScript** – `parseValue` / `parseObjectValue` / `parseArrayValue` are mutually recursive with
+  no counter, and neither the parser nor the `decodeNode` entry point wraps the walk in a
+  `try`/`catch`. The engine's `RangeError` is catchable in principle but is not part of the declared
+  `Result` contract, so it escapes the decoder as a throw.
+- **Python** – `decode_node` catches `ValueError` around `json.loads`, and CPython raises
+  `RecursionError` on deep nesting, which is not a `ValueError`. It escapes the same way.
+- **Go, Rust** – unassessed here; both should be measured before adopting a figure, per §21.4.
+
+Bringing each into line is a per-host change against this section, not a spec question.
+
+**Reject fixtures for this section are deliberately not in the corpus yet**, for the reason §20
+gives: the corpus is a shared gate every host runs, so a fixture landing ahead of the hosts turns
+their builds red for a rule none of them has adopted. They land with the hosts, not before them. Note
+also that a `LIMIT_EXCEEDED` fixture is unusually expensive as a corpus artefact — the smallest input
+that breaches the *smallest* limit is hundreds of kilobytes — so the eventual fixtures are likely to
+be **generated** from a rule rather than stored verbatim, which is itself a corpus-shape decision to
+take with the hosts.
 
 ---
 
