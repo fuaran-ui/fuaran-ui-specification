@@ -190,7 +190,7 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures:
 
-- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through `Sanitize.sanitizeUrlOrBlank` (SANITIZATION.md) – sanitisation is a render-time concern, not a wire constraint. `alt` is mandatory. See `nodes/image-1.json`.
+- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. See `nodes/image-1.json`.
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
@@ -1570,6 +1570,127 @@ Like §15's envelope families (and unlike the node/op families), these fixtures 
 `schema.json`'s scope** – the embedded `tree` payloads are already schema-described; the envelope's
 own shape is normative here. F# (`Fuaran.UI.OpStream.Abstractions`) and TypeScript
 (`@fuaran-ui/ops`) certify against these families; any further host certifies the same way.
+
+---
+
+## 19. Renderer URL-scheme floor (normative renderer obligation)
+
+URL-valued slots – `DisplayKind.Image.src`, `InteractiveKind.Link.href`, the `Action.Navigate`
+destination, and every other slot documented as carrying a URL – are **opaque strings on the wire**.
+The decoder does not validate them, and this section does not change that: a URL that fails the
+floor below is still a *valid wire document*, and a decoder MUST NOT reject it.
+
+What this section adds is the other half of the contract. A **rendering host** – any host that emits
+markup, or drives a live document, from a decoded tree – MUST apply the following floor to a
+URL-valued string before it reaches an `href`, `src`, or equivalent navigation/fetch sink. This was
+previously a per-host choice, which meant a tree vetted on one host was not thereby safe on another;
+it is now an obligation. Hosts that only decode, re-encode, or transform trees are unaffected.
+
+**The floor.** Given the slot's string value:
+
+1. Strip leading and trailing ASCII whitespace. An empty result is **accepted** and passed through
+   (a same-page reference; the documented HTML behaviour).
+2. Determine the scheme: the substring before the first `:` that occurs **before** any `/`, `?`, or
+   `#`. If no such `:` exists, the reference is *schemeless* – go to rule 5. Otherwise remove every
+   character at or below U+0020 from the candidate and ASCII-lowercase it, so that obfuscations such
+   as `java<TAB>script:`, `  javascript:` and `JAVASCRIPT:` all classify as `javascript`.
+3. **Accept** the scheme if and only if it is one of `http`, `https`, `mailto`, `tel`, `ftp`, `sftp`.
+4. **Reject** every other scheme. This is default-deny, not a denylist: `javascript`, `vbscript`,
+   `file` and `data` are rejected because they are known execution or exfiltration vectors, and an
+   unrecognised scheme is rejected because the floor cannot reason about it. Widening the accept set
+   is an additive, per-host-coordinated change; narrowing it is not a wire-format change at all.
+5. A schemeless reference is a relative reference and is **accepted** – *except* a
+   **protocol-relative** reference, which MUST be **rejected**. A reference is protocol-relative when
+   its first two characters are each `/` or `\`; that is, `//host`, `/\host`, `\\host` and `\/host`.
+6. On rejection the host MUST NOT emit the original value. It either omits the attribute entirely or
+   substitutes the literal `about:blank`; `about:blank` is recommended where the element would
+   otherwise be invalid or lose its semantics.
+
+**Why rule 5 is part of the floor and not an edge case.** A protocol-relative reference carries no
+scheme, so rules 2–4 never see it and the schemeless branch would admit it. But a browser resolves
+it against the *current document's* scheme and lands on the named host – which is off-origin.
+The same-origin intent that makes a schemeless reference safe simply does not hold for it. On a link
+that is off-origin navigation the tree never asked for; on an image source it is an off-origin
+request that leaks the referring URL. The backslash forms are included because WHATWG URL parsing
+treats `\` as `/` for special schemes, so all four spellings resolve identically – a floor that
+rejected only `//` would be trivially evaded.
+
+**Case folding in render-time sanitisers (normative where it applies).** A host whose sanitiser
+scans a **case-folded copy** of a string and then applies the resulting offsets to the **original**
+MUST use an **ASCII-only** fold. Locale-aware and full-Unicode folds are not length-preserving –
+U+0130 folds to two code points – so the two strings desynchronise and the host operates on the
+wrong span: it removes the wrong bytes, leaves a fragment of the construct it meant to remove, and,
+in a byte-indexed host, can split a multi-byte character and emit invalid UTF-8. The vocabulary such
+a scan matches (element names, scheme names) is ASCII, so an ASCII-only fold loses no matches. A
+host that folds and rescans without reusing offsets is unaffected.
+
+---
+
+## 20. Decode determinism (PROPOSED – NOT YET NORMATIVE)
+
+> **Status: proposal, not contract.** Nothing in this section is binding on any host, no fixture
+> pins it, and no host should be changed to conform to it before the questions below are settled and
+> every host can move together. It is recorded here so the decision has a starting point rather than
+> a blank page.
+
+§1 states the fundamental conformance property as byte-stable round-trip, and the corpus enforces it
+per fixture. That property is silent about a narrower question: given **the same input bytes**, do
+two conformant hosts produce **the same tree**, or the same rejection? Today, for a small set of
+inputs, they do not — and because every host is individually self-consistent, the corpus cannot see
+it. The divergences are all at the **JSON syntax layer**, below the `$type` dispatch this document
+otherwise specifies, which is why they escaped: §2 describes what a conformant *encoder* emits and
+has never constrained what a *decoder* must refuse.
+
+The measured behaviour, across the five codec hosts:
+
+| Input | F# (ref) | TypeScript | Python | Go | Rust |
+|---|---|---|---|---|---|
+| Duplicate object key (`{"id":"a","id":"b"}`) | **first** wins | last wins | last wins | last wins | last wins |
+| Content after the root value | accepted | accepted | **rejected** | **rejected** | accepted |
+| Overflowing exponent (`1e999`) | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` |
+| Leading `+` on a number (`+1`) | accepted → `1` | accepted → `1` | **rejected** | **rejected** | accepted → `1` |
+| Bare `NaN` / `Infinity` literal | rejected | rejected | **accepted** | rejected | rejected |
+| §7 sentinel string at a typed float slot | accepted | accepted | **rejected** | **rejected** | accepted |
+
+**Why the first row is the serious one.** The other rows differ on whether a document is *accepted*;
+a disagreement there is loud, and the stricter host simply refuses to proceed. Duplicate keys differ
+on **what the document means**, silently, with no error anywhere. A host that vets a tree and a host
+that renders it can therefore be looking at two different trees derived from identical bytes — which
+is a smuggling primitive, not merely an inconsistency. It is also the only row where the reference
+host is the outlier: it is first-wins because its object parser accumulates entries in reverse and
+then folds them into a map that lets later list entries win, so the reversed order leaves the
+*first-parsed* key standing. That is emergent, not designed.
+
+**The last row is a round-trip hole, not just a divergence.** §7 requires a decoder to accept the
+quoted `"NaN"` / `"Infinity"` / `"-Infinity"` sentinels at a float slot, and every host *emits* them.
+Two hosts do not accept them at every such slot, so a non-finite value encoded by one host does not
+decode on those hosts at all. Unlike the rows above, this one is already a §7 conformance defect
+rather than an open question, and it can be fixed per host without any spec decision.
+
+**Proposed rules, for the decision to accept, amend or reject:**
+
+1. **Duplicate keys — reject** as an `INVALID_JSON` syntax error at the object's path. Rejection is
+   the only option that cannot silently differ: both first-wins and last-wins are defensible, so a
+   host that picks the other one is wrong in a way nothing detects. It also costs nothing legitimate,
+   since no conformant encoder can emit a duplicate key. Last-wins is the fallback if rejection
+   proves incompatible with a host's parser shape; first-wins is not recommended even though the
+   reference host does it, because it is the minority behaviour and was not a decision.
+2. **Trailing content — reject.** A wire artefact is a single JSON document (§1); requiring
+   end-of-input after the root value makes that explicit and closes an obvious framing ambiguity.
+3. **Leading `+` — reject**, per RFC 8259, which does not permit it.
+4. **Bare `NaN` / `Infinity` literals — reject**, per RFC 8259. §7's quoted sentinels are the
+   specified representation for non-finite values and are unaffected.
+5. **Overflowing exponent — specify the existing behaviour** (`1e999` → the corresponding infinity)
+   rather than change it. All five hosts already agree; it is unspecified, not divergent.
+6. **§7 sentinels — bring the two hosts into line with §7** at *every* float-valued slot, including
+   float sequences, independently of rules 1–5.
+
+**What landing this requires.** Rules 1–4 are each a decoder-visible **breaking change** for at least
+one host, so they need a version/profile decision under §15 as well as a coordinated §11 change
+across encoder, decoder, corpus and every host. Fixtures pinning them are deliberately **not** in the
+corpus yet: the corpus is a shared gate that every host runs, so a fixture landing ahead of the hosts
+turns their builds red for a rule none of them has adopted. The fixtures land with the hosts, not
+before them.
 
 ---
 
