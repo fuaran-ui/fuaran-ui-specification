@@ -194,6 +194,17 @@
     },
     {
       "cases": [
+        "asc",
+        "desc"
+      ],
+      "hostCases": [
+        "Asc",
+        "Desc"
+      ],
+      "name": "SortDirection"
+    },
+    {
+      "cases": [
         "None",
         "Eyebrow",
         "Data",
@@ -3009,6 +3020,30 @@
     {
       "fields": [
         {
+          "name": "column",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "int"
+          }
+        },
+        {
+          "name": "direction",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "SortDirection"
+          }
+        }
+      ],
+      "name": "DefaultSort"
+    },
+    {
+      "fields": [
+        {
           "name": "x",
           "optionality": {
             "$type": "required"
@@ -3499,6 +3534,16 @@
     {
       "fields": [
         {
+          "name": "defaultSort",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "record",
+            "name": "DefaultSort"
+          }
+        },
+        {
           "name": "headers",
           "optionality": {
             "$type": "required"
@@ -3527,6 +3572,15 @@
                 "name": "TextSource"
               }
             }
+          }
+        },
+        {
+          "name": "sortable",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "bool"
           }
         }
       ],

@@ -254,7 +254,9 @@ form, so a host implements one decoder and one renderer branch instead of two pr
 
 ```json
 {"$type":"DataGrid","columns":[],"source":{"$type":"Static","value":[]},
- "staticRows":{"headers":[<TextSource>,…],"rows":[[<TextSource>,…],…]}}
+ "staticRows":{"defaultSort"?:{"column":<int ≥ 0>,"direction":"asc"|"desc"},
+               "headers":[<TextSource>,…],"rows":[[<TextSource>,…],…],
+               "sortable"?:<bool>}}
 ```
 
 - **Shape.** `staticRows` is an object with exactly two REQUIRED fields: `headers`, an array of
@@ -283,6 +285,54 @@ form, so a host implements one decoder and one renderer branch instead of two pr
   An emitter authoring a static table SHOULD write exactly those two values; see
   `nodes/table-1.json`, which is the byte-exact canonical corner for the whole mode. A decoder MUST
   NOT read meaning into either field when `staticRows` is present.
+
+##### Declared sort intent — `sortable` / `defaultSort` (Phase 801)
+
+`staticRows` carries two further fields, both **OPTIONAL** and both emitted only when present
+(rule 4). A table declaring neither is byte-identical to the pre-801 form — `nodes/table-1.json`
+is the anchor for that, and `nodes/table-sortable-1.json` is the canonical corner with both present.
+
+- **`sortable`** (`bool`) — the table **invites** interactive column sorting.
+
+  This is a declaration of INTENT, not a behaviour guarantee, and the distinction is the point of
+  putting it on the wire rather than leaving sorting to host policy. A host with no sorting
+  affordance is fully conformant: it renders the authored order, and a static table is complete and
+  readable without any interaction at all. A host that HAS an affordance honours the declaration with
+  whatever it has — a progressive-enhancement script over the rendered `<table>`, or a grid
+  component's own sorting.
+
+  `false` is the load-bearing value. A host that enables sorting broadly (every table on every page)
+  is expressing a default; a table saying `"sortable": false` is expressing a decision about its own
+  content — a running order, a stepwise procedure, a ranked list whose order IS the information. The
+  decision beats the default: a host MUST NOT offer sorting on a table that declares `false`, and
+  SHOULD suppress the affordance markers too, so the table never advertises an interaction it will
+  not perform.
+
+- **`defaultSort`** (`{"column": <int ≥ 0>, "direction": "asc" | "desc"}`) — the table's **initial**
+  order. `column` indexes `headers`.
+
+  This is **configuration**, not a data transform, and it is deliberately distinct from the transform
+  pipeline's `sort` (§3.3), which re-orders the DATA a binding resolves. `defaultSort` states a
+  presentation order over rows the emitter has already written, and the authored order remains
+  meaningful — a host that offers a restore-to-authored state (as the reference enhancement's
+  ascending → descending → authored cycle does) MUST keep the emitter's order reachable rather than
+  treating the declared sort as a state outside the cycle.
+
+  Declaring `defaultSort` does not imply `sortable`. The two are independent: a table may arrive
+  ordered by a column and still decline interactive re-sorting.
+
+- **Rejections.** `direction` is a closed two-value set: any other string is `UNKNOWN_DU_CASE` at
+  `$…staticRows.defaultSort.direction`, naming both legal values
+  (`reject/reject-unknown-static-sort-direction.json`). `column` is a NON-NEGATIVE integer: a
+  negative value is `WRONG_TYPE` at `$…staticRows.defaultSort.column`
+  (`reject/reject-wrongtype-static-sort-column.json`). Both are expressible in `schema.json`
+  (`enum` and `minimum: 0` respectively), so the two artefacts agree. Within `defaultSort` both
+  fields are REQUIRED — a `defaultSort` missing either is `MISSING_FIELD`.
+
+- **What is NOT rejected.** A `column` at or past `headers.length` decodes successfully. It is a
+  relation between two sibling values, which a per-object codec does not judge — the same reasoning
+  that leaves a ragged `rows[i]` to the renderer above. A host that cannot resolve the declared
+  column MUST fall back to the authored order rather than guessing at one.
 
 #### Parameterised fragments (`holes` / `effect` / `args`)
 
