@@ -199,6 +199,23 @@ The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures
 - **`CodeBlock`** (Display, Phase 290) – `{"$type":"CodeBlock","code":<string>,"copyable":<bool>,"highlightLines":[<int>,…],"language":<string>,"lineNumbers":<bool>}`. All five always present (`highlightLines` is an int array, possibly empty). The parity-checked render is a **deterministic `<pre><code>`** (HTML-escaped, no markdown library) identical across all hosts + SSR; **syntax highlighting is a client-only post-hydration enhancement** that targets the `language-{x}` class – explicitly OUTSIDE the cross-host / SSR↔CSR byte-diff. See `nodes/code-1.json`.
 - **`Math`** (Display, Phase 293) – `{"$type":"Math","display":"Inline"|"Block","source":<string>}`. `source` is the LaTeX string. The parity-checked render is a **deterministic escaped-source fallback** in a known container; **KaTeX is a client-only post-hydration enhancement** (targets `.fuaran-math-source`), OUTSIDE the byte-diff – the no-JS / SSR reader sees the source, the JS reader sees rendered math. Inline `$…$` math in prose is a separate client-only pass over rendered markdown (soft-coordinated with the deterministic GFM markdown renderer), same pattern. **Mermaid is NOT a node** – a host registers it via the existing `Custom` escape (heavy JS-only library, non-deterministic SVG); promote to a first-class `Diagram` node only if demand warrants. See `nodes/math-1.json`.
 
+#### Link protection (Phase 812)
+
+**`Link`** (Display) – `{"$type":"Link","download":<bool>,"href":<Binding>,"label":<TextSource>,"protection"?:"email","rel"?:<string>,"target"?:<string>}`.
+`rel` / `target` / `protection` omit when absent. **`protection`** is an optional closed
+enumeration naming an anti-scraper **render strategy** for the link; the only case is `"email"`,
+which marks a `mailto:` link whose address must not appear in plaintext in emitted markup. It is a
+render-strategy concern, not a content constraint: the wire carries the real `mailto:` href, and a
+decoder MUST NOT alter or validate it (the §19 floor still applies at render time). Any other
+`protection` value is rejected – `UNKNOWN_DU_CASE` at `$.kind.protection` (see
+`reject/reject-unknown-link-protection.json`). **Render-strategy note:** a server-side /
+static-markup renderer honouring `"email"` emits the sanitised href AND the label entity-encoded
+per character (a working no-JS `mailto:` anchor with no plaintext address in the document source,
+wrapped in the protected-link container class pair); a client renderer emits the same structure
+with the decoded href – the two DOMs are identical after entity decoding. A renderer that has no
+protected strategy MUST still render the link (protection is advisory to the emission strategy,
+never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protected-1.json`.
+
 #### Drawing primitive (Phase 524)
 
 **`Drawing`** (Display) – a bounded, typed vector-graphics primitive: the shared render target every
