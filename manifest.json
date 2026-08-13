@@ -22,6 +22,7 @@
     "FragmentDecl",
     "FragmentRef",
     "Heading",
+    "Icon",
     "Image",
     "LabelValueRow",
     "Link",
@@ -1299,6 +1300,14 @@
       "description": "Display/Heading"
     },
     {
+      "id": "icon-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/icon-1.json",
+      "expectedFile": "nodes/icon-1.json",
+      "description": "Display/Icon (Phase 821 — decorative, no label, Large)"
+    },
+    {
       "id": "image-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -1393,6 +1402,14 @@
       "inputFile": "nodes/metric-1.json",
       "expectedFile": "nodes/metric-1.json",
       "description": "Display/Metric"
+    },
+    {
+      "id": "metric-duration-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/metric-duration-1.json",
+      "expectedFile": "nodes/metric-duration-1.json",
+      "description": "Display/Metric (Phase 819 — CellFormat.Duration value + cell RelativeTime trend)"
     },
     {
       "id": "metric-float-17sig",
