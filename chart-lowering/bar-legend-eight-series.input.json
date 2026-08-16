@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":["alpha","beta","gamma","delta","epsilon","zeta","eta","theta"],"title":"Eight series, one legend","stacked":false,"data":[{"region":"North","alpha":80,"beta":100,"gamma":60,"delta":45,"epsilon":92,"zeta":30,"eta":71,"theta":55},{"region":"South","alpha":130,"beta":110,"gamma":75,"delta":50,"epsilon":64,"zeta":41,"eta":88,"theta":62}]}

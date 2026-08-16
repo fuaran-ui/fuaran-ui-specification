@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"department","yFields":["share"],"title":"Budget share","stacked":false,"legendPosition":"Top","data":[{"department":"Ops","share":40},{"department":"R&D","share":35},{"department":"Sales","share":25}]}
