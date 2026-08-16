@@ -984,6 +984,37 @@ Integer slots truncate the parsed number via integer cast; round-trip is exact a
 
 The same rules apply at nested NodeId positions (e.g. an `InsertChild` child's `id` → `$.child.id`).
 
+### 8.1 Uniqueness within a tree
+
+**A NodeId identifies at most one node in a document.** No two nodes in one tree — at any depth, in
+any slot — may carry the same `"id"`. Ids are scoped to the document, so the same id appearing in two
+separate documents is unrelated and legal.
+
+Two constructs are **isolation boundaries** and so start a fresh id space rather than extending the
+host tree's: `Mount` (§3.2 — the guest interior is a separate scope, produced host-side by the guest
+loader, and is never inlined into the host document) and `FragmentRef` (the referenced body is not
+part of the referring tree). `FragmentDecl` is *not* a boundary — its `body` is walked, so uniqueness
+there is **pre-expansion**: at render time interior ids are namespaced by the referring node, so one
+body referenced twice yields DOM-unique ids without an authoring duplicate.
+
+The invariant is load-bearing rather than tidy: **every `TreeOp` addresses its target by NodeId
+alone** (§3.4). On a tree that repeats one, `UpdateProp`, `RemoveNode` and `MoveNode` name two nodes
+and there is no tie-break — the op is ambiguous by construction, and an apply engine that picks one
+is guessing. State re-seat has the same dependency: §17 step 6 **refuses** a teleport bundle whose
+tree carries a duplicate, because re-seating state is keyed on stable identity.
+
+**Where it is enforced — emit side, not decode side.** There is deliberately no eighth code for it:
+duplicate detection is a whole-tree property, and a decoder streaming a document is not required to
+carry the id set needed to detect one. So the obligation sits with the **emitter**, which must not
+produce such a tree, and with the two whole-tree gates that see one entire — pre-emit validation
+(before a tree goes on the wire) and bundle re-seat (§17). A decoder MAY reject a duplicate when its
+shape makes detection free; a decoder that accepts one is still conformant, and the corpus's
+round-trip family therefore proves nothing about uniqueness either way.
+
+That gap is exactly how four `nodes/` fixtures came to repeat an id and round-trip cleanly for
+months. The corpus now carries its own guard: every `nodes/` fixture is checked for duplicates as a
+set, independently of round-tripping (§12).
+
 ---
 
 ## 9. Wire-omitted fields (by design)
