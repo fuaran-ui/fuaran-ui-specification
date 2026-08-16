@@ -351,6 +351,73 @@ is the anchor for that, and `nodes/table-sortable-1.json` is the canonical corne
   that leaves a ragged `rows[i]` to the renderer above. A host that cannot resolve the declared
   column MUST fall back to the authored order rather than guessing at one.
 
+#### `DataGrid` behaviour declarations — the state-key rule (Phase 860 charter)
+
+A **data-bound** grid declares the behaviours a user drives by naming the State key that carries each
+behaviour's position, under one rule:
+
+> A grid behaviour the user drives is declared as a named State key that the grid both writes and
+> reads, carrying a descriptor whose shape is fixed by this specification. The affordance belongs to
+> the renderer.
+
+That the affordance is renderer-owned is a conformance obligation, not an implementation note. A tree
+never carries a pager, a sort button, or any other control for these behaviours, and a host MUST NOT
+require one: the node that reads the state also draws what writes it, so a control and the grid it
+means to drive cannot come apart. The failure this forecloses is a document that decodes, validates
+and renders while doing nothing — a control writing state no grid reads.
+
+Every field below is OPTIONAL and emitted only when present (rule 4), so a grid declaring none is
+byte-identical to the pre-860 form.
+
+- **`sortStateKey`** (`string`, Phase 818) — the State key carrying
+  `{"column": <int ≥ 0>, "direction": "asc" | "desc"}`. Present since 0.23.0; `nodes/grid-sort-state-key.json`
+  is the canonical corner. How it composes with the `staticRows` sort intent above is stated at
+  Phase 861.
+
+##### Declarative pagination — `pageStateKey` / `pageSize` (Phase 862)
+
+- **`pageStateKey`** (`string`) — the State key carrying `{"page": <int ≥ 1>}`, the **1-based** page
+  position. The descriptor is an object rather than a bare integer so a later page-size override is
+  an additive field rather than a re-typing.
+
+  A decoder MUST NOT trust the value it finds there. A descriptor that is absent, not an object, or
+  carries a `page` that is not an integer ≥ 1 reads as **page 1** — the honest default. This mirrors
+  `sortStateKey`, where a malformed descriptor reads as "no sort" so the authored order stands.
+
+- **`pageSize`** (`int ≥ 1`) — how many rows one page holds.
+
+  A page of zero or fewer rows names no page at all, so a `pageSize` below 1 is `WRONG_TYPE` at
+  `$…pageSize` (`reject/reject-wrongtype-grid-page-size-zero.json`). The bound is expressible in
+  `schema.json` as `minimum: 1`, so the two artefacts agree — the same posture as
+  `staticRows.defaultSort.column`'s `minimum: 0`.
+
+- **Who slices — the source shape decides, and there is no second declaration.** If the grid's
+  `source` is a `Query` whose `dependsOn` (§3.3) names the `pageStateKey`, the **host** pages: the
+  query re-runs on a page change and returns the page, and the grid MUST NOT slice again. For every
+  other source shape the grid resolves the whole set and slices it client-side.
+
+  A host-paged grid cannot know the row total, so it cannot state a page count; its pager gives
+  previous/next only. A declared total is not part of this version.
+
+- **A page past the end clamps to the last page**, rather than rendering empty. The row count can
+  shrink under a filter while the position stays where the user left it; an empty grid there reads as
+  data loss rather than as the end of the list. Page 1 of an empty grid is "page 1 of 1", never "of 0".
+
+- **Static hosts.** A host that cannot honour a click still performs the **slice** — it is a data
+  operation the seeded State determines — and emits the pager with its steps **inert**. Omitting the
+  pager entirely would drop every row past the first page with nothing to say so; emitting a live one
+  would advertise an interaction the host cannot perform. A disabled control states plainly that it is
+  unavailable, and the page status still tells the reader where they are.
+
+- **`pageSize` without `pageStateKey`** decodes successfully and is inert: nothing carries the
+  position, so the grid renders every row. It is a relation between two sibling fields, which a
+  per-object codec does not judge — the same reasoning that leaves an out-of-range
+  `defaultSort.column` to the renderer. Pre-emit validation refuses it (`FUARAN093`), which is where
+  a shape that decodes but cannot work belongs.
+
+`nodes/grid-paged.json` is the canonical corner; `nodes/grid-paged-sorted.json` pins paging and
+sorting composed on one grid, which is where the one-rule claim is cashed in.
+
 #### Parameterised fragments (`holes` / `effect` / `args`)
 
 A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares typed **holes**, a ref **applies** it by binding **args**. These fields are **additive** – a zero-hole, pure-deterministic decl omits `holes`+`effect` and a zero-arg ref omits `args`, so a fixed-body fragment is byte-identical to the pre-parameterisation shape (the degenerate case).
