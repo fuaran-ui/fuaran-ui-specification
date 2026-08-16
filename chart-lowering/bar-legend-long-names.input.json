@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["monthly_recurring_revenue_gbp","annual_contract_value_gbp_est"],"title":"Long series names","stacked":false,"data":[{"quarter":"Q1","monthly_recurring_revenue_gbp":40,"annual_contract_value_gbp_est":90},{"quarter":"Q2","monthly_recurring_revenue_gbp":55,"annual_contract_value_gbp_est":80}]}

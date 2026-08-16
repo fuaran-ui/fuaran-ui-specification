@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":["sales"],"title":"Sales by region","stacked":false,"data":[{"region":"North","sales":80},{"region":"South","sales":130},{"region":"East","sales":60},{"region":"West","sales":95},{"region":"Central","sales":110}]}

@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["revenue"],"title":"Revenue in full","stacked":false,"axisUnitMode":"Off","data":[{"quarter":"Q1","revenue":1250000},{"quarter":"Q2","revenue":1480000},{"quarter":"Q3","revenue":1100000},{"quarter":"Q4","revenue":1690000}]}
