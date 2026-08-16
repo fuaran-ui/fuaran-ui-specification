@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "family": "sanitization",
+  "description": "Render-time sanitisation floor — SEMANTIC-invariant fixtures, not byte-parity ones. Each case is a slot payload plus the invariant a conformant rendering host must satisfy; the rendered markup around it differs legitimately per host, so nothing here is compared byte-for-byte. This manifest is HAND-AUTHORED and is not emitted by any host's corpus generator (unlike the root manifest.json, which is generated and would overwrite hand-added entries).",
+  "invariants": {
+    "reject": "The floor MUST refuse the payload. A host either omits the attribute or substitutes the literal `about:blank` (WIRE_FORMAT.md §19 rule 6).",
+    "accept": "The floor MUST accept the payload and emit `expected` — the §19 rule 1 normalised form, which is not always the input."
+  },
+  "reasons": {
+    "off-origin": "The WHATWG URL parser resolves this to a DIFFERENT origin than the containing document. On a link that is navigation the tree never asked for; on an image source it is an off-origin request that leaks the referrer.",
+    "same-origin": "The parser resolves this within the containing document's origin, so refusing it would be a false positive.",
+    "scheme-refused": "Rules 2-4 classify the scheme and default-deny it."
+  },
+  "deliberateOverRejection": "A case carrying `\"overRejects\": true` is one where the floor refuses a payload the URL parser would have resolved harmlessly. That is intentional — rule 2 strips everything at or below U+0020 from the scheme candidate, which is stricter than the parser's TAB/LF/CR removal, and over-rejection is the safe direction. The flag exists so a checker that resolves each `input` against a conformant parser (the only honest way to verify the `off-origin` and `same-origin` claims here) can tell a deliberate divergence from a wrong fixture, instead of every future reader re-deriving the distinction.",
+  "groups": [
+    {
+      "id": "url-floor",
+      "section": "WIRE_FORMAT.md §19",
+      "slot": "url",
+      "description": "The URL-scheme floor, and specifically §19 rule 1 — that the floor normalises the string exactly as the URL Standard's basic URL parser does before inspecting it. Every `off-origin` case below was verified against a WHATWG-conformant parser by resolving it against the base `https://good.example/page` and comparing origins; the `same-origin` cases the same way.",
+      "cases": [
+        {
+          "id": "url-floor-protocol-relative-slash-slash",
+          "input": "//evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "The base case rule 5 has always caught."
+        },
+        {
+          "id": "url-floor-protocol-relative-slash-backslash",
+          "input": "/\\evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "The parser folds `\\` to `/` for special schemes, so all four two-separator spellings resolve identically."
+        },
+        {
+          "id": "url-floor-protocol-relative-backslash-backslash",
+          "input": "\\\\evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin"
+        },
+        {
+          "id": "url-floor-protocol-relative-backslash-slash",
+          "input": "\\/evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin"
+        },
+        {
+          "id": "url-floor-interior-tab-slash-slash",
+          "input": "/\u0009/evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V1. Without rule 1 step 2 the first two characters are `/` and TAB, so a positional test reads an ordinary relative reference; the parser removes the tab and resolves off-origin."
+        },
+        {
+          "id": "url-floor-interior-tab-slash-backslash",
+          "input": "/\u0009\\evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V1 crossed with the backslash spellings — the two evasions compose."
+        },
+        {
+          "id": "url-floor-interior-tab-backslash-slash",
+          "input": "\\\u0009/evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin"
+        },
+        {
+          "id": "url-floor-interior-tab-backslash-backslash",
+          "input": "\\\u0009\\evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin"
+        },
+        {
+          "id": "url-floor-interior-lf",
+          "input": "/\u000a/evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V1 with LF. Step 2 removes TAB, LF and CR — all three, from anywhere."
+        },
+        {
+          "id": "url-floor-interior-cr",
+          "input": "/\u000d/evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V1 with CR."
+        },
+        {
+          "id": "url-floor-interior-run",
+          "input": "/\u000d/\u000aevil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "An interleaved run — the same defect wearing more characters. A host that removed only the FIRST occurrence would pass every single-character case above and fail here."
+        },
+        {
+          "id": "url-floor-leading-soh",
+          "input": "\u0001//evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V2. No language's native trim removes U+0001, so the two slashes sat at positions 1 and 2 and a positional test never saw them; step 1 removes the whole C0-or-space range."
+        },
+        {
+          "id": "url-floor-leading-nul",
+          "input": "\u0000//evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V2 with NUL — the same class."
+        },
+        {
+          "id": "url-floor-leading-us",
+          "input": "\u001f//evil.example/x",
+          "invariant": "reject",
+          "reason": "off-origin",
+          "note": "V2 at the top of the C0 range. U+001C-U+001F is where the hosts measurably disagreed before rule 1 went ASCII-exact: Python's native strip removed them, the other four did not."
+        },
+        {
+          "id": "url-floor-trailing-soh",
+          "input": "https://good.example/x\u0001",
+          "invariant": "accept",
+          "expected": "https://good.example/x",
+          "reason": "same-origin",
+          "note": "Step 1 trims BOTH ends, and the whole C0-or-space range at each."
+        },
+        {
+          "id": "url-floor-interior-tab-in-accepted-url",
+          "input": "https://good.ex\u0009ample/x",
+          "invariant": "accept",
+          "expected": "https://good.example/x",
+          "reason": "same-origin",
+          "note": "Rule 1's output is what gets EMITTED, not the input. This is the case that makes adopting rule 1 a breaking change for a host: accepted bytes move."
+        },
+        {
+          "id": "url-floor-interior-vt-kept",
+          "input": "/\u000b/evil.example/x",
+          "invariant": "accept",
+          "expected": "/\u000b/evil.example/x",
+          "reason": "same-origin",
+          "note": "Step 2 is TAB/LF/CR ONLY. The parser removes U+000B at the edges and KEEPS it in the interior, so this is an ordinary same-origin path. A host that widened step 2 to 'all C0' would over-reject here — which is why this case is an accept, not an omission."
+        },
+        {
+          "id": "url-floor-interior-ff-kept",
+          "input": "/\u000c/evil.example/x",
+          "invariant": "accept",
+          "expected": "/\u000c/evil.example/x",
+          "reason": "same-origin",
+          "note": "As above, for U+000C."
+        },
+        {
+          "id": "url-floor-leading-nbsp-kept",
+          "input": "\u00a0//evil.example/x",
+          "invariant": "accept",
+          "expected": "\u00a0//evil.example/x",
+          "reason": "same-origin",
+          "note": "Rule 1 is ASCII-exact, so non-ASCII whitespace survives — and the parser keeps it too, resolving a same-origin path. A native trim removed it, the floor then saw `//`, and rejected: a false positive this case pins as gone."
+        },
+        {
+          "id": "url-floor-leading-nel-kept",
+          "input": "\u0085//evil.example/x",
+          "invariant": "accept",
+          "expected": "\u0085//evil.example/x",
+          "reason": "same-origin",
+          "note": "U+0085 NEL is where JS diverged from the other four hosts before rule 1 went ASCII-exact: `String.prototype.trim` keeps it; .NET, Python, Go and Rust all removed it. Same false positive, different four hosts."
+        },
+        {
+          "id": "url-floor-single-backslash-is-a-path",
+          "input": "\\evil.example",
+          "invariant": "accept",
+          "expected": "\\evil.example",
+          "reason": "same-origin",
+          "note": "A SINGLE leading backslash is not protocol-relative — the parser reads it as `/evil.example`, an ordinary same-origin path. Pinned so the guard is never widened into a same-origin regression."
+        },
+        {
+          "id": "url-floor-scheme-interior-tab",
+          "input": "java\u0009script:alert(1)",
+          "invariant": "reject",
+          "reason": "scheme-refused",
+          "note": "Rule 2 is unchanged by rule 1 and still classifies this as `javascript`. This case is why V1 and V2 are off-origin navigation rather than script execution."
+        },
+        {
+          "id": "url-floor-scheme-interior-vt",
+          "input": "java\u000bscript:alert(1)",
+          "invariant": "reject",
+          "reason": "scheme-refused",
+          "overRejects": true,
+          "note": "Rule 2's below-U+0020 strip is deliberately STRICTER than the parser, which removes only TAB/LF/CR and so reads this as a relative path resolving SAME-ORIGIN. Over-rejection is the safe direction; do not narrow rule 2 to rule 1's TAB/LF/CR set to 'make them consistent'. This is the corpus's only case where the floor and the parser deliberately disagree."
+        },
+        {
+          "id": "url-floor-empty",
+          "input": "",
+          "invariant": "accept",
+          "expected": "",
+          "reason": "same-origin",
+          "note": "An empty result is accepted and passed through — a same-page reference, the documented HTML behaviour."
+        },
+        {
+          "id": "url-floor-whitespace-only",
+          "input": "  \u0009  ",
+          "invariant": "accept",
+          "expected": "",
+          "reason": "same-origin",
+          "note": "Normalises to empty, and therefore takes the empty branch rather than reaching rule 2."
+        }
+      ]
+    }
+  ]
+}

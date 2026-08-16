@@ -1689,8 +1689,26 @@ it is now an obligation. Hosts that only decode, re-encode, or transform trees a
 
 **The floor.** Given the slot's string value:
 
-1. Strip leading and trailing ASCII whitespace. An empty result is **accepted** and passed through
+1. **Normalise the string exactly as the [URL Standard](https://url.spec.whatwg.org/) basic URL
+   parser does before it parses anything**, in this order, ASCII-exact:
+   1. Remove leading and trailing **C0 control or space** — every code point in U+0000–U+0020
+      inclusive, not merely the whitespace subset ([URL §4.1 basic URL parser, step
+      1](https://url.spec.whatwg.org/#concept-basic-url-parser)).
+   2. Remove **all** U+0009 TAB, U+000A LF and U+000D CR from anywhere in what remains ([URL §4.1,
+      step 2](https://url.spec.whatwg.org/#concept-basic-url-parser)). Note this second step is those
+      three code points only — U+000B and U+000C are removed by step 1 at the edges and **kept** in
+      the interior, matching the parser.
+
+   Both are validation errors in the standard that nonetheless proceed, so the string the floor
+   inspects is the string the browser will parse. An empty result is **accepted** and passed through
    (a same-page reference; the documented HTML behaviour).
+
+   **Do not substitute the implementation language's native trim.** Every one differs from this rule
+   and they differ from each other: measured across five hosts, `str.strip` also removes
+   U+001C–U+001F while `.NET`, JS, Go and Rust do not, and JS alone leaves U+0085 NEL where the other
+   four remove it — divergence in the one rule whose whole purpose is that a tree vetted on one host
+   is safe on another. All five also over-remove non-ASCII whitespace (U+00A0, U+2028, U+1680,
+   U+3000) that the parser keeps; going ASCII-exact ends both classes at once.
 2. Determine the scheme: the substring before the first `:` that occurs **before** any `/`, `?`, or
    `#`. If no such `:` exists, the reference is *schemeless* – go to rule 5. Otherwise remove every
    character at or below U+0020 from the candidate and ASCII-lowercase it, so that obfuscations such
@@ -1707,6 +1725,35 @@ it is now an obligation. Hosts that only decode, re-encode, or transform trees a
    substitutes the literal `about:blank`; `about:blank` is recommended where the element would
    otherwise be invalid or lose its semantics.
 
+**Rule 1's output is the value that gets emitted**, not the original string. An accepted URL carrying
+an interior tab is therefore emitted without it. That is correct — it is what the browser would have
+parsed anyway — but the emitted bytes differ from the input, which is a visible behaviour change and
+the reason a host adopting this rule is making a breaking change.
+
+**Rule 1 and rule 2 cannot disagree, and rule 2 needs no amendment.** Removal never reorders the
+surviving characters, and none of the removed code points is `:`, `/`, `?` or `#` — so which
+delimiter comes first is invariant and rule 2 selects the same candidate substring before and after
+normalisation. Rule 2 then already discards everything at or below U+0020 from that candidate, so the
+classification is identical either way: `java<TAB>script:` is refused under both readings.
+
+**Rule 2's ≤U+0020 strip is deliberately stricter than the browser and MUST NOT be narrowed to
+rule 1's TAB/LF/CR set.** `java<VT>script:` is refused by the floor and treated by the parser as a
+relative path — an over-rejection, which is the safe direction. The two rules answer different
+questions: rule 1 reproduces what the parser will see, rule 2 refuses anything that *could* be read
+as a dangerous scheme.
+
+**Positional tests are defined over the normalised form.** Any rule in this section that inspects a
+URL string by character position — rule 5 is the first, and is not intended to be the last — operates
+on rule 1's output. Without this, each new positional rule would independently reinherit the gap
+between the floor's idea of the string and the parser's, which is exactly how rule 5 came to be
+evadable by a single interior tab.
+
+**Two deliberate divergences remain, both in the safe direction.** Rule 2 is stricter than the parser
+(above). And because rule 1 is ASCII-exact, non-ASCII whitespace is no longer removed: a leading
+U+00A0 now survives to rule 5, which sees `<U+00A0>` rather than `/` and **accepts** — matching the
+parser, which also keeps it and resolves an ordinary same-origin path. That is a loosening relative to
+a native trim, and it is the correct answer.
+
 **Why rule 5 is part of the floor and not an edge case.** A protocol-relative reference carries no
 scheme, so rules 2–4 never see it and the schemeless branch would admit it. But a browser resolves
 it against the *current document's* scheme and lands on the named host – which is off-origin.
@@ -1715,6 +1762,16 @@ that is off-origin navigation the tree never asked for; on an image source it is
 request that leaks the referring URL. The backslash forms are included because WHATWG URL parsing
 treats `\` as `/` for special schemes, so all four spellings resolve identically – a floor that
 rejected only `//` would be trivially evaded.
+
+Rule 1's normalisation is what makes rule 5 hold against the two evasions that defeated its
+pre-normalisation form. Without step 1.2, `/<TAB>/host/x` has first two characters `/` and `<TAB>`,
+so rule 5 read an ordinary relative reference and accepted, while the parser removed the tab and
+resolved off-origin — and the same for LF, CR, and every mix of the four slash spellings. Without
+step 1.1, a leading C0 control that is not whitespace (`<U+0001>//host/x`, `<NUL>//host/x`) survived
+every native trim, pushed the two slashes out of positions 0 and 1, and reached the parser, which
+removed it and resolved off-origin. Neither is script execution — rules 2–4 still classify
+`java<TAB>script:` as `javascript` and refuse it — but both are off-origin navigation, or an
+off-origin subresource fetch that leaks the referrer, from a tree that asked for neither.
 
 **Case folding in render-time sanitisers (normative where it applies).** A host whose sanitiser
 scans a **case-folded copy** of a string and then applies the resulting offsets to the **original**
