@@ -369,10 +369,57 @@ and renders while doing nothing — a control writing state no grid reads.
 Every field below is OPTIONAL and emitted only when present (rule 4), so a grid declaring none is
 byte-identical to the pre-860 form.
 
-- **`sortStateKey`** (`string`, Phase 818) — the State key carrying
-  `{"column": <int ≥ 0>, "direction": "asc" | "desc"}`. Present since 0.23.0; `nodes/grid-sort-state-key.json`
-  is the canonical corner. How it composes with the `staticRows` sort intent above is stated at
-  Phase 861.
+##### Sort — `sortStateKey` / `defaultSort` / per-column `sortable` (Phases 818, 861)
+
+Three fields, one behaviour, and the whole of how they compose is one page:
+
+- **`sortStateKey`** (`string`, on the grid) — the State key carrying
+  `{"column": <int ≥ 0>, "direction": "asc" | "desc"}`. Present since 0.23.0;
+  `nodes/grid-sort-state-key.json` is the canonical corner. Its presence is what makes columns
+  *interactively* sortable at all.
+
+- **`defaultSort`** (`{"column": <int ≥ 0>, "direction": "asc" | "desc"}`, on the grid) — the
+  **initial** order. This is the SAME record and the SAME field name the `staticRows` spelling
+  carries above, deliberately: same behaviour, same spelling, and one encoder and one decoder serve
+  both paths. A negative `column` is `WRONG_TYPE` at `$…defaultSort.column`
+  (`reject/reject-wrongtype-grid-default-sort-column.json`), matching `minimum: 0` in `schema.json` —
+  the same posture, same message, different path.
+
+- **`sortable`** (`bool`, on a COLUMN) — narrowing, and narrowing only. Absent **inherits**: the
+  column is sortable iff it has a `field` and the grid declares `sortStateKey`. `false` opts the
+  column out. `true` is the inherited default made explicit and adds nothing; where the grid declares
+  no `sortStateKey`, it is a pre-emit error (`FUARAN094`) rather than a silent no-op, because a
+  column that tries to turn a behaviour ON is asking for something the charter's rule does not
+  grant — a flag narrows, it never widens.
+
+**How the three compose, stated once.** The grid's sort state key holds one of three things, and the
+distinction between the second and third is load-bearing:
+
+| The key… | Order shown |
+|---|---|
+| is **absent** — the user has not sorted | `defaultSort`, if declared; otherwise the authored order |
+| holds a **usable descriptor** | that column and direction |
+| holds an object that is **not** a usable descriptor | the **authored** order — the emitter's own row order |
+
+The third row is how the authored order stays reachable. A conformant interactive host cycles a
+header **ascending → descending → authored** (the `staticRows` cycle, applied to the bound path), and
+the authored state MUST be written as a present-but-empty descriptor rather than by clearing the key:
+a cleared key means "not yet sorted", which would re-apply `defaultSort`, so the user would ask for
+the emitter's order and be handed the declared one instead. A malformed descriptor a host seeded
+lands in the same row and reads the same way — validated rather than trusted, never an arbitrary
+order.
+
+A grid may declare `defaultSort` with **no** `sortStateKey`: an initial presentation order without
+interactive re-sorting, exactly as a static table may. `nodes/grid-bound-sort.json` is the canonical
+corner, and carries a column opting out.
+
+**Relation to the `staticRows` spelling.** Same field names and same semantics wherever the behaviour
+is the same — `sortable` and `defaultSort` mean on the bound path what they mean on the static one.
+Two differences, both from the paths themselves rather than from the vocabulary: `staticRows.sortable`
+is grid-wide (a static table has no per-column model to hang a flag on) whereas the bound path's
+`sortable` is per-column, which is what census row #26 asked for; and `defaultSort.column` indexes
+`headers` on the static path and `columns` on the bound one, which are the two paths' respective
+column sets.
 
 ##### Declarative pagination — `pageStateKey` / `pageSize` (Phase 862)
 
