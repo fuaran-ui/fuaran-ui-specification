@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["revenue"],"title":"Revenue","stacked":false,"valueFormat":{"$type":"Currency","isoCode":"GBP"},"axisUnitMode":"WordsWithSymbol","data":[{"quarter":"Q1","revenue":12500000},{"quarter":"Q2","revenue":15200000},{"quarter":"Q3","revenue":11800000},{"quarter":"Q4","revenue":17400000}]}

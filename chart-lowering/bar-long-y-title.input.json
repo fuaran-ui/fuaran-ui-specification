@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["revenue"],"title":"A very long axis name","stacked":false,"yTitle":"Monthly recurring revenue, net of refunds and credits, in pounds sterling at constant currency","data":[{"quarter":"Q1","revenue":120},{"quarter":"Q2","revenue":150},{"quarter":"Q3","revenue":90},{"quarter":"Q4","revenue":175}]}

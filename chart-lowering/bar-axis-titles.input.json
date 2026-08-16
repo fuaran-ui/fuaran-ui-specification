@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":["sales","target"],"title":"Sales vs target","stacked":false,"xTitle":"Sales region","yTitle":"Value (£)","subtitle":"Rolling twelve months","data":[{"region":"North","sales":80,"target":100},{"region":"South","sales":130,"target":110},{"region":"East","sales":60,"target":90}]}
