@@ -3245,6 +3245,9 @@
         "title": {
           "$ref": "#/$defs/TextSource"
         },
+        "valueFormat": {
+          "$ref": "#/$defs/Format"
+        },
         "onPointClick": {
           "const": "<closure>"
         }

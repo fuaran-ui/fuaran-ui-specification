@@ -980,6 +980,14 @@
       "description": "Visualisation/Chart (Phase 663/665 — chart on the editable grid's state key)"
     },
     {
+      "id": "chart-value-format",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/chart-value-format.json",
+      "expectedFile": "nodes/chart-value-format.json",
+      "description": "Visualisation/Chart (Phase 876 — valueFormat: the value axis's declared number format)"
+    },
+    {
       "id": "code-1",
       "kind": "node-round-trip",
       "decoder": "node",

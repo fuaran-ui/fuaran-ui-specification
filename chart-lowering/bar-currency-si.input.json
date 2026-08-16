@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":["revenue"],"title":"Revenue by region","stacked":false,"valueFormat":{"$type":"Currency","isoCode":"GBP"},"axisUnitMode":"SIAbbreviation","data":[{"region":"North","revenue":12500000},{"region":"South","revenue":9800000},{"region":"East","revenue":15200000},{"region":"West","revenue":11100000}]}

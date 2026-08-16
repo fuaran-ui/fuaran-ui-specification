@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["units"],"title":"Units shipped","stacked":false,"data":[{"quarter":"Q1","units":4200},{"quarter":"Q2","units":9500},{"quarter":"Q3","units":6800},{"quarter":"Q4","units":7300}]}
