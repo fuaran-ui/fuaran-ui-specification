@@ -465,6 +465,39 @@ column sets.
 `nodes/grid-paged.json` is the canonical corner; `nodes/grid-paged-sorted.json` pins paging and
 sorting composed on one grid, which is where the one-rule claim is cashed in.
 
+##### Editing — `editStateKey` / per-column `editable` (Phase 863)
+
+The write side, and the one member of the family whose key is a **destination** rather than a
+descriptor. Sort and page each need a small piece of view state that has nowhere else to live; an
+edit's state is the data itself, which the grid already reads through `source`.
+
+- **`editStateKey`** (`string`, on the grid) — the State key an edited cell's **whole updated rows
+  value** is committed to.
+
+  Absent, the shipped behaviour stands unchanged: the grid writes back to its own `source` when that
+  source is a direct `State` binding, and is display-only otherwise. Present, it names the
+  destination explicitly. That is the whole of what this field adds, and why it was needed: a
+  *decoded* editable grid previously could not say where its edits land, because the only spelling
+  was a host closure, which crosses the wire as `"<closure>"` and carries no destination at all.
+
+- **`editable`** (`bool`, on a COLUMN) — narrowing, exactly as `sortable` is. Absent **inherits** the
+  grid-level `editable`. `false` makes the column read-only under a grid-level `true`, which is the
+  declaration that read-only-by-omission could not make. `true` under a non-editable grid is a
+  pre-emit error (`FUARAN095`), the write-side twin of `FUARAN094`'s widening refusal.
+
+- **The closure still wins.** A column whose cell kind carries a host edit closure keeps it, and the
+  declared destination does not override it — the same precedence the `value` / `field` pair has
+  carried since field-named columns landed. An existing closure-authored grid is byte-for-byte and
+  behaviourally unchanged.
+
+- **Rejections.** An editable column with no reachable destination — no `editStateKey`, and a
+  `source` that is not a direct `State` binding — decodes successfully and is refused pre-emit
+  (`FUARAN095`). It is a relation across three fields, which a per-object codec does not judge.
+
+`nodes/grid-declared-edit.json` is the canonical corner: an editable grid with a declared
+destination, a `Query` source that could not otherwise receive a write, and a third column
+explicitly read-only.
+
 #### Parameterised fragments (`holes` / `effect` / `args`)
 
 A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares typed **holes**, a ref **applies** it by binding **args**. These fields are **additive** – a zero-hole, pure-deterministic decl omits `holes`+`effect` and a zero-arg ref omits `args`, so a fixed-body fragment is byte-identical to the pre-parameterisation shape (the degenerate case).
