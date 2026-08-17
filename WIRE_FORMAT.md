@@ -229,10 +229,19 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
   user-space coordinate box (SVG `viewBox` semantics). All four required, plain numbers – a `Drawing`
   is a *resolved* geometric artefact (a chart lowers to concrete coordinates), so geometry is static;
   only `DrawStyle` carries `Binding`s.
-- **`DrawStyle`** – `{"fill"?:<Binding>,"opacity"?:<Binding>,"stroke"?:<Binding>,"strokeWidth"?:<Binding>}`,
+- **`DrawStyle`** – `{"fill"?:<Binding>,"opacity"?:<Binding>,"stroke"?:<Binding>,"strokeWidth"?:<Binding>,`
+  `"textAnchor"?,"fontSize"?,"emphasis"?,"fontFamily"?,"rotation"?,"markId"?,"tip"?:<TextSource>}`,
   every field OPTIONAL and omitted when `None` (an all-default style is `{}`). `fill`/`stroke` are
   `Binding<string>` (colour tokens/literals); `strokeWidth`/`opacity` are `Binding<float>`. Present on
   every shape (as `style`) and on the drawing root (as `style`).
+  `textAnchor`/`fontSize`/`emphasis`/`fontFamily`/`rotation` apply only to `Label` and are ignored on
+  every other shape. **`tip` is the exception that applies to EVERY shape**: it is the mark's
+  hover-readable text, and a renderer emits it as an SVG `<title>` element that is the FIRST CHILD of
+  that shape's own element — the native browser tooltip and the element's accessible name, with no
+  script, so a statically-served page carries it. A tipped shape therefore cannot be emitted
+  self-closing (`<rect …><title>…</title></rect>`); an absent `tip` leaves the emitted bytes
+  unchanged, self-closing tags included. An explicitly EMPTY `tip` is a present value and a distinct
+  wire shape from an absent one — a host must not omit it on re-encode.
 - **`DrawPoint`** – `{"x":<number>,"y":<number>}`.
 - **`Shape`** – a closed, `$type`-discriminated DU. There is **no `Path` shape and no raw SVG `d`
   string** (the typed-surface guard – §5): a curve is a typed command list.
