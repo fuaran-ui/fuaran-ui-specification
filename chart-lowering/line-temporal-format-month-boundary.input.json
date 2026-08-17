@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"month","yFields":["orders"],"title":"Past the day-format boundary","stacked":false,"xScale":"Temporal","data":[{"month":"2026-01-01","orders":1000},{"month":"2026-02-01","orders":1205},{"month":"2026-03-01","orders":1170},{"month":"2026-04-01","orders":1135},{"month":"2026-05-01","orders":1100},{"month":"2026-06-01","orders":1305}]}

@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"year","yFields":["orders"],"title":"Past the year-format boundary","stacked":false,"xScale":"Temporal","data":[{"year":"2021-01-01","orders":1000},{"year":"2022-01-01","orders":1205},{"year":"2023-01-01","orders":1170},{"year":"2024-01-01","orders":1135},{"year":"2025-01-01","orders":1100},{"year":"2026-01-01","orders":1305}]}
