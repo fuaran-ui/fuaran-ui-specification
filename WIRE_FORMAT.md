@@ -498,6 +498,37 @@ edit's state is the data itself, which the grid already reads through `source`.
 destination, a `Query` source that could not otherwise receive a write, and a third column
 explicitly read-only.
 
+##### Near-miss names are refused, not ignored (Phase 863)
+
+Rule 2's tolerance of unknown keys has one **enumerated** exception, on `DataGrid` and its columns.
+These names decode to an error naming the canonical field:
+
+| On | Name | Canonical form |
+|---|---|---|
+| grid | `currentPage`, `page`, `pageIndex` | `pageStateKey` — the position lives in State as `{"page": N}` |
+| grid | `sortable` | `sortStateKey` + per-column `sortable` (grid-wide `sortable` is the `staticRows` spelling) |
+| grid | `onEdit` | `editStateKey` |
+| grid | `behaviour`, `behavior` | the sibling behaviour fields; grid behaviour is not a nested record |
+| column | `readOnly` | `editable: false` |
+
+**Why these are refused rather than tolerated.** Tolerance is right for a field a future profile may
+add; it is wrong for a name that is a near miss of one that exists, because the tree then decodes,
+validates and renders while the declaration does nothing — the same fake-affordance failure the
+behaviour rule exists to foreclose, arriving through a spelling mistake instead of a missing
+vocabulary. A tolerated near miss is indistinguishable, from the emitter's side, from a declaration
+that worked.
+
+**Why they are refused rather than aliased.** Elsewhere this specification aliases an unambiguous
+synonym (`header`/`title` for a column's `label`). These are not synonyms. `currentPage` carries a
+literal page number, which the vocabulary cannot express at all — the position must be addressable by
+a control. `readOnly` is the *inverse* of `editable`, and an alias that inverts a boolean makes a
+read-only column editable when it guesses wrong. Refusing names the canonical form without guessing.
+
+The set is closed and small by design: a name is admitted only where accepting it would require a
+guess, or where it is a spelling this specification deliberately rejected. `schema.json` forbids each
+with `not: { required: [...] }`, so the two artefacts agree, and the `reject/reject-nearmiss-*`
+fixtures pin them.
+
 #### Parameterised fragments (`holes` / `effect` / `args`)
 
 A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares typed **holes**, a ref **applies** it by binding **args**. These fields are **additive** – a zero-hole, pure-deterministic decl omits `holes`+`effect` and a zero-arg ref omits `args`, so a fixed-body fragment is byte-identical to the pre-parameterisation shape (the degenerate case).
