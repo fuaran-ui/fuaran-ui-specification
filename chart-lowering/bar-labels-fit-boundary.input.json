@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"month","yFields":["revenue"],"title":"At the label-fit boundary","stacked":false,"axisUnitMode":"Off","dataLabels":"Ends","data":[{"month":"M1","revenue":1250000},{"month":"M2","revenue":1480000},{"month":"M3","revenue":1100000},{"month":"M4","revenue":1690000},{"month":"M5","revenue":1320000},{"month":"M6","revenue":1550000}]}

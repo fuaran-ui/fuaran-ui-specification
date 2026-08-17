@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["variance"],"title":"Variance to plan","stacked":false,"dataLabels":"Ends","data":[{"quarter":"Q1","variance":12},{"quarter":"Q2","variance":-8},{"quarter":"Q3","variance":5},{"quarter":"Q4","variance":-14}]}
