@@ -350,7 +350,7 @@
           "input": "<a href=\"javascript:alert(1)\">y</a>",
           "invariant": "inert",
           "forbiddenPattern": [
-            "<a[^>]*href\\s*=\\s*[\\\"']?\\s*javascript:"
+            "<a[^>]*href\\s*=\\s*[\"']?\\s*javascript:"
           ],
           "note": "A dangerous scheme reaching an href through the markdown path rather than a URL slot."
         }
