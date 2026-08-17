@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"code","yFields":["count"],"title":"At the flat-to-tilt boundary","stacked":false,"data":[{"code":"1111111111111111110","count":20},{"code":"1111111111111111111","count":29},{"code":"1111111111111111112","count":38},{"code":"1111111111111111113","count":47}]}
