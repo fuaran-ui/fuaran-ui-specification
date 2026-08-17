@@ -19,6 +19,29 @@ payload — `off-origin`, `same-origin`, or `scheme-refused`. That is the claim 
 makes a case meaningful: "the floor must reject this" is worthless unless the
 payload really does reach another origin.
 
+## The groups
+
+`url-floor` (§19) asserts `reject` / `accept` over the URL-scheme floor;
+`markdown-body`, `text-source` and `extra-attributes` (§22) cover the other
+string-to-output seams. Counts live in `manifest.json`; do not restate them.
+
+The `inert` invariant is a **pattern**, not a substring, and that distinction is
+load-bearing rather than fussy. An escaped payload still contains the text
+`onclick=` — harmlessly — so a substring check for it fails a *correct* host. The
+obligation is that no LIVE tag carries the handler, so the pattern matches a tag
+interior. This was found by the first host harness rejecting a correct
+implementation, which is the right way round to find it.
+
+Some cases also carry `required`: substrings that must appear. That is the other
+half of `inert`, and it catches the host that satisfies every forbidden pattern by
+discarding the content entirely — "nothing dangerous survived" is equally true of
+output that threw the payload away.
+
+A group may carry `nonGoals`: payloads the floor deliberately does not catch, with
+the reason. Recorded, never asserted. A defence-in-depth sweep over markup that a
+deterministic renderer produced is not a general-purpose HTML sanitiser, and saying
+so is what makes the asserted invariants a gate rather than a wishlist.
+
 ## The manifest is hand-authored
 
 `manifest.json` here is **not** emitted by any host's corpus generator, unlike the

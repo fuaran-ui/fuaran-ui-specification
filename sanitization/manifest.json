@@ -4,7 +4,8 @@
   "description": "Render-time sanitisation floor — SEMANTIC-invariant fixtures, not byte-parity ones. Each case is a slot payload plus the invariant a conformant rendering host must satisfy; the rendered markup around it differs legitimately per host, so nothing here is compared byte-for-byte. This manifest is HAND-AUTHORED and is not emitted by any host's corpus generator (unlike the root manifest.json, which is generated and would overwrite hand-added entries).",
   "invariants": {
     "reject": "The floor MUST refuse the payload. A host either omits the attribute or substitutes the literal `about:blank` (WIRE_FORMAT.md §19 rule 6).",
-    "accept": "The floor MUST accept the payload and emit `expected` — the §19 rule 1 normalised form, which is not always the input."
+    "accept": "The floor MUST accept the payload and emit `expected` — the §19 rule 1 normalised form, which is not always the input.",
+    "inert": "The payload must not survive into the rendered output as LIVE MARKUP. It may appear as TEXT. Checked as `forbiddenPattern` — case-insensitive regexes that must not match the host's rendered output — because the markup around the payload differs legitimately per host and byte comparison is therefore unavailable. A case may also carry `required`: substrings that MUST appear, which is how a legitimate case pins that escaping was not 'fixed' into stripping."
   },
   "reasons": {
     "off-origin": "The WHATWG URL parser resolves this to a DIFFERENT origin than the containing document. On a link that is navigation the tree never asked for; on an image source it is an off-origin request that leaks the referrer.",
@@ -47,47 +48,47 @@
         },
         {
           "id": "url-floor-interior-tab-slash-slash",
-          "input": "/\u0009/evil.example/x",
+          "input": "/\t/evil.example/x",
           "invariant": "reject",
           "reason": "off-origin",
           "note": "V1. Without rule 1 step 2 the first two characters are `/` and TAB, so a positional test reads an ordinary relative reference; the parser removes the tab and resolves off-origin."
         },
         {
           "id": "url-floor-interior-tab-slash-backslash",
-          "input": "/\u0009\\evil.example/x",
+          "input": "/\t\\evil.example/x",
           "invariant": "reject",
           "reason": "off-origin",
           "note": "V1 crossed with the backslash spellings — the two evasions compose."
         },
         {
           "id": "url-floor-interior-tab-backslash-slash",
-          "input": "\\\u0009/evil.example/x",
+          "input": "\\\t/evil.example/x",
           "invariant": "reject",
           "reason": "off-origin"
         },
         {
           "id": "url-floor-interior-tab-backslash-backslash",
-          "input": "\\\u0009\\evil.example/x",
+          "input": "\\\t\\evil.example/x",
           "invariant": "reject",
           "reason": "off-origin"
         },
         {
           "id": "url-floor-interior-lf",
-          "input": "/\u000a/evil.example/x",
+          "input": "/\n/evil.example/x",
           "invariant": "reject",
           "reason": "off-origin",
           "note": "V1 with LF. Step 2 removes TAB, LF and CR — all three, from anywhere."
         },
         {
           "id": "url-floor-interior-cr",
-          "input": "/\u000d/evil.example/x",
+          "input": "/\r/evil.example/x",
           "invariant": "reject",
           "reason": "off-origin",
           "note": "V1 with CR."
         },
         {
           "id": "url-floor-interior-run",
-          "input": "/\u000d/\u000aevil.example/x",
+          "input": "/\r/\nevil.example/x",
           "invariant": "reject",
           "reason": "off-origin",
           "note": "An interleaved run — the same defect wearing more characters. A host that removed only the FIRST occurrence would pass every single-character case above and fail here."
@@ -123,7 +124,7 @@
         },
         {
           "id": "url-floor-interior-tab-in-accepted-url",
-          "input": "https://good.ex\u0009ample/x",
+          "input": "https://good.ex\tample/x",
           "invariant": "accept",
           "expected": "https://good.example/x",
           "reason": "same-origin",
@@ -139,25 +140,25 @@
         },
         {
           "id": "url-floor-interior-ff-kept",
-          "input": "/\u000c/evil.example/x",
+          "input": "/\f/evil.example/x",
           "invariant": "accept",
-          "expected": "/\u000c/evil.example/x",
+          "expected": "/\f/evil.example/x",
           "reason": "same-origin",
           "note": "As above, for U+000C."
         },
         {
           "id": "url-floor-leading-nbsp-kept",
-          "input": "\u00a0//evil.example/x",
+          "input": " //evil.example/x",
           "invariant": "accept",
-          "expected": "\u00a0//evil.example/x",
+          "expected": " //evil.example/x",
           "reason": "same-origin",
           "note": "Rule 1 is ASCII-exact, so non-ASCII whitespace survives — and the parser keeps it too, resolving a same-origin path. A native trim removed it, the floor then saw `//`, and rejected: a false positive this case pins as gone."
         },
         {
           "id": "url-floor-leading-nel-kept",
-          "input": "\u0085//evil.example/x",
+          "input": "//evil.example/x",
           "invariant": "accept",
-          "expected": "\u0085//evil.example/x",
+          "expected": "//evil.example/x",
           "reason": "same-origin",
           "note": "U+0085 NEL is where JS diverged from the other four hosts before rule 1 went ASCII-exact: `String.prototype.trim` keeps it; .NET, Python, Go and Rust all removed it. Same false positive, different four hosts."
         },
@@ -171,7 +172,7 @@
         },
         {
           "id": "url-floor-scheme-interior-tab",
-          "input": "java\u0009script:alert(1)",
+          "input": "java\tscript:alert(1)",
           "invariant": "reject",
           "reason": "scheme-refused",
           "note": "Rule 2 is unchanged by rule 1 and still classifies this as `javascript`. This case is why V1 and V2 are off-origin navigation rather than script execution."
@@ -194,13 +195,388 @@
         },
         {
           "id": "url-floor-whitespace-only",
-          "input": "  \u0009  ",
+          "input": "  \t  ",
           "invariant": "accept",
           "expected": "",
           "reason": "same-origin",
           "note": "Normalises to empty, and therefore takes the empty branch rather than reaching rule 2."
         }
       ]
+    },
+    {
+      "id": "markdown-body",
+      "section": "WIRE_FORMAT.md §22",
+      "slot": "markdown",
+      "description": "Hostile payloads in a markdown-bearing slot. The payload classes are seeded from the reference host's own adversarial corpus, and the split-tag cases are the ones worth understanding: removing an inner tag REASSEMBLES a live one from the fragments either side, so a single-pass stripper passes every other case here and fails those two.",
+      "appliesTo": "Hosts that render markdown to markup. A host with no markup sink declares this group not-applicable.",
+      "cases": [
+        {
+          "id": "md-script-plain",
+          "input": "<script>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "The base case. Escaping by construction or stripping both satisfy the invariant."
+        },
+        {
+          "id": "md-script-nested",
+          "input": "<script><script>alert(1)</script></script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "A stripper that removes one balanced block and stops leaves the inner one live."
+        },
+        {
+          "id": "md-script-split-tag",
+          "input": "<scr<script>ipt>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "The classic single-pass evasion: removing the inner tag REASSEMBLES a live one from the fragments either side. A stripper that does not re-scan passes every other case here and fails this one."
+        },
+        {
+          "id": "md-script-split-close",
+          "input": "<script>alert(1)</scr<script>ipt>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "The same evasion on the closing tag."
+        },
+        {
+          "id": "md-script-case-varied",
+          "input": "<ScRiPt>alert(1)</ScRiPt>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "Case folding must be ASCII-only and must not desynchronise offsets (§19's case-folding rule)."
+        },
+        {
+          "id": "md-script-space-in-tag",
+          "input": "<script >alert(1)</script >",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "Whitespace inside the tag: a matcher anchored on the exact string `<script>` misses it."
+        },
+        {
+          "id": "md-script-tab-in-tag",
+          "input": "<script\tsrc=x>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "A tab where a space is expected. HTML treats both as attribute separators."
+        },
+        {
+          "id": "md-script-newline-in-tag",
+          "input": "<script\nsrc=x>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "A newline inside the tag — the same class as the tab, and the one a line-oriented scan misses."
+        },
+        {
+          "id": "md-script-unclosed",
+          "input": "<script>alert(1)",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "No closing tag. A stripper requiring a balanced pair must still neutralise this."
+        },
+        {
+          "id": "md-iframe",
+          "input": "<p>ok</p><iframe src=evil></iframe>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<iframe"
+          ],
+          "note": "A framing vector rather than a scripting one; the same obligation."
+        },
+        {
+          "id": "md-object",
+          "input": "<object data=evil></object>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<object"
+          ],
+          "note": "As above, via a plugin element."
+        },
+        {
+          "id": "md-handler-onclick",
+          "input": "<a href=x onclick=alert(1)>y</a>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<[^>]*\\son[a-z]+\\s*="
+          ],
+          "note": "An inline handler on an otherwise ordinary anchor. The pattern matches a live tag interior, not the attribute name — an escaped payload legitimately still contains the text `onclick=`."
+        },
+        {
+          "id": "md-handler-onerror-img",
+          "input": "<img src=x onerror=alert(1) alt=z>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<[^>]*\\son[a-z]+\\s*="
+          ],
+          "note": "The most-used handler vector, because a broken image fires it with no user interaction."
+        },
+        {
+          "id": "md-handler-newline-separated",
+          "input": "<a\nonclick=alert(1)>y</a>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<[^>]*\\son[a-z]+\\s*="
+          ],
+          "note": "The handler separated from the tag name by a newline rather than a space."
+        },
+        {
+          "id": "md-handler-uppercase",
+          "input": "<a ONCLICK=alert(1)>y</a>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<[^>]*\\son[a-z]+\\s*="
+          ],
+          "note": "Case-varied handler name."
+        },
+        {
+          "id": "md-href-javascript",
+          "input": "<a href=\"javascript:alert(1)\">y</a>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<a[^>]*href\\s*=\\s*[\\\"']?\\s*javascript:"
+          ],
+          "note": "A dangerous scheme reaching an href through the markdown path rather than a URL slot."
+        }
+      ],
+      "nonGoals": [
+        {
+          "id": "md-nongoal-slash-separated-handler",
+          "input": "<a/onclick=alert(1)>y</a>",
+          "why": "A `/`-separated attribute is valid HTML5 but a shape the deterministic markdown renderer never emits, so the defence-in-depth sweep deliberately does not chase it. Recorded, not asserted."
+        },
+        {
+          "id": "md-nongoal-entity-encoded-scheme",
+          "input": "<a href=\"&#106;avascript:alert(1)\">y</a>",
+          "why": "The sweep does not HTML-entity-decode before matching. The renderer escapes by construction and never emits an attacker-controlled entity-encoded scheme, so this stays a stated gap rather than a silent one."
+        },
+        {
+          "id": "md-nongoal-intra-scheme-whitespace",
+          "input": "<a href=\"java\tscript:alert(1)\">y</a>",
+          "why": "The raw-HTML substring sweep does not normalise intra-scheme whitespace. The render path never reaches it with such a URL, because the URL floor (§19 rule 2) normalises and refuses it upstream — which the `url-floor` group asserts directly."
+        }
+      ]
+    },
+    {
+      "id": "text-source",
+      "section": "WIRE_FORMAT.md §22",
+      "slot": "text",
+      "description": "Hostile payloads in a plain text-bearing slot. There is no markup language in play, so the whole payload is content and must arrive as content — including the legitimate case, which is pinned so that escaping is never 'fixed' into stripping.",
+      "appliesTo": "Hosts that render text into markup. A host with no markup sink declares this group not-applicable.",
+      "cases": [
+        {
+          "id": "text-script-tag",
+          "input": "<script>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "A text slot is not a markup slot. The payload is content, and must arrive as content."
+        },
+        {
+          "id": "text-img-onerror",
+          "input": "<img src=x onerror=alert(1)>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<img"
+          ],
+          "note": "The handler vector through a text slot. Forbidding the live tag is the whole check: with no tag open, the handler inside it cannot be an attribute."
+        },
+        {
+          "id": "text-angle-brackets",
+          "input": "a < b && c > d",
+          "invariant": "inert",
+          "forbiddenPattern": [],
+          "note": "The legitimate case, and the only one carrying `required`. Ordinary prose must survive ESCAPED rather than stripped — pinned because 'nothing forbidden appeared' is equally true of output that threw the content away.",
+          "required": [
+            "&lt;",
+            "&gt;"
+          ]
+        },
+        {
+          "id": "text-closing-tag-fragment",
+          "input": "</div><script>alert(1)</script>",
+          "invariant": "inert",
+          "forbiddenPattern": [
+            "<script"
+          ],
+          "note": "A payload that tries to close the element it is inside before opening its own."
+        }
+      ]
+    },
+    {
+      "id": "extra-attributes",
+      "section": "WIRE_FORMAT.md §22",
+      "slot": "extraAttributes",
+      "description": "The consumer-side attribute hatch. The KEY gate is a positive character allowlist rather than a prefix rule alone, because HTML has no escape for an illegal character in an attribute name: a key that terminates its own name is not a mangled attribute, it is several attributes, one of which can be a live handler. The VALUE gate is deliberately weaker — both renderers escape values, so it is defence in depth under that escaping, not a replacement for it.",
+      "appliesTo": "Hosts that emit consumer-supplied attributes. A host that does not expose the hatch declares this group not-applicable.",
+      "cases": [
+        {
+          "id": "attr-key-onclick",
+          "target": "key",
+          "input": "onclick",
+          "invariant": "reject",
+          "note": "Any `on*` handler, however constructed."
+        },
+        {
+          "id": "attr-key-onclick-upper",
+          "target": "key",
+          "input": "ONCLICK",
+          "invariant": "reject",
+          "note": "The reject is case-insensitive."
+        },
+        {
+          "id": "attr-key-style",
+          "target": "key",
+          "input": "style",
+          "invariant": "reject",
+          "note": "A CSS-injection vector, out of scope by design rather than omission."
+        },
+        {
+          "id": "attr-key-src",
+          "target": "key",
+          "input": "src",
+          "invariant": "reject",
+          "note": "Outside the `data-*` / `aria-*` allowlist."
+        },
+        {
+          "id": "attr-key-name-injection",
+          "target": "key",
+          "input": "data-x=1 onmouseover=alert(document.domain) z",
+          "invariant": "reject",
+          "note": "The canonical attribute-NAME injection: prefix-valid, but the space and `=` open a second, live attribute at any emission site that writes names raw. HTML has no escape for an illegal character in a name, so rejection is the only sound response."
+        },
+        {
+          "id": "attr-key-space",
+          "target": "key",
+          "input": "data-x onmouseover=alert(1)",
+          "invariant": "reject",
+          "note": "The same class, shorter."
+        },
+        {
+          "id": "attr-key-equals",
+          "target": "key",
+          "input": "data-x=y",
+          "invariant": "reject",
+          "note": "`=` starts a value."
+        },
+        {
+          "id": "attr-key-double-quote",
+          "target": "key",
+          "input": "data-x\"",
+          "invariant": "reject",
+          "note": "A quote can terminate the attribute in a quoted context."
+        },
+        {
+          "id": "attr-key-angle",
+          "target": "key",
+          "input": "data-<x>",
+          "invariant": "reject",
+          "note": "Angle brackets can terminate the tag."
+        },
+        {
+          "id": "attr-key-slash",
+          "target": "key",
+          "input": "data-x/onclick",
+          "invariant": "reject",
+          "note": "A `/` separates attributes in HTML5."
+        },
+        {
+          "id": "attr-key-tab",
+          "target": "key",
+          "input": "data-x\ty",
+          "invariant": "reject",
+          "note": "A tab separates attributes."
+        },
+        {
+          "id": "attr-key-newline",
+          "target": "key",
+          "input": "data-x\ny",
+          "invariant": "reject",
+          "note": "A newline separates attributes."
+        },
+        {
+          "id": "attr-key-nul",
+          "target": "key",
+          "input": "data-x\u0000y",
+          "invariant": "reject",
+          "note": "A NUL byte, which some parsers treat as a terminator."
+        },
+        {
+          "id": "attr-key-data-cy",
+          "target": "key",
+          "input": "data-cy",
+          "invariant": "accept",
+          "note": "The legitimate case. Pinned so tightening the gate cannot silently break the test-hook convention it exists to permit."
+        },
+        {
+          "id": "attr-key-aria-label",
+          "target": "key",
+          "input": "aria-label",
+          "invariant": "accept",
+          "note": "As above, for accessibility attributes."
+        },
+        {
+          "id": "attr-key-data-test-id",
+          "target": "key",
+          "input": "data-test-id",
+          "invariant": "accept",
+          "note": "Hyphens inside the suffix are legal."
+        },
+        {
+          "id": "attr-value-angle-brackets",
+          "target": "value",
+          "input": "<script>alert(1)</script>",
+          "invariant": "reject",
+          "note": "Angle brackets in a value. Rejected as defence in depth UNDER the renderers' value escaping, never as a replacement for it."
+        },
+        {
+          "id": "attr-value-nul",
+          "target": "value",
+          "input": "abc\u0000def",
+          "invariant": "reject",
+          "note": "A control byte in a value."
+        },
+        {
+          "id": "attr-value-quote",
+          "target": "value",
+          "input": "say \"hello\"",
+          "invariant": "accept",
+          "note": "Quotes are deliberately NOT rejected in a value: both renderers escape values, which is what makes a quote inert. Pinned so the gate is not tightened into breaking ordinary text."
+        },
+        {
+          "id": "attr-value-plain",
+          "target": "value",
+          "input": "submit-button",
+          "invariant": "accept",
+          "note": "The ordinary case."
+        },
+        {
+          "id": "attr-value-tab",
+          "target": "value",
+          "input": "a\tb",
+          "invariant": "accept",
+          "note": "Tab is the one C0 character permitted in a value — pinned because the rule is easy to 'tidy' into rejecting all control characters."
+        }
+      ]
     }
-  ]
+  ],
+  "invariantInertNote": "A PATTERN rather than a plain substring, and the distinction is load-bearing rather than fussy. An escaped payload still CONTAINS the string `onclick=` — as text, harmlessly — so a substring check for it fails a CORRECT host. The obligation is that no LIVE tag carries the handler, so the pattern matches a tag interior rather than the attribute name alone. This was found by the first host harness rejecting a correct implementation, which is the right way round to find it.",
+  "nonGoalsNote": "A group may carry a `nonGoals` list: payloads the floor deliberately does NOT catch, with the reason. They are recorded and never asserted. Stating a known limit is what makes the rest of the family a gate rather than a wishlist, and a reader who meets silence instead has to re-derive it."
 }

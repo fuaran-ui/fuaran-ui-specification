@@ -25,6 +25,14 @@ let checked = 0;
 let bad = 0;
 for (const group of manifest.groups) {
   for (const c of group.cases) {
+    // Only cases that make a URL claim are checkable against a URL parser. A
+    // case carries `reason` exactly when it asserts where the payload resolves;
+    // the markdown, text and attribute groups assert something else entirely
+    // (that a payload does not survive as live markup), and resolving their
+    // payloads as URLs would be meaningless rather than merely unhelpful. Keying
+    // on the field rather than the group id means a future group that DOES make a
+    // URL claim is checked without editing this script.
+    if (c.reason === undefined) continue;
     checked++;
     let origin, scheme;
     try {

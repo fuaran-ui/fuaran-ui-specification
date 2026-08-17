@@ -2185,6 +2185,84 @@ take with the hosts.
 
 ---
 
+## 22. Render-time safety floor (normative renderer obligation)
+
+§19 states one renderer obligation in detail — the URL-scheme floor. This section states the rest of
+them, and says what a *conformant renderer* owes at every seam where a string from the tree reaches a
+document. §19 remains the normative text for URL-valued slots; this section does not restate it.
+
+**This is a renderer obligation, not a decode one.** A tree carrying a hostile payload is a **valid
+wire document** and a decoder MUST NOT reject it — the payload is data, and the format's whole claim
+is that data cannot execute. What must hold is that a conformant renderer cannot be made to emit it
+as anything but data. Hosts that only decode, re-encode, transform or route trees are unaffected.
+
+### 22.1 The obligations
+
+A rendering host — any host that emits markup, or drives a live document, from a decoded tree — MUST
+ensure that for every string it takes from the tree:
+
+1. **Text-bearing slots reach the document as text.** A payload in a text slot is content. It may
+   appear in the output escaped; it must not appear as markup. There is no markup language in play at
+   a text slot, so there is nothing to interpret.
+2. **Markdown-bearing slots yield no live markup from the source.** A markdown body is rendered
+   through the host's markdown renderer; no element, attribute or scheme originating in the source
+   survives into the output as live markup. Whether the host escapes by construction, strips, or
+   both, is the host's business — the obligation is on the output.
+3. **No `on*` event-handler attribute is emitted from tree-supplied material**, in any spelling. Case,
+   whitespace and separator variation are the attacker's, not the format's.
+4. **Consumer-supplied attribute NAMES pass a positive character allowlist**, not a prefix rule alone.
+   This one is stated as a mechanism rather than an outcome because the outcome is unreachable
+   otherwise: HTML has no escape for an illegal character in an attribute name. A name carrying a
+   space and an `=` is not a mangled attribute — it is several attributes, and one of them can be a
+   live handler. Escaping cannot express the fix, so the response must be rejection.
+5. **URL-valued slots** are governed by §19.
+
+Attribute **values** are deliberately held to a weaker rule than names: a conformant renderer escapes
+values, and that escaping is what makes a quote or an angle bracket inert. A value-level check is
+defence in depth beneath it, not a replacement for it, and MUST NOT be relied on as the only gate.
+
+### 22.2 Semantic invariants, not byte parity
+
+Every other conformance family in this corpus compares bytes. This one cannot, and the reason is
+worth stating rather than working around: the markup a host wraps around a payload differs
+legitimately between a React renderer, a static-HTML emitter and a native render projection. Byte
+comparison would pin those accidents and call it safety.
+
+So the `sanitization/` family asserts **invariants over the rendered output**:
+
+| Invariant | The host must |
+|---|---|
+| `inert` | not emit the payload as live markup. It may appear as text. Checked as forbidden substrings, case-insensitively, over the host's own output. |
+| `reject` | refuse the payload at a predicate seam (an attribute key, a URL) — omit it, or substitute the documented fallback. |
+| `accept` | admit the payload, and emit the stated normalised form where one is stated. |
+
+A host declares any group **not-applicable** when the seam does not exist on it: a host with no markup
+sink owes nothing on markdown or text escaping, and one that exposes no attribute hatch owes nothing
+on attribute names. Not-applicable is a declared state with a reason, exactly as an abstention is —
+what a host may not do is be silently untested.
+
+### 22.3 Known limits are recorded, not implied
+
+A group may carry a `nonGoals` list: payloads the floor deliberately does not catch, each with the
+reason. They are recorded and never asserted.
+
+This is not a hedge. A defence-in-depth substring sweep over markup that a deterministic renderer
+produced is not a general-purpose HTML sanitiser, and pretending otherwise is how a floor comes to be
+trusted for a job it was never doing. Stating the limits is what makes the asserted invariants a gate
+rather than a wishlist — and it is what tells a reader which of the two they are looking at.
+
+### 22.4 Forward-coupling
+
+**A new string→output seam ships with a sanitisation fixture in the same change-set.** A new
+`NodeKind` slot that carries text, markdown, a URL, or consumer-supplied attributes adds its case to
+the `sanitization/` family alongside the codec fixtures §11 already requires. The codec families
+prove the slot round-trips; they say nothing about what happens when its contents reach a document,
+and a slot that round-trips perfectly while emitting a live handler is exactly the shape this
+obligation exists to refuse.
+
+---
+
+
 ## See also
 
 - [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
