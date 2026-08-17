@@ -151,6 +151,13 @@
         "None"
       ]
     },
+    "ChartDataLabels": {
+      "type": "string",
+      "enum": [
+        "Off",
+        "Ends"
+      ]
+    },
     "LiveRegionKind": {
       "type": "string",
       "enum": [
@@ -3328,6 +3335,9 @@
         },
         "legendPosition": {
           "$ref": "#/$defs/ChartLegendPosition"
+        },
+        "dataLabels": {
+          "$ref": "#/$defs/ChartDataLabels"
         },
         "onPointClick": {
           "const": "<closure>"
