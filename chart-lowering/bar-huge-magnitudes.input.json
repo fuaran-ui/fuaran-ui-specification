@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"instrument","yFields":["notional"],"title":"Notional outstanding","stacked":false,"axisUnitMode":"Off","data":[{"instrument":"Swaps","notional":1500000000000000},{"instrument":"Options","notional":90000000000000000},{"instrument":"Futures","notional":1.8E+17},{"instrument":"Forwards","notional":2.5E+17}]}

@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"instrument","yFields":["notional"],"title":"Notional by instrument","stacked":false,"axisUnitMode":"Off","data":[{"instrument":"Swaps","notional":5E+20},{"instrument":"Options","notional":1E+21},{"instrument":"Futures","notional":2.25E+21},{"instrument":"Forwards","notional":3.75E+21}]}
