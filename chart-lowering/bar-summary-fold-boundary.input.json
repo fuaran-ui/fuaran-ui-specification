@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":["alpha","beta","gamma","delta","epsilon"],"title":"Five series, one folded","stacked":false,"data":[{"region":"North","alpha":80,"beta":100,"gamma":60,"delta":45,"epsilon":92},{"region":"South","alpha":130,"beta":110,"gamma":75,"delta":50,"epsilon":64}]}
