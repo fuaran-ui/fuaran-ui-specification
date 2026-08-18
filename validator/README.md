@@ -10,7 +10,7 @@ whichever rules it happened to port, so the same emission was "valid" or "defect
 depending on which conformant host received it. That is an authoring-contract
 divergence, not a wire one, which is exactly why no existing gate could see it.
 
-## The two artefacts
+## The three artefacts
 
 **`defect-vocabulary.json` is GENERATED** from the reference host's own defect
 projection, by reflecting over its defect type and asking it to describe one
@@ -36,6 +36,40 @@ node validator/check-coverage.mjs --matrix  # check, and print the coverage tabl
 
 Node only, no build step, no dependencies, so any host's CI can run it. With no
 arguments it discovers host declarations as siblings of this checkout.
+
+
+## Message parity — `message-parity.json` + `check-message-parity.mjs`
+
+A shared code is worthless if two hosts mean different things by it. The vocabulary
+fixes the code and its severity; this fixes what each host's **message** must
+convey, so `FUARAN083` cannot point at one message that names the remedy and
+another that stops at describing the situation.
+
+```
+node validator/check-message-parity.mjs [--verbose]
+```
+
+It is **hand-authored**, unlike the vocabulary beside it, and deliberately so:
+"conveys the same fix" is a judgement, and deriving it from the reference's own
+wording would only assert that the reference matches itself.
+
+Requirements are **concepts, not phrases** — each code carries groups of accepted
+spellings, and a message must hit one spelling from every group. Requiring exact
+wording across five languages would be a formatting rule wearing a semantics
+costume, and would fail on the reference's own `Switch` against a host's `switch`.
+
+Two exemptions, both declared rather than inferred:
+
+- A host whose findings are **structured records with no message string** declares
+  `messageForm: "structured"`. There is nothing to compare, and the
+  human-readable rendering belongs to its consumer. Declared rather than inferred
+  from "no messages found", because that is also what a broken extractor looks like.
+- A code **fewer than two non-reference hosts implement** is out of scope: parity
+  needs two parties.
+
+A non-exempt host from which zero templates were extracted **fails**, rather than
+reporting zero problems. That is the same hazard the gate exists to catch, one
+level down.
 
 ## Two limits, stated because a gate that implied otherwise would be worse than none
 

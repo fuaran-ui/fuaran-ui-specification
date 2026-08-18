@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "artefact": "message-parity",
+  "description": "The reviewed-equivalence contract for defect MESSAGES. `defect-vocabulary.json` fixes the code and severity; a code is worthless across hosts if they disagree on what it MEANS, so this fixes the concepts each message must convey. Hand-authored on purpose — 'conveys the same fix' is a judgement, and generating it from the reference's wording would only assert that the reference matches itself.",
+  "howToRead": "Each code carries `mustConvey`: a list of GROUPS, each group a list of accepted spellings. A conformant message contains at least one spelling from every group, matched case-insensitively against the message TEMPLATE (interpolation placeholders included, since a placeholder is where the host puts the value the group names).",
+  "whyConceptsNotPhrases": "Requiring exact wording across five languages would be a formatting rule wearing a semantics costume, and it would fail on the reference's own 'Switch' against a host's 'switch'. What must survive translation is the DEFECT and the FIX; the prose around them belongs to the host.",
+  "scope": "Only codes at least two non-reference hosts implement — parity is meaningless for one. Hosts whose findings carry no message at all (a structured defect union rather than prose) declare `messageForm: \"structured\"` and are exempt by shape, not by omission: there is nothing to compare, and the human-readable rendering is their consumer's to write.",
+  "codes": {
+    "FUARAN-EMPTY-ID": {
+      "mustConvey": [
+        [
+          "empty"
+        ],
+        [
+          "id"
+        ]
+      ],
+      "note": "Structural and self-evident: naming the defect IS the fix. No remedy clause is required, and demanding one would be inventing a requirement the reference itself does not meet."
+    },
+    "FUARAN-DUP-ID": {
+      "mustConvey": [
+        [
+          "appears",
+          "duplicate",
+          "more than once"
+        ],
+        [
+          "id"
+        ]
+      ],
+      "note": "As above. The remedy (rename one) is implied by the defect in a way `empty stateKey` is not."
+    },
+    "FUARAN047": {
+      "mustConvey": [
+        [
+          "header"
+        ],
+        [
+          "children",
+          "child"
+        ],
+        [
+          "1:1",
+          "index",
+          "align"
+        ]
+      ],
+      "note": "The count mismatch alone does not tell an author WHY it matters; that headers align to children positionally is the part that makes the fix obvious."
+    },
+    "FUARAN048": {
+      "mustConvey": [
+        [
+          "tag"
+        ],
+        [
+          "children",
+          "child"
+        ],
+        [
+          "1:1",
+          "index",
+          "align"
+        ]
+      ],
+      "note": "The `tabTags` twin of 047, and held to the same bar."
+    },
+    "FUARAN049": {
+      "mustConvey": [
+        [
+          "activetag",
+          "active tag"
+        ],
+        [
+          "tabtags",
+          "tab tags"
+        ],
+        [
+          "nothing to resolve",
+          "resolve against",
+          "no tags"
+        ]
+      ],
+      "note": "Naming both halves is what distinguishes this from 048: the defect is a binding with no target, not a count."
+    },
+    "FUARAN069": {
+      "mustConvey": [
+        [
+          "no event handler",
+          "handler is omitted",
+          "has no handler"
+        ],
+        [
+          "writable",
+          "write-back",
+          "write back"
+        ],
+        [
+          "$state",
+          "state key",
+          "$filters",
+          "filter"
+        ]
+      ],
+      "note": "The inert-control rule's whole value is the remedy: an author who reads only 'this control is inert' does not learn that binding the value to a writable slot is the alternative to supplying a handler. A message missing the third group states a problem and withholds the fix."
+    },
+    "FUARAN082": {
+      "mustConvey": [
+        [
+          "match"
+        ],
+        [
+          "dead",
+          "unreachable",
+          "never",
+          "shadow"
+        ],
+        [
+          "distinct",
+          "unique",
+          "different"
+        ]
+      ],
+      "note": "'duplicate match' names the defect but not the consequence (the later case is DEAD) nor the fix (give each a distinct value). Both are what make the warning actionable rather than merely true."
+    },
+    "FUARAN083": {
+      "mustConvey": [
+        [
+          "statekey",
+          "state key"
+        ],
+        [
+          "empty"
+        ],
+        [
+          "default"
+        ],
+        [
+          "name",
+          "give",
+          "supply",
+          "set"
+        ]
+      ],
+      "note": "The fourth group is the fix, and it is the one a thin message drops: 'stateKey is empty' plus 'stuck on its default' describes the situation completely and tells the author nothing to do about it."
+    },
+    "FUARAN086": {
+      "mustConvey": [
+        [
+          "field",
+          "column"
+        ],
+        [
+          "absent",
+          "not",
+          "missing"
+        ],
+        [
+          "schema"
+        ]
+      ],
+      "note": "Grounding failure. The remedy is not stated by the reference either (the field name is the fix), so none is required."
+    },
+    "FUARAN087": {
+      "mustConvey": [
+        [
+          "field",
+          "column"
+        ],
+        [
+          "numeric",
+          "0.0",
+          "non-numeric"
+        ],
+        [
+          "flat",
+          "silently",
+          "reads"
+        ]
+      ],
+      "note": "The SILENCE is the point: a non-numeric column does not error, it plots as zero. A message that omits that reads as a style note."
+    },
+    "FUARAN088": {
+      "mustConvey": [
+        [
+          "pie"
+        ],
+        [
+          "series"
+        ],
+        [
+          "exactly one",
+          "one series",
+          "refuses"
+        ]
+      ],
+      "note": "The cardinality rule is the message. 'Wrong number of series' without 'exactly one' leaves the author guessing at the bound."
+    },
+    "FUARAN089": {
+      "mustConvey": [
+        [
+          "stacked"
+        ],
+        [
+          "ignore",
+          "meaningless",
+          "dead"
+        ]
+      ],
+      "note": "Dead intent: the flag is not wrong, it is inert. A host that says 'invalid' would be misreporting it."
+    }
+  }
+}
