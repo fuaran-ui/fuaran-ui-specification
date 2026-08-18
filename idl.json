@@ -40,6 +40,13 @@
     },
     {
       "cases": [
+        "Off",
+        "Ends"
+      ],
+      "name": "ChartDataLabels"
+    },
+    {
+      "cases": [
         "Line",
         "Bar",
         "Area",
@@ -48,6 +55,22 @@
         "Heatmap"
       ],
       "name": "ChartKind"
+    },
+    {
+      "cases": [
+        "Top",
+        "Right",
+        "Bottom",
+        "None"
+      ],
+      "name": "ChartLegendPosition"
+    },
+    {
+      "cases": [
+        "Category",
+        "Temporal"
+      ],
+      "name": "ChartXScale"
     },
     {
       "cases": [
@@ -74,6 +97,22 @@
         "Network"
       ],
       "name": "DeterminismSource"
+    },
+    {
+      "cases": [
+        "Compact",
+        "Clock",
+        "Long"
+      ],
+      "name": "DurationStyle"
+    },
+    {
+      "cases": [
+        "Seconds",
+        "Minutes",
+        "Hours"
+      ],
+      "name": "DurationUnit"
     },
     {
       "cases": [
@@ -126,11 +165,28 @@
     },
     {
       "cases": [
+        "Small",
+        "Medium",
+        "Large"
+      ],
+      "name": "IconSize"
+    },
+    {
+      "cases": [
         "Default",
         "Avatar",
         "Rounded"
       ],
       "name": "ImageVariant"
+    },
+    {
+      "cases": [
+        "email"
+      ],
+      "hostCases": [
+        "Email"
+      ],
+      "name": "LinkProtection"
     },
     {
       "cases": [
@@ -537,6 +593,80 @@
           }
         },
         {
+          "name": "valueFormat",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "Format"
+          }
+        },
+        {
+          "name": "xTitle",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "yTitle",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "subtitle",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "legendPosition",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ChartLegendPosition"
+          }
+        },
+        {
+          "name": "dataLabels",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ChartDataLabels"
+          }
+        },
+        {
+          "name": "xScale",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ChartXScale"
+          }
+        },
+        {
           "name": "onPointClick",
           "optionality": {
             "$type": "optional"
@@ -712,6 +842,52 @@
         },
         {
           "name": "rowKeyField",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "sortStateKey",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "pageSize",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "int"
+          }
+        },
+        {
+          "name": "pageStateKey",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "defaultSort",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "record",
+            "name": "DefaultSort"
+          }
+        },
+        {
+          "name": "editStateKey",
           "optionality": {
             "$type": "optional"
           },
@@ -1257,6 +1433,58 @@
       "category": "Display",
       "fields": [
         {
+          "name": "icon",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "size",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Medium"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "IconSize"
+          }
+        },
+        {
+          "name": "tone",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Default"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ToneVariant"
+          }
+        },
+        {
+          "name": "label",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "tag": "Icon"
+    },
+    {
+      "category": "Display",
+      "fields": [
+        {
           "name": "alt",
           "optionality": {
             "$type": "required"
@@ -1421,6 +1649,16 @@
           },
           "type": {
             "$type": "str"
+          }
+        },
+        {
+          "name": "protection",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "LinkProtection"
           }
         }
       ],
@@ -2249,9 +2487,24 @@
           }
         },
         {
+          "name": "on",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "str"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
           "name": "stateKey",
           "optionality": {
-            "$type": "required"
+            "$type": "optional"
           },
           "type": {
             "$type": "str"
@@ -2892,6 +3145,24 @@
           }
         },
         {
+          "name": "sortable",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "editable",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
           "name": "format",
           "optionality": {
             "$type": "omitDefault",
@@ -3134,6 +3405,15 @@
           }
         },
         {
+          "name": "rotation",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "float"
+          }
+        },
+        {
           "name": "stroke",
           "optionality": {
             "$type": "optional"
@@ -3171,6 +3451,17 @@
           "type": {
             "$type": "enum",
             "name": "TextAnchor"
+          }
+        },
+        {
+          "name": "tip",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
           }
         }
       ],
@@ -3962,10 +4253,25 @@
             {
               "name": "value",
               "optionality": {
-                "$type": "required"
+                "$type": "optional"
               },
               "type": {
                 "$type": "json"
+              }
+            },
+            {
+              "name": "valueFrom",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "json"
+                  }
+                ],
+                "name": "Binding"
               }
             }
           ],
@@ -4151,6 +4457,26 @@
             }
           ],
           "tag": "State"
+        },
+        {
+          "fields": [
+            {
+              "name": "accessor",
+              "optionality": {
+                "$type": "hostOnly"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "obj -> 'T",
+                  "placeholder": "(fun (raw: obj) -> unbox raw)",
+                  "typescript": "never"
+                },
+                "wire": "<closure>"
+              }
+            }
+          ],
+          "tag": "Now"
         },
         {
           "fields": [
@@ -4516,6 +4842,46 @@
             }
           ],
           "tag": "Date"
+        },
+        {
+          "fields": [
+            {
+              "name": "unit",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "enum",
+                "name": "DurationUnit"
+              }
+            },
+            {
+              "name": "style",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "enum",
+                "name": "DurationStyle"
+              }
+            }
+          ],
+          "tag": "Duration"
+        },
+        {
+          "fields": [
+            {
+              "name": "unit",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "enum",
+                "name": "RelativeTimeUnit"
+              }
+            }
+          ],
+          "tag": "RelativeTime"
         },
         {
           "fields": [
@@ -5077,6 +5443,41 @@
         {
           "fields": [
             {
+              "name": "value",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "bool"
+                  }
+                ],
+                "name": "Binding"
+              }
+            },
+            {
+              "name": "onToggle",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "bool -> Action<'Msg>",
+                  "placeholder": "(fun (_: bool) -> Action.Chain [])",
+                  "typescript": "(v: boolean) => Action"
+                },
+                "wire": "<closure>"
+              }
+            }
+          ],
+          "tag": "Toggle"
+        },
+        {
+          "fields": [
+            {
               "name": "options",
               "optionality": {
                 "$type": "required"
@@ -5581,6 +5982,31 @@
             }
           ],
           "tag": "RelativeTime"
+        },
+        {
+          "fields": [
+            {
+              "name": "unit",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "enum",
+                "name": "DurationUnit"
+              }
+            },
+            {
+              "name": "style",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "enum",
+                "name": "DurationStyle"
+              }
+            }
+          ],
+          "tag": "Duration"
         }
       ],
       "name": "Format",
