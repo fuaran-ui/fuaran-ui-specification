@@ -4672,9 +4672,9 @@
               "type": {
                 "$type": "hosted",
                 "hostSurface": {
-                  "decode": "(fun __j -> Fuaran.Core.ColumnCodec.decodeJson __j |> Result.mapError string)",
-                  "encode": "Fuaran.Core.ColumnCodec.encodeJson",
-                  "fsharp": "Fuaran.Core.DataSource"
+                  "decode": "decTransformSource",
+                  "encode": "encTransformSource",
+                  "fsharp": "TransformSource"
                 },
                 "wire": "json"
               }
