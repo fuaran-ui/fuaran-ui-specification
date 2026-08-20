@@ -1430,6 +1430,39 @@ Consequences for a consumer:
 - **Conformance.** A stale-artefact guard on the `Fuaran-Core` side asserts byte-equality between the committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
 - **Scope.** The IDL models the **node** vocabulary. `TreeOp`s (§3.4) are outside it, as are decode-side policy surfaces a structural model cannot state: the §16 lenient-accept profile, the reject semantics of §6, and the §15/§17/§18 envelopes. For those, this prose spec and the corpus remain the only sources.
 
+### Render-fidelity manifest artefact (`render-fidelity.json`)
+
+The corpus also ships [`wire-format-fixtures/render-fidelity.json`](./render-fidelity.json) - the per-`NodeKind` declaration of **how far a target's render is held to this contract**. Where `schema.json` asks *is this payload legal?* and `idl.json` asks *what is the vocabulary?*, this artefact answers *for this kind, which render tiers exist, what does the parity-checked fallback pin, and what is declared client-only rich?*
+
+**The three tiers (the contract this artefact summarises).** For every fidelity-sensitive kind the render splits into declared tiers, and only the middle one is compared:
+
+1. **Source** - the deterministic, parity-clean data the wire carries: the LaTeX string, the code text, the raw markdown, the overlay's `open` binding. The wire never carries a rendered form.
+2. **Fallback** - the deterministic render that the SSR-parity corpus and the cross-host byte-diff compare. This is what a no-JS reader, a crawler, an email client, or a non-browser host receives, and it is pinned byte-for-byte across every conformant host. `Modal` / `Toast` / `ScrollArea` render **inline, never portaled**, with a closed overlay held behind the native `[hidden]` attribute rather than omitted (§3.2, the overlay + overflow contract). `CodeBlock` pins a bare escaped `<pre><code class="language-{x}">`. `Math` pins native MathML for the closed LaTeX subset and the escaped source otherwise. `Markdown` pins one deterministic GFM render (§14).
+3. **Rich** - the client-only render, **declared outside every parity comparison rather than silently divergent**: syntax highlighting, KaTeX, a chart or map library drawing into the placeholder. Because it is declared, a host that omits it is *degraded by contract*, not non-conformant.
+
+The artefact also distinguishes a third posture from those two. A **`behavioural`** rich tier - overlay focus management, keyboard navigation, the handlers an inert server-rendered control gains at hydration - is attached after hydration and **must not alter the hydrated DOM**. That is precisely why the overlay contract admits a focus trap while refusing a portal, and a consumer that reports fidelity needs the distinction: `clientOnly` means the DOM you are looking at is not the parity-checked one; `behavioural` means it still is.
+
+- **`$id`:** `https://fuaran.dev/wire-format/v1/render-fidelity.json`, pinning the wire-format major version exactly as `schema.json` does.
+- **Generated, not hand-authored.** It is emitted from [`Fuaran.UI.RenderFidelity`](../fuaran-dotnet/src/Fuaran.UI/RenderFidelity.fs), the declaration the F# tier itself reads. The same `--emit-corpus` command that writes the fixtures and `schema.json` (§12) co-emits it; a declaration-only change that touches no fixture can publish it alone:
+
+  ```
+  cd fuaran-dotnet
+  dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-fidelity ..\wire-format-fixtures
+  ```
+
+- **Shape.** A single JSON object: `version`, `$id`, `description`, `tiers` (the three tier definitions above, so the artefact is self-describing), and `kinds` - one entry per canonical `kind.$type`, Ordinal-sorted so an addition lands as one clean insert. Each entry carries `kind`, `sensitive` (whether the kind has an explicit, phase-pinned fidelity contract, as against being trivially single-tier), `source`, `fallback`, `rich` (`{ "class": "none" | "behavioural" | "clientOnly", ... }`), `fixtures` (corpus-relative paths pinning the fallback, declared for the fidelity-sensitive kinds), and `contract` (where the contract is written down).
+- **Conformance.** Two guards on the F# side. A **completeness rule** asserts one row per canonical wire kind, measured against this manifest's own generated `kinds` enumeration rather than a hand list - so a kind added under the §11 forward-coupling rule appears here and fails the rule until its posture is declared, and the class cannot silently grow. A **stale-artefact guard** asserts byte-equality between the committed file and a fresh emission, naming the regeneration command, exactly as the stale-schema guard does. Every fixture a row names is checked to exist. The artefact **describes the existing render contract only**: no wire byte and no renderer behaviour changed when it landed.
+- **Scope.** Render fidelity, not interactivity. An inert server-rendered control becoming live at hydration is `behavioural`; what happens *after* a user interacts is outside this artefact entirely. Kinds the §15.3 tolerance path preserves without understanding have no row by construction, which is the honest answer rather than a missing one.
+
+**Deriving a fidelity badge (the consumer recipe).** A surface that shows per-node fidelity - a legend, a certification report, a degradation exhibit - derives it and hard-codes nothing:
+
+1. Read the node's wire discriminator, `kind.$type`. (A host with its own kind vocabulary adapts at that boundary first: the F# tier's `Kind.name` says `Grid` where the wire says `DataGrid`.)
+2. Look the token up in `kinds`. A miss means an unknown kind arriving over the tolerance path (§15.3), which is reported as unknown, never as single-tier.
+3. Emit three segments in order - `source`, `fallback`, `rich` - taking the detail text from the matching fields. The `rich` segment is *absent* exactly when `rich.class` is `none`, which is a positive statement ("the fallback is the whole render"), not missing information.
+4. To say which tier the current target is *delivering*, intersect with what that target runs: a scripts-disabled render delivers `fallback`; a hydrated browser render delivers `rich` where one is declared. The `fixtures` array names the corpus payloads that pin the fallback, which is what a per-node "and here is the fixture that proves it" affordance links to.
+
+Each language tier ships the same derivation over the same artefact, so the three segments a badge shows are identical whichever host produced the page.
+
 ---
 
 ## 14. Markdown rendering (render-only; not a wire concern)

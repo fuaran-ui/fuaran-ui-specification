@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "$id": "https://fuaran.dev/wire-format/v1/render-fidelity.json",
+  "description": "Per-NodeKind render-fidelity declaration for the Fuaran UI wire format. For each canonical kind.$type: what the wire carries (source), what the parity-checked render pins (fallback), and what, if anything, is declared client-only rich. Generated from Fuaran.UI.RenderFidelity; it transcribes the shipped fidelity contracts and introduces no wire or renderer behaviour. A consumer deriving per-node fidelity badges reads this rather than hand-annotating. See WIRE_FORMAT.md 13.",
+  "tiers": [
+    {
+      "tier": "source",
+      "meaning": "the deterministic, parity-clean data the wire carries; never a rendered form"
+    },
+    {
+      "tier": "fallback",
+      "meaning": "the deterministic render the SSR-parity corpus and the cross-host byte-diff compare - what a no-JS reader, a crawler, or a non-browser host gets"
+    },
+    {
+      "tier": "rich",
+      "meaning": "the declared client-only render, explicitly outside every parity comparison rather than silently divergent"
+    }
+  ],
+  "kinds": [
+    {
+      "kind": "Badge",
+      "sensitive": false,
+      "source": "the label TextSource + tone",
+      "fallback": "a `fuaran-badge` span carrying the resolved label and tone class",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Box",
+      "sensitive": false,
+      "source": "the child list + layout spec",
+      "fallback": "the full structural container, classes identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Button",
+      "sensitive": false,
+      "source": "the label, variant, disabled binding and the declared action",
+      "fallback": "the button element with its classes, resolved label and `disabled` state, carrying no event handlers",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "the declared action is wired on hydration",
+        "seam": "the control is inert server-side and gains behaviour, not structure, at hydration (Phase 143)",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Input - rendered inert)"
+    },
+    {
+      "kind": "Callout",
+      "sensitive": false,
+      "source": "the callout TextSource + tone",
+      "fallback": "the full structural callout element, tone class and ARIA identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Chart",
+      "sensitive": true,
+      "source": "the chart kind, the row-source binding, and the axis / legend / value-format declarations",
+      "fallback": "for a lowered kind over resolved rows, the SAME first-party lowered `Drawing` SVG the client emits (byte-parity via one shared lowering); otherwise a deterministic `fuaran-chart-ssr-placeholder` carrying `data-fuaran-row-count` and the title - never a blank",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "the client chart library draws into the placeholder",
+        "seam": "hydration, for the not-yet-lowered kinds only; a lowered kind has no client-only tier",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/chart-1.json"
+      ],
+      "contract": "Phase 526; docs/SSR.md (Visualisation)"
+    },
+    {
+      "kind": "CodeBlock",
+      "sensitive": true,
+      "source": "the code text, a `language` tag, optional `lineNumbers` / `highlightLines`, and `copyable` - deterministic data on the wire",
+      "fallback": "a deterministic HTML-escaped `<pre><code class=\"language-{x}\">` with `data-language`, the optional `data-highlight-lines`, and a structurally-present copy button; no markdown library on either side",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "syntax highlighting",
+        "seam": "a post-hydration pass targeting `.language-{x}`; a host integration seam, never emitted by a renderer",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/code-1.json"
+      ],
+      "contract": "Phase 290; WIRE_FORMAT.md 3.2; docs/SSR.md (deterministic-render + client-only-enhancement contract)"
+    },
+    {
+      "kind": "Custom",
+      "sensitive": true,
+      "source": "the component name, a bounded prop map, and the optional content-identity envelope",
+      "fallback": "whatever the host's SERVER custom-renderer registry emits for the component; an unregistered node renders the same labelled placeholder on both sides",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "the host's registered client renderer",
+        "seam": "the `IFuaranRuntime.RegisterCustomRenderer` trust boundary (Phase 141) - the sanctioned escape a host uses for a library render such as a diagram",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/custom-1.json"
+      ],
+      "contract": "Phase 141; docs/SSR.md (custom-renderer registry); SANITIZATION.md"
+    },
+    {
+      "kind": "DataGrid",
+      "sensitive": true,
+      "source": "the column declarations, the row-source binding, and the declared sort / page / edit intent",
+      "fallback": "in static read-only mode the full semantic `<table class=\"fuaran-table\">` (byte-identical to the retired `Table`, with the declared sort surfaced as `data-fuaran-sort-*`); for a client-library grid a deterministic `fuaran-grid-ssr-placeholder` carrying `data-fuaran-row-count` - never a blank",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "the client grid library draws into the placeholder",
+        "seam": "hydration, for the client-library form only; a `staticRows` grid has no client-only tier",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/grid-1.json"
+      ],
+      "contract": "Phase 393; docs/SSR.md (Visualisation, sortable rendered tables)"
+    },
+    {
+      "kind": "Disclosure",
+      "sensitive": false,
+      "source": "the summary, the child tree, and the open binding",
+      "fallback": "a native `<details>`/`<summary>` whose `open` attribute reflects the resolved binding - the disclosure opens and closes with no JavaScript at all",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Layout.Disclosure)"
+    },
+    {
+      "kind": "Drawing",
+      "sensitive": false,
+      "source": "the declared shape / label geometry",
+      "fallback": "a deterministic SVG built by the shared `DrawingSvg` builder, byte-identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "ErrorBoundary",
+      "sensitive": false,
+      "source": "the protected child subtree and the fallback subtree",
+      "fallback": "the protected child subtree rendered directly; the fallback is a client-runtime degradation path (the server has no throws to catch)",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Fact",
+      "sensitive": false,
+      "source": "the label / value TextSources",
+      "fallback": "the resolved, formatted fact row",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "FileUpload",
+      "sensitive": false,
+      "source": "the accept / multiple declarations and the label",
+      "fallback": "the file control with its classes and `disabled` state, carrying no event handlers",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "selection handling is wired on hydration",
+        "seam": "the control is inert server-side (Phase 143); the `onSelect` payload is non-scalar and needs host wiring",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Input - rendered inert)"
+    },
+    {
+      "kind": "Filters",
+      "sensitive": false,
+      "source": "the filter item declarations and their bound stores",
+      "fallback": "the filter controls with their classes and resolved values, carrying no event handlers",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "filter write-back is wired on hydration",
+        "seam": "the control is inert server-side (Phase 143); the declarative floor is write-back to the filter's own store",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Input - rendered inert)"
+    },
+    {
+      "kind": "Form",
+      "sensitive": false,
+      "source": "the field declarations, their bound values and the submit action",
+      "fallback": "the form and its fields with their classes, resolved values and `disabled` state, carrying no event handlers",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "field write-back and submit are wired on hydration",
+        "seam": "the controls are inert server-side (Phase 143)",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Input - rendered inert)"
+    },
+    {
+      "kind": "FragmentDecl",
+      "sensitive": false,
+      "source": "the fragment template and its hole declarations",
+      "fallback": "zero paint - the declaration is a template, not a rendered node",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "FragmentRef",
+      "sensitive": false,
+      "source": "the fragment name and its argument bindings",
+      "fallback": "the fragment expanded against the one-shot registry collected from the tree; an unresolved reference renders a labelled placeholder identically on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Heading",
+      "sensitive": false,
+      "source": "the heading TextSource + level",
+      "fallback": "the full structural heading element",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Icon",
+      "sensitive": false,
+      "source": "the icon name + size",
+      "fallback": "the resolved icon markup through the uniform icon hook",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Image",
+      "sensitive": false,
+      "source": "the src, alt and variant",
+      "fallback": "a real `<img>` with the sanitised `src` (unknown or dangerous schemes collapse to `about:blank`), `alt` always emitted, and the per-variant class",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "LabelValueRow",
+      "sensitive": false,
+      "source": "the label / value TextSources",
+      "fallback": "the resolved, formatted row",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Link",
+      "sensitive": false,
+      "source": "the href, label, and the optional `protection` declaration",
+      "fallback": "a real crawlable `<a href>` with a sanitised href - the no-JS navigation path. Under `protection = email` the SSR side emits every character of the href and label as decimal HTML entities while the client sets the decoded href, so the two agree POST-ENTITY-DECODE rather than byte-for-byte; that narrowing is the declared contract, not a divergence",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [
+        "nodes/link-protected-1.json"
+      ],
+      "contract": "Phase 812; WIRE_FORMAT.md 3.2 (link protection); docs/SSR.md (protected email links)"
+    },
+    {
+      "kind": "List",
+      "sensitive": false,
+      "source": "the item TextSources + ordered flag",
+      "fallback": "an `<ol>`/`<ul>` of `<li>`, classes identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Map",
+      "sensitive": true,
+      "source": "the marker source binding and the map spec",
+      "fallback": "a deterministic `fuaran-map-ssr-placeholder` carrying `data-fuaran-marker-count` - never a blank",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "the client map library draws into the placeholder",
+        "seam": "hydration",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/map-1.json"
+      ],
+      "contract": "docs/SSR.md (Visualisation)"
+    },
+    {
+      "kind": "Markdown",
+      "sensitive": true,
+      "source": "the raw markdown text as a `TextSource`. Markdown is NEVER parsed into the wire format, so a markdown feature change is not a wire change (WIRE_FORMAT.md 14)",
+      "fallback": "one deterministic GFM-to-HTML render, shared by the F# client and server renderers and re-implemented byte-identically by every other host; pinned by its own corpus at `markdown/corpus.json` and its own cross-host gate",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "KaTeX over inline `$...$` / `$$...$$` spans",
+        "seam": "a post-hydration pass over `.fuaran-markdown`; the deterministic renderer leaves those spans as escaped literal text, which is the precondition that keeps the enhancement outside the byte-diff",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/markdown-1.json"
+      ],
+      "contract": "Phases 292, 293; WIRE_FORMAT.md 14; docs/MARKDOWN.md"
+    },
+    {
+      "kind": "Math",
+      "sensitive": true,
+      "source": "the LaTeX `source` string plus `display` (inline | block) - deterministic, parity-clean data on the wire; the wire never carries rendered math",
+      "fallback": "native MathML for the closed LaTeX subset (real superscripts, subscripts and fractions with NO JavaScript), or the raw escaped source in a `fuaran-math-source` span for out-of-subset input, both inside a `fuaran-math-{block,inline}` container carrying `data-math-display` and `data-fuaran-math-src`. Byte-identical across every renderer; the subset and its byte-exact fixture table are normative in docs/MATH-DEGRADATION.md",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "KaTeX",
+        "seam": "a post-hydration pass targeting the `.fuaran-math` container, reading the LaTeX from `data-fuaran-math-src` and replacing the floor wholesale; never emitted by a renderer",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/math-1.json"
+      ],
+      "contract": "Phases 293, 658; WIRE_FORMAT.md 3.2; docs/SSR.md; docs/MATH-DEGRADATION.md"
+    },
+    {
+      "kind": "Metric",
+      "sensitive": false,
+      "source": "the label + value source + format",
+      "fallback": "the resolved, formatted metric tile",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Modal",
+      "sensitive": true,
+      "source": "the child tree, the `open` `Binding<bool>`, and the heading / dismissable declarations",
+      "fallback": "rendered INLINE at its tree position - no portal, ever. Position, centring, stacking and backdrop are CSS-owned (`position: fixed`, `z-index: var(--fuaran-z-modal)`), so both sides emit the same tree shape. A closed modal stays in the DOM behind the native `[hidden]` attribute rather than being omitted. ARIA is structural and literal: `role=\"dialog\"` + `aria-modal=\"true\"`. Dismiss and heading affordances are structurally present and inert server-side",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "focus trap, restore-focus and Esc-to-dismiss",
+        "seam": "attached on hydration; behaviour, not structure, so it cannot cause a hydration mismatch",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [
+        "nodes/modal-1.json"
+      ],
+      "contract": "Phase 289; WIRE_FORMAT.md 3.2; docs/SSR.md (overlay + overflow render-fidelity contract)"
+    },
+    {
+      "kind": "Mount",
+      "sensitive": false,
+      "source": "the guest tree reference and the isolation boundary declaration",
+      "fallback": "the guest subtree rendered within its isolation boundary; the host-bubble channel is host composition, not a rendered affordance",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Progress",
+      "sensitive": false,
+      "source": "the value source + max",
+      "fallback": "the resolved progress element",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "ScrollArea",
+      "sensitive": true,
+      "source": "the child tree, the scroll orientation, and the optional pixel bounds",
+      "fallback": "a `fuaran-scrollarea-{vertical,horizontal,both}` overflow container whose clip and scrollbar are entirely CSS-owned, with a structural `role=\"region\"` and a LOWERCASE `tabindex=\"0\"` scroll target (lowercase deliberately: the camelCase form diverges from what React normalises the client's `tabIndex` to). Pixel bounds render as an identical inline `max-height`/`max-width` on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [
+        "nodes/scroll-1.json"
+      ],
+      "contract": "Phase 289; WIRE_FORMAT.md 3.2; docs/SSR.md (overlay + overflow render-fidelity contract)"
+    },
+    {
+      "kind": "Select",
+      "sensitive": false,
+      "source": "the options, the bound value and the multiple flag",
+      "fallback": "the `<select>` (with the `multiple` attribute and no scalar `value` in multi mode) carrying its classes and resolved selection, inert server-side",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "selection write-back is wired on hydration",
+        "seam": "the control is inert server-side (Phase 143); the declarative floor is write-back to the control's own writable binding",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "Phase 291; docs/SSR.md (Input - rendered inert)"
+    },
+    {
+      "kind": "Skeleton",
+      "sensitive": false,
+      "source": "the skeleton shape declaration",
+      "fallback": "the full structural placeholder element",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Sparkline",
+      "sensitive": true,
+      "source": "the series values",
+      "fallback": "the `fuaran-sparkline` hook element plus an em-dash placeholder - a readable, deterministic stand-in rather than a blank",
+      "rich": {
+        "class": "clientOnly",
+        "technique": "the polyline is drawn",
+        "seam": "hydration",
+        "meaning": "changes the DOM after hydration and is excluded from every parity comparison by contract"
+      },
+      "fixtures": [
+        "nodes/spark-1.json"
+      ],
+      "contract": "docs/SSR.md (Display.Sparkline)"
+    },
+    {
+      "kind": "SplitPanel",
+      "sensitive": false,
+      "source": "the two child subtrees + the split declaration",
+      "fallback": "the full structural container, classes identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Stepper",
+      "sensitive": false,
+      "source": "the step declarations and the active-step binding",
+      "fallback": "the full structural step list with the active step marked, ARIA-complete",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "step selection is wired on hydration",
+        "seam": "the control is inert server-side (Phase 143)",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Layout)"
+    },
+    {
+      "kind": "SummaryList",
+      "sensitive": false,
+      "source": "the summary rows",
+      "fallback": "the full structural list, classes identical on both sides",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Switch",
+      "sensitive": false,
+      "source": "the selector binding and the per-case child subtrees",
+      "fallback": "the case matching the resolved initial value, else the default. The client's first render reads the same seeded value, so both sides emit the same tree shape",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [],
+      "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
+    },
+    {
+      "kind": "Tabs",
+      "sensitive": false,
+      "source": "the tab declarations, their panels, and the active-tab binding",
+      "fallback": "a static `role=\"tablist\"` plus the active panel, ARIA-complete",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "keyboard navigation and tab switching are wired on hydration",
+        "seam": "the control is inert server-side (Phase 143); switching a tab after hydration is interaction, not a fidelity tier",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [],
+      "contract": "docs/SSR.md (Layout.Tabs)"
+    },
+    {
+      "kind": "Toast",
+      "sensitive": true,
+      "source": "the content, the `open` `Binding<bool>`, and the tone",
+      "fallback": "rendered INLINE at its tree position with no portal, always emitted, `role=\"status\"` + `aria-live=\"polite\"`, and `[hidden]` when closed rather than absent. This is the DECLARATIVE, hydration-stable notification surface; the imperative `Action.Notify` path renders no node at all and is a host-chrome trigger, not a tier of this kind",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [
+        "nodes/toast-1.json"
+      ],
+      "contract": "Phase 289; WIRE_FORMAT.md 3.2 (Toast vs Action.Notify); docs/SSR.md"
+    }
+  ]
+}

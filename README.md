@@ -10,6 +10,7 @@ conformance corpus**.
 |---|---|
 | [`WIRE_FORMAT.md`](WIRE_FORMAT.md) | The specification. The authority on the contract — every host (F#, TypeScript, Python, Go, Rust, and any third-party implementation) implements from this document, not from another host's source. |
 | [`schema.json`](schema.json) | Canonical JSON Schema (Draft 2020-12) describing the wire shape. Generated from the reference encoder's surface — never hand-edited. |
+| [`render-fidelity.json`](render-fidelity.json) | The per-`NodeKind` **render-fidelity** declaration (WIRE_FORMAT.md §13): what the wire carries, what the parity-checked fallback render pins, and what is declared client-only rich. Generated from the reference declaration — never hand-edited. |
 | [`manifest.json`](manifest.json) | The authoritative index of every **wire-format codec** fixture family and count. |
 | Fixture directories (`nodes/`, `ops/`, `reject/`, `lenient/`, `envelope/`, `markdown/`, …) | The executable conformance suite: round-trip, reject, and lenient-accept families. A conformant codec must pass every assertion the manifest enumerates. |
 | [`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) + [`devtools-relay/`](devtools-relay/) | The **DevTools relay contract** — a companion specification and its own fixture family. See below. |
