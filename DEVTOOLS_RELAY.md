@@ -1,4 +1,4 @@
-# Fuaran DevTools relay contract (`relay@1.0`)
+# Fuaran DevTools relay contract (`relay@1.1`)
 
 The **page ↔ extension relay**: a `postMessage` envelope that carries a Fuaran host's already-shipped
 in-page introspection surface across the page/extension boundary, so a browser extension (or any
@@ -22,7 +22,7 @@ browser tab:
 - the **client peer** — code running in an extension content script (or any other same-page script)
   that wants to read or edit that tree.
 
-The protocol carries five reads, one gated mutation, a change subscription, and a detection
+The protocol carries six reads, one gated mutation, a change subscription, and a detection
 handshake. Every message is a JSON-compatible object passed through the browser's structured-clone
 algorithm.
 
@@ -57,7 +57,7 @@ not an extension of it. It borrows three things and nothing else:
 | The `DecodeError` envelope — `Code` / `Path` / `Message` / `ExpectedShape` | §6 | The `DECODE_FAILED` refusal's `detail` (§9.3) |
 | Canonical `TreeOp` JSON | §2, §3 | The `apply` request's `op` payload (§8.2) |
 
-The relay profile is `relay@1.0`. It versions **independently** of the wire profile `core@1.0`: a
+The relay profile is `relay@1.1`. It versions **independently** of the wire profile `core@1.0`: a
 host may advance its wire profile without advancing its relay profile, and the reverse. The two
 profile names are distinct namespaces, so a peer that confuses them negotiates `Foreign` and refuses
 — which is the correct outcome.
@@ -146,7 +146,7 @@ Every message — request, response, and event alike — is exactly this object:
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "request",
   "id": "c-1",
   "type": "read.nodeState",
@@ -195,6 +195,7 @@ The full closed set of request types:
 | `read.renderedDom` | `read.renderedDom` | `read.renderedDom.ok` |
 | `read.tree` | `read.tree` | `read.tree.ok` |
 | `read.findNodes` | `read.findNodes` | `read.findNodes.ok` |
+| `read.affordances` *(since `relay@1.1`)* | `read.affordances` | `read.affordances.ok` |
 | `apply` | `apply` | `apply.ok` |
 | `subscribe` | `subscribe` | `subscribe.ok` |
 | `unsubscribe` | `subscribe` | `unsubscribe.ok` |
@@ -212,7 +213,11 @@ The one event type is `changed` (§8.4).
 ### 5.1 Grammar
 
 `<name>@<major>.<minor>`, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §15.1 defines it. The relay
-namespace is `relay`; the profile defined by this document is **`relay@1.0`**.
+namespace is `relay`; the profile defined by this document is **`relay@1.1`**.
+
+A peer's profile id is the **highest** profile it can serve. Within one major, a peer is a superset
+of every earlier minor of that major, so a peer MUST be able to serve any minor at or below its own —
+which is what §6.3's profile selection turns into a session decision.
 
 ### 5.2 Negotiation
 
@@ -273,14 +278,14 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "request",
   "id": "c-1",
   "type": "hello",
   "payload": {
     "client": "fuaran-devtools",
     "clientVersion": "1.0.0",
-    "accepts": ["relay@1.0"]
+    "accepts": ["relay@1.1", "relay@1.0"]
   }
 }
 ```
@@ -295,7 +300,7 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "response",
   "id": "c-1",
   "type": "hello.ok",
@@ -303,8 +308,8 @@ the page peer may install its listener after the client's first probe.
     "host": "fuaran-ts",
     "hostVersion": "0.6.0",
     "surfaceVersion": "0.1.0",
-    "profile": "relay@1.0",
-    "capabilities": ["read.nodeState", "read.bindingValue", "read.renderedDom", "read.tree", "read.findNodes"],
+    "profile": "relay@1.1",
+    "capabilities": ["read.nodeState", "read.bindingValue", "read.renderedDom", "read.tree", "read.findNodes", "read.affordances"],
     "treeRevision": "r-41"
   }
 }
@@ -315,14 +320,37 @@ the page peer may install its listener after the client's first probe.
 | `host` | string | Host implementation identifier. **Opaque to the client** — a client MUST NOT branch on it to select behaviour; the `capabilities` array is the only thing that determines what is available. It exists for display and bug reports. |
 | `hostVersion` | string | The host implementation's version. Informational. |
 | `surfaceVersion` | string | The version of the host's underlying in-page surface shape. Informational; the relay contract's own version is `profile`. |
-| `profile` | string | The profile the page peer will speak for the rest of the session. MUST be one the client listed in `accepts`, or the page peer MUST refuse with `FOREIGN_PROFILE` instead of responding `hello.ok`. |
-| `capabilities` | array of string | The request types this peer will serve, from the §4.2 closed set (excluding `hello`). MAY be empty. |
+| `profile` | string | The **session profile** — the profile the page peer will speak for the rest of the session. Selected per the rule below. MUST be one the client listed in `accepts`, or the page peer MUST refuse with `FOREIGN_PROFILE` instead of responding `hello.ok`. |
+| `capabilities` | array of string | The request types this peer will serve **at the session profile**, from the §4.2 closed set (excluding `hello`). MAY be empty. |
 | `treeRevision` | string | §5.4. |
+
+**Selecting the session profile.** A page peer MUST answer with the **highest** profile that is both
+listed in the client's `accepts` and serveable by the peer (§5.1: same name and major, minor at or
+below the peer's own). Only when `accepts` contains no such profile does the peer refuse with
+`FOREIGN_PROFILE`.
+
+Answering only with the peer's own profile id would be wrong, and wrong in a way that is worth
+stating because it looks harmless: it would refuse every client whose `accepts` predates the peer's
+newest minor — which is the entire population a backward-compatible minor bump exists to keep
+serving. §5.3 says additive change is a minor bump *because* an older peer can ignore what a newer
+one adds; the same reasoning obliges a newer PEER to keep speaking to an older CLIENT.
+
+**Capabilities are reported at the session profile, not at the peer's own.** A capability whose
+request type was introduced after the session profile MUST NOT be advertised, and MUST be refused
+with `CAPABILITY_ABSENT` (§6.4) if requested — the type does not exist in the profile the client
+speaks, so advertising it would name an entry point that client's own contract says is not there. A
+client that wants a later minor's entry point re-handshakes with that profile in `accepts`.
+
+The same rule applies per request, not only at `hello`: §5.2 already requires negotiation on every
+inbound request, and the capability check is made at the minor **that request** declares. So a
+`relay@1.0` envelope asking for a `relay@1.1` entry point gets exactly the `CAPABILITY_ABSENT` a
+genuine `relay@1.0` peer would give it, and the outcome does not depend on which peer happened to
+receive it.
 
 ### 6.4 Capabilities are the whole authorisation surface
 
-**A read-only host is fully conformant.** A page peer that offers only the five `read.*` capabilities
-— omitting `apply` and `subscribe` — implements this specification completely. Nothing in this
+**A read-only host is fully conformant.** A page peer that offers only the `read.*` capabilities —
+omitting `apply` and `subscribe` — implements this specification completely. Nothing in this
 contract obliges a host to offer mutation.
 
 Consequently:
@@ -339,8 +367,8 @@ Consequently:
 
 ## 7. Read entry points
 
-All five are non-mutating. Each takes the payload below and returns `<type>.ok` with the stated
-payload, or `refusal`.
+All six are non-mutating. Each takes the payload below and returns `<type>.ok` with the stated
+payload, or `refusal`. §7.1–§7.5 are `relay@1.0`; §7.6 is the `relay@1.1` addition.
 
 ### 7.1 `read.nodeState`
 
@@ -457,6 +485,138 @@ unmatched kind yields `{ "nodeIds": [] }` — **not** a refusal. Asking about a 
 tree is a legitimate question with the answer "none"; and a kind token this host does not recognise
 at all is likewise `[]`, since the honest answer to "which nodes have this kind" is still "none".
 
+### 7.6 `read.affordances` *(since `relay@1.1`)*
+
+The other five reads report what the page **is**. This one reports what the page's author **said it
+understands**: the natural-language commands the application already accepts, the synonyms it will
+resolve, and the values each field will take.
+
+That is a different kind of fact, and the distinction governs everything below. A tree read is
+derived — a peer computes it from state it holds, and two peers over the same tree owe the same
+answer. An affordance is *declared* — it exists because somebody wrote it down, it is whatever they
+wrote, and a peer that has been told nothing has nothing to report. So this entry point relays a
+host's declaration; it never infers one, and §1.2's "a relay over the host's existing surface, not a
+second introspection protocol" is doing more work here than anywhere else in this document.
+
+**Request payload:** `{}` for the whole page, or `{ "moduleId": "<string>" }` to narrow to one module.
+
+**Response payload:**
+
+```json
+{
+  "modules": [
+    {
+      "id": "sales",
+      "active": true,
+      "fields": [
+        {
+          "id": "country",
+          "shape": "choice",
+          "controllable": true,
+          "commands": [
+            { "phrase": "set country to {value}", "effect": "write" },
+            { "phrase": "what is the country", "effect": "read" }
+          ],
+          "aliases": [ { "alias": "uk", "value": "United Kingdom" } ],
+          "values": { "kind": "oneOf", "values": ["United Kingdom", "France"] },
+          "description": "one of: United Kingdom, France"
+        }
+      ],
+      "commands": [ { "phrase": "go to sales", "effect": "navigate" } ]
+    }
+  ]
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `modules` | array of object | Every declared module the host is publishing, in the host's declared order. **Always present**, possibly empty. |
+
+**Module object:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | The host's identifier for the module. Opaque to the client. |
+| `active` | boolean | Whether this module is the one currently in front of the user. A host with no notion of an active module reports `false` throughout. |
+| `fields` | array of object | The declared fields, in declared order. Possibly empty. |
+| `commands` | array of object | Phrases addressing the module itself rather than one of its fields. Possibly empty. |
+
+**Field object:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | The name the host addresses this field by — the name a client would use when constructing a phrase. Opaque otherwise. |
+| `shape` | string | How the value is shaped: `text` \| `number` \| `boolean` \| `choice` \| `unknown`. Deliberately coarse — a client needs to know what kind of token to emit, and nothing finer is portable across hosts. `unknown` is a legitimate answer, and a better one than a guess. |
+| `controllable` | boolean | Whether a phrase may **set** this field. See the absence rule below — `false` is not "denied", it is "readable and no more". |
+| `commands` | array of object | The declared phrases for this field, in declared order. Possibly empty (a field may be published for its value hint alone). |
+| `aliases` | array of object | `{ "alias": "<string>", "value": "<string>" }` pairs — synonyms the host will resolve to a canonical value. Publishing them spares a client a round of rejections it would otherwise learn from. Possibly empty. |
+| `values` | object | **Optional.** The declared bound (below). Absent when the host declared none — absence already says "unconstrained", so there is no marker for it. |
+| `description` | string | **Optional.** Free-form human-readable note. A client MAY render it and MUST NOT parse it; everything machine-actionable is in the typed fields. |
+
+**Command object:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `phrase` | string | The declared phrase, **verbatim**, including any slot syntax (below). |
+| `effect` | string | `read` \| `write` \| `navigate` \| `invoke`. A closed set; §10.3 governs an unrecognised value — treat the phrase as opaque and still render it. |
+
+**Value bound (`values`)** — a discriminated object, so a client reads the bound without parsing prose:
+
+| `kind` | Fields | Meaning |
+|---|---|---|
+| `oneOf` | `values` (array of string) | The field accepts exactly these, in declared order. |
+| `numberRange` | `min`, `max`, `step` — **each optional** | A numeric bound. An open end is **omitted**, never `null`: a half-open range is a real declaration, and a `null` end reads to a client as a bound it must handle rather than one that was never made. |
+| `textLength` | `minLength`, `maxLength` — each optional | A bound on the value's length in characters. |
+
+#### 7.6.1 Slot syntax in a phrase
+
+A phrase MAY contain slot markers where the client supplies its own words — conventionally
+`{value}`, and a host MAY use its own marker vocabulary. **A peer MUST carry the phrase verbatim**
+and MUST NOT normalise, strip, or rewrite the markers: they are what tell a client where its words
+go, so removing them destroys the useful half of the declaration. A client that does not recognise a
+host's marker vocabulary still has a phrase it can show a user, which is why the markers are not a
+closed set here.
+
+A phrase with no slot is a complete command in itself (`"clear country"`, `"go to sales"`).
+
+#### 7.6.2 Absence is the deny mechanism
+
+**A module or field the host does not publish does not appear, and this contract offers no way to
+learn that it exists.** There is no `denied` marker, no partially-redacted entry, and no refusal
+class for a filtered module — each would disclose the one fact filtering exists to hide.
+
+Consequently:
+
+1. **A `moduleId` naming a module the response does not carry yields `{ "modules": [] }`, not a
+   refusal.** A host MUST NOT distinguish "no such module" from "a module I am not publishing", and a
+   client MUST NOT infer existence from anything in the response. This mirrors §7.5's posture for an
+   unrecognised kind, with a security reason on top of the honesty one.
+2. **`controllable: false` is a different statement**, and is only sayable about a field the host
+   chose to publish: *you may ask about this, you may not set it*. A field that must not be touched
+   at all is simply absent.
+3. **A page that has published nothing answers `{ "modules": [] }`.** This is a well-formed success,
+   never a refusal and never an error: "this page declares no affordances" is a legitimate answer to
+   a legitimate question, and refusing would make an ordinary page indistinguishable from a broken
+   one — and would confirm, by its refusal class, that the page had something to withhold.
+
+#### 7.6.3 What this entry point does NOT do
+
+- **It grants nothing.** A published phrase is a statement that the host understands it, not a
+  promise that any particular utterance will be accepted, and not a bypass of any gate. Acting on an
+  affordance goes through whatever path the host already has — for a mutation, that is §8's `apply`
+  with §8.3's decode → validate → policy sequence and §11.3's no-side-door property, both entirely
+  unchanged by this section.
+- **It is not a snapshot.** Nothing here reports a field's current *value*; `read.bindingValue`
+  (§7.3) is that read. This entry point reports what may be said, not what is presently true.
+- **It carries no `treeRevision`.** Declarations do not change with the tree, so a revision token
+  here would invite a client to re-read on a change that cannot have affected the answer. A host
+  whose declarations genuinely change during a session — a module loaded on demand — is served by
+  re-reading; a `changed` event is not defined for this, and defining one would be a later minor.
+
+**Refusals:** `MALFORMED_MESSAGE` — and only for a structurally invalid request, e.g. a `moduleId`
+present but not a string. A *valid* request naming a module the host does not publish is an `.ok`
+with an empty `modules` array, per §7.6.2 rule 1.
+
 ---
 
 ## 8. `apply` — capability-gated mutation
@@ -476,7 +636,7 @@ A host that stops at gate 1 or 2 is fully conformant (§6.4).
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "request",
   "id": "c-7",
   "type": "apply",
@@ -566,7 +726,7 @@ subscription, so a client has a known baseline before the first event arrives.
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "event",
   "id": "c-9",
   "type": "changed",
@@ -603,7 +763,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 
 ```json
 {
-  "$relay": "relay@1.0",
+  "$relay": "relay@1.1",
   "dir": "response",
   "id": "c-7",
   "type": "refusal",
@@ -633,7 +793,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 | Class | Raised when | `detail` |
 |---|---|---|
 | `NOT_OPTED_IN` | The host has not opted into relay exposure. Applies to **any** request type including `hello`. | — |
-| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.0"] }` |
+| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.1"] }` |
 | `UNKNOWN_MESSAGE` | The `type` is not in the §4.2 closed set for this peer's profile. | `{ "received": "<token>" }` |
 | `MALFORMED_MESSAGE` | The envelope or payload is structurally invalid — a missing required payload field, a wrong JSON type, an empty `accepts` or `events`. | `{ "path": "<payload.field>" }` |
 | `CAPABILITY_ABSENT` | The `type` is recognised but its capability was not advertised (§6.4). | `{ "capability": "<name>" }` |
@@ -774,7 +934,25 @@ A relay-exposing page is discoverable by any same-origin script that sends `hell
   policy refused hands an attacker a map of the policy. §9.3 leaves that class's `detail` empty by
   design.
 
-### 11.6 Auditability
+### 11.6 Affordance disclosure
+
+`read.affordances` (§7.6) publishes what a host chose to publish, and nothing else. Three points
+belong here rather than only in §7.6, because each is a security property and not a shape rule:
+
+- **The withheld and the non-existent are indistinguishable**, deliberately (§7.6.2). A refusal class
+  for a filtered module would be a disclosure oracle; there is none, and adding one would be a major
+  version change with this section as the reason not to.
+- **A declaration is not a grant.** Publishing that the host understands a phrase says nothing about
+  whether a given utterance will be accepted. Every mutation still crosses §8.3 and §11.3 unchanged;
+  this entry point adds no path to the tree at all, being a read.
+- **Declared strings are untrusted at the client**, exactly as §11.5 says of every other host-supplied
+  string. Phrases, aliases, descriptions and module ids all originate in application source and a
+  client rendering them in a privileged extension UI MUST escape them.
+
+Note that a host publishing affordances at all is a deliberate act: absent a registered source of
+declarations the entry point reports nothing, so the default posture discloses nothing.
+
+### 11.7 Auditability
 
 A host that offers `apply` SHOULD record every relay-originated mutation and every refusal through
 the same audit path it uses for in-page mutations, so a relay session is as answerable as any other.
@@ -806,6 +984,20 @@ one manifest that contains only what it can run.
 Relay fixtures are therefore **shape fixtures, not byte-parity fixtures** (§1.2): they pin message
 structure and refusal classification. They carry no canonical-ordering obligation and are not
 generated by the wire-format emitter.
+
+**The family's own profile.** `devtools-relay/manifest.json` carries a `profile` field naming the
+profile its fixtures are written at, and **that is not necessarily this document's profile**. Every
+host runs the whole family, so a fixture pinning an exchange a host cannot yet have is a failing
+gate rather than a finding — and a corpus that goes red the moment a specification adds anything is
+one that gets bypassed. So a fixture for a request type introduced by a minor bump lands when a
+**second** host serves it, and the manifest's `profile` advances with the fixtures, not with the
+document.
+
+The corpus manifest is at `relay@1.0` while this document is at `relay@1.1`: `read.affordances`
+(§7.6) is specified and served by one host, and its fixture family lands alongside a second
+implementation. Existing fixtures remain the gate meanwhile, and they are a real one for a 1.1 peer
+— answering an unchanged `relay@1.0` corpus, handshakes included, is precisely the evidence that
+§6.3's profile selection kept the bump backward-compatible.
 
 ### 12.2 Manifest shape
 
@@ -848,7 +1040,9 @@ numbers, resolved binding `value`s, and `message` strings are environment-specif
 differ. Fixture payloads use representative values for these; a runner asserting byte-equality on them
 is testing the fixture author's choices, not the implementation.
 
-Every message type in §4.2 has at least one fixture, and every refusal class in §9.3 has one.
+Every message type **in the manifest's own profile** has at least one fixture, and every refusal class
+in §9.3 has one. A type introduced by a later minor than the manifest's is covered when the family
+advances to that minor (§12.1).
 
 ---
 

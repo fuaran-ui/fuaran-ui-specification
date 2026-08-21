@@ -32,7 +32,7 @@ which states which of the accepted forms to write.
 
 ## The DevTools relay contract
 
-[`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) specifies the **page ↔ extension relay** (`relay@1.0`): a
+[`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) specifies the **page ↔ extension relay** (`relay@1.1`): a
 `postMessage` envelope that carries a host's in-page introspection surface across the page/extension
 boundary, so a browser extension — or any same-page peer — can inspect a live Fuaran UI and, where
 the host permits, edit it.
