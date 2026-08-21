@@ -1,4 +1,4 @@
-# Fuaran DevTools relay contract (`relay@1.1`)
+# Fuaran DevTools relay contract (`relay@1.2`)
 
 The **page ↔ extension relay**: a `postMessage` envelope that carries a Fuaran host's already-shipped
 in-page introspection surface across the page/extension boundary, so a browser extension (or any
@@ -57,7 +57,7 @@ not an extension of it. It borrows three things and nothing else:
 | The `DecodeError` envelope — `Code` / `Path` / `Message` / `ExpectedShape` | §6 | The `DECODE_FAILED` refusal's `detail` (§9.3) |
 | Canonical `TreeOp` JSON | §2, §3 | The `apply` request's `op` payload (§8.2) |
 
-The relay profile is `relay@1.1`. It versions **independently** of the wire profile `core@1.0`: a
+The relay profile is `relay@1.2`. It versions **independently** of the wire profile `core@1.0`: a
 host may advance its wire profile without advancing its relay profile, and the reverse. The two
 profile names are distinct namespaces, so a peer that confuses them negotiates `Foreign` and refuses
 — which is the correct outcome.
@@ -123,7 +123,7 @@ and MUST silently ignore the event if any check fails:
 4. `event.data.$relay` is present and is a string.
 
 "Silently ignore" means **no reply of any kind** — not even a refusal. A refusal sent to an
-unverified peer is itself a disclosure (it confirms a Fuaran host is present); §12.3 covers this.
+unverified peer is itself a disclosure (it confirms a Fuaran host is present); §11.4 covers this.
 
 ### 3.3 Mandatory send-side rules
 
@@ -146,7 +146,7 @@ Every message — request, response, and event alike — is exactly this object:
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "request",
   "id": "c-1",
   "type": "read.nodeState",
@@ -213,7 +213,7 @@ The one event type is `changed` (§8.4).
 ### 5.1 Grammar
 
 `<name>@<major>.<minor>`, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §15.1 defines it. The relay
-namespace is `relay`; the profile defined by this document is **`relay@1.1`**.
+namespace is `relay`; the profile defined by this document is **`relay@1.2`**.
 
 A peer's profile id is the **highest** profile it can serve. Within one major, a peer is a superset
 of every earlier minor of that major, so a peer MUST be able to serve any minor at or below its own —
@@ -265,7 +265,7 @@ peer is required to publish, no announcement broadcast. A client peer detects a 
 | `refusal` with `NOT_OPTED_IN` | A Fuaran host is present but has not opted into relay exposure. |
 | Nothing, within the client's own timeout | No page peer is listening. |
 
-A client MUST NOT interpret silence as an error condition to retry aggressively; §12.4 covers the
+A client MUST NOT interpret silence as an error condition to retry aggressively; §11.4 covers the
 probing posture. A client SHOULD wait at least 1000 ms before concluding no peer is present, since
 the page peer may install its listener after the client's first probe.
 
@@ -278,14 +278,14 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "request",
   "id": "c-1",
   "type": "hello",
   "payload": {
     "client": "fuaran-devtools",
     "clientVersion": "1.0.0",
-    "accepts": ["relay@1.1", "relay@1.0"]
+    "accepts": ["relay@1.2", "relay@1.1", "relay@1.0"]
   }
 }
 ```
@@ -300,7 +300,7 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "response",
   "id": "c-1",
   "type": "hello.ok",
@@ -308,7 +308,7 @@ the page peer may install its listener after the client's first probe.
     "host": "fuaran-ts",
     "hostVersion": "0.6.0",
     "surfaceVersion": "0.1.0",
-    "profile": "relay@1.1",
+    "profile": "relay@1.2",
     "capabilities": ["read.nodeState", "read.bindingValue", "read.renderedDom", "read.tree", "read.findNodes", "read.affordances"],
     "treeRevision": "r-41"
   }
@@ -636,7 +636,7 @@ A host that stops at gate 1 or 2 is fully conformant (§6.4).
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "request",
   "id": "c-7",
   "type": "apply",
@@ -650,7 +650,7 @@ A host that stops at gate 1 or 2 is fully conformant (§6.4).
 | Payload field | Type | Rule |
 |---|---|---|
 | `op` | object | A **`TreeOp` in canonical wire JSON**, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) specifies. Embedded as a JSON object, not a string (§1.4). |
-| `attribution` | object | Optional. `actor` (string) and `reason` (string), both optional within it. Advisory metadata for the host's audit trail. |
+| `attribution` | object | Optional. `actor` (string), `actorClass` (string, §8.2.1, *since `relay@1.2`*) and `reason` (string), all optional within it. Advisory metadata for the host's audit trail. |
 
 **The canonical-serialisation obligation is the page peer's.** The client sends a structurally-cloned
 object; the page peer serialises it to canonical JSON per `WIRE_FORMAT.md` §2 before handing it to
@@ -660,7 +660,50 @@ byte-sensitive obligation on the least-qualified peer.
 
 **Attribution is advisory and untrusted.** A host MUST NOT grant any privilege on the basis of
 `attribution`, MUST NOT let it influence the §8.3 decisions, and SHOULD treat it as untrusted text
-when recording it (§12.5).
+when recording it (§11.5).
+
+#### 8.2.1 `actorClass` — was a person or a program the proximate author *(since `relay@1.2`)*
+
+`actor` says *which* peer proposed an op; `actorClass` says *what kind of thing* did. They are
+different questions, and the second is the one an audit trail is usually asked: an op a person typed
+and an op a program emitted are answerable in different ways, and a recording that cannot separate
+them cannot answer either.
+
+| Value | Means |
+|---|---|
+| `human` | A person composed this edit — a click, a keystroke, a form. |
+| `agent` | A program composed it, whether or not a person asked for the outcome. |
+
+Four rules, and each closes a way the field could be got wrong:
+
+1. **Absent means `human`.** A request carrying no `attribution` at all, or an `attribution` without
+   `actorClass`, is recorded as `human`. That is what every pre-`relay@1.2` client meant, so the
+   default is chosen to leave existing recordings correct rather than retroactively unlabelled — the
+   compatibility reading of §5.3's "additive is a minor bump". A peer SHOULD therefore **omit** the
+   field when it is `human`: absence already says so, and omitting keeps a human-authored envelope
+   byte-identical to one an earlier client would have sent.
+2. **It grants nothing, and it costs nothing.** Everything §8.2 says of `attribution` applies to
+   this field unchanged: a host MUST NOT vary the §8.3 sequence on it, MUST NOT admit an op it would
+   otherwise refuse, and MUST NOT refuse one it would otherwise admit. An `agent` op and a `human`
+   op carrying the same `op` payload receive the same outcome, including the same refusal class. The
+   class is a **label on the record**, never an input to the decision — a host that gated on it would
+   have turned an unprivileged peer's self-description into authority, which is exactly what §11.3
+   exists to prevent.
+3. **An unrecognised value is carried, not corrected.** The set above is closed, but a peer MUST NOT
+   refuse a request because `actorClass` holds something else, and MUST NOT normalise it to `human`.
+   Absence is a statement this contract defines; an unrecognised value is a statement it does not,
+   and silently relabelling the second as the first would put a claim into an audit record that
+   nothing on the wire made. Record it verbatim, per §10.3's general posture. A non-string
+   `actorClass` is likewise ignored rather than refused (§10.2) — `attribution` is optional metadata,
+   and refusing a legal op over a malformed advisory field would make the edit fail for a reason the
+   tree had nothing to do with.
+4. **The set is deliberately coarse, and it is deliberately two.** It matches the discriminator the
+   op-stream's own actor record already uses — `{"kind":"human",…}` / `{"kind":"agent",…}`, as the
+   [`chain/`](./chain/) corpus pins it — so a relay-originated op joins a recording without a
+   translation table. Finer identity belongs in `actor`, which is free-form for exactly this reason:
+   *which* program, *which* deployment channel, *which* integration is a fact about somebody's
+   topology, and a wire contract that enumerated those would need a new minor every time a
+   deployment added one.
 
 ### 8.3 Outcome
 
@@ -726,7 +769,7 @@ subscription, so a client has a known baseline before the first event arrives.
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "event",
   "id": "c-9",
   "type": "changed",
@@ -763,7 +806,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 
 ```json
 {
-  "$relay": "relay@1.1",
+  "$relay": "relay@1.2",
   "dir": "response",
   "id": "c-7",
   "type": "refusal",
@@ -785,7 +828,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 ### 9.2 Rules
 
 - A page peer MUST send exactly one response per request — a refusal **is** that response.
-- A refusal MUST NOT be sent to a peer that failed the §3.2 checks (silence instead — §12.3).
+- A refusal MUST NOT be sent to a peer that failed the §3.2 checks (silence instead — §11.4).
 - A client peer MUST treat an unrecognised `class` as a generic failure and MUST NOT crash (§10.3).
 
 ### 9.3 The closed class set
@@ -793,7 +836,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 | Class | Raised when | `detail` |
 |---|---|---|
 | `NOT_OPTED_IN` | The host has not opted into relay exposure. Applies to **any** request type including `hello`. | — |
-| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.1"] }` |
+| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.2"] }` |
 | `UNKNOWN_MESSAGE` | The `type` is not in the §4.2 closed set for this peer's profile. | `{ "received": "<token>" }` |
 | `MALFORMED_MESSAGE` | The envelope or payload is structurally invalid — a missing required payload field, a wrong JSON type, an empty `accepts` or `events`. | `{ "path": "<payload.field>" }` |
 | `CAPABILITY_ABSENT` | The `type` is recognised but its capability was not advertised (§6.4). | `{ "capability": "<name>" }` |
@@ -801,7 +844,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 | `SLOT_NOT_DECLARED` | The named slot is not a binding slot on that node's kind. Distinct from the `noOverride` **status** (§7.3). | `{ "nodeId": "<id>", "slot": "<name>", "kind": "<kind>" }` |
 | `DECODE_FAILED` | The `apply` op is not decodable as a `TreeOp`. | The wire format's `DecodeError` verbatim: `{ "Code", "Path", "Message", "ExpectedShape"? }` (§6 of `WIRE_FORMAT.md`) |
 | `VALIDATOR_REJECT` | The op decoded but the host's validator / apply engine rejected it. | `{ "code": "<host diagnostic code>" }` — optional |
-| `POLICY_DENIED` | The host's policy layer refused the operation. | — (see §12.5: `detail` SHOULD stay empty here) |
+| `POLICY_DENIED` | The host's policy layer refused the operation. | — (see §11.5: `detail` SHOULD stay empty here) |
 
 `NOT_OPTED_IN`, `VALIDATOR_REJECT`, and `POLICY_DENIED` are the three mandated `apply` classes of
 §8.4. The others are protocol- and lookup-level refusals that apply across request types.
@@ -925,7 +968,12 @@ A relay-exposing page is discoverable by any same-origin script that sends `hell
 
 - **Client-supplied strings are untrusted.** `client`, `clientVersion`, and `attribution` are free-form
   text from an unprivileged peer. A page peer MUST NOT interpolate them into HTML, use them in a
-  security decision, or let them reach a log sink unescaped.
+  security decision, or let them reach a log sink unescaped. `attribution.actorClass` (§8.2.1) is
+  untrusted in exactly the same way and to exactly the same degree — it is a **self-description**, not
+  an authentication of one. A peer says what kind of thing it is because a record is more useful with
+  the claim than without it, and a claim an unprivileged peer makes about itself can only ever be
+  recorded, never relied on. Treating it as anything more would make the class worth forging, which is
+  precisely what §8.2.1 rule 2 removes the motive for.
 - **Host-supplied strings are untrusted at the client.** `message`, binding `expression`s, node ids,
   and resolved binding `value`s originate from application data. A client rendering them in an
   extension UI MUST escape them; an extension panel is a privileged context, and injecting page-controlled
@@ -960,6 +1008,12 @@ A mutation channel whose activity leaves no trace is an unrecorded side channel;
 architecture (§11.3) is what makes recording it straightforward, since the ops pass through the
 host's existing path anyway.
 
+Where it records `actorClass` (§8.2.1), it records it **as a claim the proposing peer made**, and a
+recording SHOULD be readable that way — the class says what the peer said it was, on the same footing
+as `actor` and `reason` beside it. That is a weaker fact than an authenticated identity and a much
+more useful one than nothing: it is what lets "which of these edits did a program make" be asked of a
+session at all, and the honest form of the answer is "these ones said they did".
+
 ---
 
 ## 12. Conformance corpus
@@ -993,11 +1047,25 @@ one that gets bypassed. So a fixture for a request type introduced by a minor bu
 **second** host serves it, and the manifest's `profile` advances with the fixtures, not with the
 document.
 
-The corpus manifest is at `relay@1.0` while this document is at `relay@1.1`: `read.affordances`
-(§7.6) is specified and served by one host, and its fixture family lands alongside a second
-implementation. Existing fixtures remain the gate meanwhile, and they are a real one for a 1.1 peer
-— answering an unchanged `relay@1.0` corpus, handshakes included, is precisely the evidence that
-§6.3's profile selection kept the bump backward-compatible.
+The corpus manifest is at `relay@1.0` while this document is at `relay@1.2`, and two additions are
+waiting on a second implementation for the same reason: `read.affordances` (§7.6, added at 1.1) and
+`attribution.actorClass` (§8.2.1, added at 1.2) are each specified and served by one host. Existing
+fixtures remain the gate meanwhile, and they are a real one for a 1.2 peer — answering an unchanged
+`relay@1.0` corpus, handshakes included, is precisely the evidence that §6.3's profile selection kept
+both bumps backward-compatible.
+
+Two things a runner should note while the corpus trails the document, because both have already
+caught a real implementation defect:
+
+- **`$relay` on a response is the RESPONDING PEER's own profile id (§4), not the fixture's.** A
+  fixture written at `relay@1.0` and answered by a `relay@1.2` peer carries two different profile ids
+  by construction, and both are correct. A runner comparing that field against the fixture is
+  asserting the fixture author's version rather than the implementation's conformance — and will fail
+  every peer that ever advances a minor, which is the opposite of what a backward-compatibility corpus
+  is for. Compare it against the peer's own id instead; that is a stricter check, not a looser one.
+- **`FOREIGN_PROFILE`'s `detail.supported` is likewise the peer's own list** and is compared by type,
+  not by value. `profile` in a `hello.ok` payload is the one profile field a fixture DOES pin, because
+  §6.3 makes it a function of the fixture's own `accepts` — a peer at any minor owes the same answer.
 
 ### 12.2 Manifest shape
 
