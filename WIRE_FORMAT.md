@@ -2269,15 +2269,21 @@ about 127) — it is not. On the reference host, 2.6 KB of 100 nested Batches ki
 every other bound already in place. Enumerate every recursive entry point, including the ones whose
 recursion is over ops rather than nodes.
 
-The remaining hosts have **not** adopted them, and their behaviour on over-deep input is the uncaught
-language-level recursion error §21.2 rule 3 forbids:
+**The four remaining hosts have since adopted them.** What follows is the record of what each was
+found doing beforehand — kept rather than deleted, because the four failed in four different ways and
+a host adopting §21 later will recognise its own shape here. The measurements are the ones the
+adoption was designed against.
 
-- **TypeScript** – `parseValue` / `parseObjectValue` / `parseArrayValue` are mutually recursive with
-  no counter, and neither the parser nor the `decodeNode` entry point wraps the walk in a
+- **TypeScript** – `parseValue` / `parseObjectValue` / `parseArrayValue` were mutually recursive with
+  no counter, and neither the parser nor the `decodeNode` entry point wrapped the walk in a
   `try`/`catch`. The engine's `RangeError` is catchable in principle but is not part of the declared
-  `Result` contract, so it escapes the decoder as a throw.
-- **Python** – `decode_node` catches `ValueError` around `json.loads`, and CPython raises
-  `RecursionError` on deep nesting, which is not a `ValueError`. It escapes the same way.
+  `Result` contract, so it escaped the decoder as a throw. *Fixed: the parser counts depth and the
+  parse error carries a flag distinguishing a limit breach from a syntax error, so the decoder can
+  honour rule 2.*
+- **Python** – `decode_node` caught `ValueError` around `json.loads`, and CPython raises
+  `RecursionError` on deep nesting, which is not a `ValueError`. It escaped the same way. *Fixed:
+  the parse is wrapped to catch `RecursionError` as `LIMIT_EXCEEDED`, and the shape bounds run over
+  an explicit stack — a recursive checker would be the bug it is checking for.*
 - **Go** – measured, and the finding is that Go does **not** crash: its goroutine stacks grow, and
   `encoding/json` applies its own syntactic nesting cap first, so a hostile document is refused
   rather than fatal. Two conformance defects remain. The cap sits at the JSON nesting the standard
@@ -2285,7 +2291,11 @@ language-level recursion error §21.2 rule 3 forbids:
   refused only around 4 000, and nested `Batch` around 5 000 — so Go **accepts documents rule 1
   requires every host to refuse**. And when it does refuse, it reports **`INVALID_JSON`**, which
   rule 2 explicitly forbids: the input is well-formed and merely too deep, so that diagnosis sends
-  an author to repair the wrong thing. Go therefore needs the limits and the code, not the crash fix.
+  an author to repair the wrong thing. Go therefore needed the limits and the code, not a crash fix.
+  *Fixed: the walk state is THREADED rather than package-level — its decoders can be called
+  concurrently, so shared counters would be a data race — and the syntactic bound is checked on the
+  raw text BEFORE parsing, so the standard library's own cap can no longer refuse a document as
+  malformed before §21 refuses it as too large.*
 - **Rust** – measured, and it is the worst case in this table: its hand-rolled `parse_value` /
   `parse_object` / `parse_array` are unbounded mutual recursion, and a Rust stack overflow **aborts
   the process** — not a catchable condition, and rule 3's exact prohibition.
@@ -2303,6 +2313,13 @@ language-level recursion error §21.2 rule 3 forbids:
   guard. Recorded here rather than left to be rediscovered, because the obvious reading of "port
   the guard" underestimates this host specifically.
 
+  *Fixed, and the frame came first.* Its kind dispatch was one match over the whole vocabulary, and
+  in an unoptimised build a function's frame reserves space for every branch's locals, so each level
+  of the recursion carried the entire vocabulary's worth of stack — about 128 KB. Split into small
+  groups called in sequence, one level now costs a fraction of that: the same measurement clears 90
+  levels on both axes, against a limit of 24. The guard was added after, because until the frame
+  shrank it could not be reached.
+
 **Method, so the figures above can be re-derived rather than trusted.** Each host was driven with
 generated documents of increasing depth — nested `Box` nodes for the node axis, nested `Batch` for
 the op axis, bare `[[[…` for the syntactic axis — and the deepest surviving depth found by
@@ -2311,13 +2328,41 @@ bisection, one process per probe because an overflow terminates the process. The
 
 Bringing each into line is a per-host change against this section, not a spec question.
 
-**Reject fixtures for this section are deliberately not in the corpus yet**, for the reason §20
-gives: the corpus is a shared gate every host runs, so a fixture landing ahead of the hosts turns
-their builds red for a rule none of them has adopted. They land with the hosts, not before them. Note
-also that a `LIMIT_EXCEEDED` fixture is unusually expensive as a corpus artefact — the smallest input
-that breaches the *smallest* limit is hundreds of kilobytes — so the eventual fixtures are likely to
-be **generated** from a rule rather than stored verbatim, which is itself a corpus-shape decision to
-take with the hosts.
+**All five hosts now enforce §21, and the corpus carries the family.** The status list above is
+history: TypeScript, Python, Go and Rust adopted the limits alongside the reference host, each
+bounding its parser, its structural decoder and its **op** decoder on separate axes.
+
+**The fixtures are STORED, not generated — the expense this section anticipated turned out to be
+misjudged.** The reasoning was that the smallest input breaching the *smallest* limit runs to
+hundreds of kilobytes. That is true only of the two LINEAR limits: a max-string or max-array vector
+really is about a megabyte. The bound that matters for the recursion class is **node depth**, and it
+is breached far more cheaply — a 25-level node chain is about 3 KB, nested `Batch` under 1 KB, bare
+syntactic nesting under 1 KB. So the depth family stores comfortably, needs no generator vocabulary
+in the manifest, and runs on the reject machinery every host already implements.
+
+The two linear limits stay **host-local tests** rather than corpus fixtures, deliberately: a
+megabyte of `"aaaa…"` committed to a shared repository to assert one integer comparison is a poor
+trade, and unlike the depth bounds it is not a recursion hazard. Each host asserts them in its own
+suite.
+
+Four fixtures, and note that one of them is an ACCEPT case:
+
+| fixture | what it pins |
+|---|---|
+| `limit-node-depth-at-max` (node-round-trip) | a tree at EXACTLY 24 levels **decodes**. Rule 1, and the half hosts actually failed — two of the five aborted the process here |
+| `reject-limit-node-depth` | 25 levels → `LIMIT_EXCEEDED` |
+| `reject-limit-op-depth` | 25 nested `Batch` → `LIMIT_EXCEEDED`, the separate op axis |
+| `reject-limit-json-depth` | 300 levels of bare nesting → `LIMIT_EXCEEDED`, not `INVALID_JSON` |
+
+**Open: the hosts disagree by one level at the syntactic boundary.** The reject fixture above sits at
+300 rather than at 257 because they do not currently agree on where 256 ends. Four hosts refuse 257;
+the reference host accepts 257 and refuses 258. Nothing in §21.1 is ambiguous — "max JSON depth 256"
+means a document nesting 256 levels is admissible and 257 is not — so this is an off-by-one in one
+implementation rather than an under-specification, and it is recorded here rather than papered over.
+A fixture pinning the exact boundary belongs in the change that settles it; one landing before then
+would fail a host over an off-by-one rather than over the rule, which is the shared-gate failure this
+section already warns about. The node and op axes were checked at their boundaries too and **do**
+agree exactly on all five hosts — 24 accepted, 25 refused.
 
 ---
 
