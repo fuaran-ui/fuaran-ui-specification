@@ -2278,7 +2278,36 @@ language-level recursion error §21.2 rule 3 forbids:
   `Result` contract, so it escapes the decoder as a throw.
 - **Python** – `decode_node` catches `ValueError` around `json.loads`, and CPython raises
   `RecursionError` on deep nesting, which is not a `ValueError`. It escapes the same way.
-- **Go, Rust** – unassessed here; both should be measured before adopting a figure, per §21.4.
+- **Go** – measured, and the finding is that Go does **not** crash: its goroutine stacks grow, and
+  `encoding/json` applies its own syntactic nesting cap first, so a hostile document is refused
+  rather than fatal. Two conformance defects remain. The cap sits at the JSON nesting the standard
+  library enforces, not at §21.1's figures — a node tree decodes happily at 1 000 levels and is
+  refused only around 4 000, and nested `Batch` around 5 000 — so Go **accepts documents rule 1
+  requires every host to refuse**. And when it does refuse, it reports **`INVALID_JSON`**, which
+  rule 2 explicitly forbids: the input is well-formed and merely too deep, so that diagnosis sends
+  an author to repair the wrong thing. Go therefore needs the limits and the code, not the crash fix.
+- **Rust** – measured, and it is the worst case in this table: its hand-rolled `parse_value` /
+  `parse_object` / `parse_array` are unbounded mutual recursion, and a Rust stack overflow **aborts
+  the process** — not a catchable condition, and rule 3's exact prohibition.
+
+  **It cannot decode a document rule 1 says it MUST accept.** Bisected on the default main-thread
+  stack, the deepest surviving node-decode depth is **7 unoptimised / 102 optimised**, and nested
+  `Batch` **22 / 296**; bare syntactic nesting reaches 917 / 3 176. The node figure is the one that
+  matters: §21.1 sets max node depth at **24**, so the unoptimised Rust host dies on a
+  *conformant* document, three times under the limit, in the configuration its developers build in.
+
+  This is a per-frame-cost problem and **a depth counter alone does not fix it**. A guard at 24
+  would never be reached unoptimised, because the process is gone at 8. Per §21.4 the limit is a
+  protocol number and does not move for one host's frame size, so the work is to make the Rust
+  decode walk cheaper per level — or to stop using the call stack for it — and *then* to add the
+  guard. Recorded here rather than left to be rediscovered, because the obvious reading of "port
+  the guard" underestimates this host specifically.
+
+**Method, so the figures above can be re-derived rather than trusted.** Each host was driven with
+generated documents of increasing depth — nested `Box` nodes for the node axis, nested `Batch` for
+the op axis, bare `[[[…` for the syntactic axis — and the deepest surviving depth found by
+bisection, one process per probe because an overflow terminates the process. The same shape as
+§21.4's F# derivation, and worth repeating on any host before it adopts a figure.
 
 Bringing each into line is a per-host change against this section, not a spec question.
 
