@@ -6,6 +6,8 @@ This document is the **permanent, language-neutral specification** of the Fuaran
 
 The executable conformance suite is the fixture corpus [in this repository](./), indexed by [`manifest.json`](./manifest.json) – the authoritative enumeration of every fixture family and count. A decoder/encoder pair built from this document alone must pass every fixture assertion the manifest enumerates.
 
+The conventions this specification and its corpus are written under – canonical bytes, the corpus as oracle, the manifest as the authoritative enumeration, forward coupling, and how a specification in this family extends – are stated once in [`SPEC_CONVENTIONS.md`](./SPEC_CONVENTIONS.md) and are **normative here**.
+
 ---
 
 ## 1. Scope and shape
