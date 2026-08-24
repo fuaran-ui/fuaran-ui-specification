@@ -1478,6 +1478,71 @@ own cross-host gate, mirroring §11.1. The supported GFM subset, the IN/OUT/DEFE
 Phase 292 behaviour change (npm `marked` + Markdig removed) are documented in
 [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md).
 
+### 14.1 Destination policy for markdown link + image destinations (normative for rendering hosts)
+
+§19's scheme floor answers *is this URL safe to have*. It does not answer *is this destination one
+the composition declared*, and only the second question closes exfiltration:
+`https://collector.example/?s=…` passes every rule in §19 — allowlisted scheme, well-formed host, no
+script anywhere in it — and in an `![](…)` the browser contacts it **with no user act at all**,
+because rendering *is* the request.
+
+A **rendering host** that renders a markdown body from a **decoded** tree MUST therefore offer a
+render entry point that takes a *destination policy* and consults it for every link and image
+destination the body names. The policy itself is **host-constructed and never carried on the wire** —
+a policy an emission can supply is a policy a hostile emission can widen, so this section describes
+what a host must be able to *express*, not a document it must be able to *parse*.
+
+**The two egress classes this section uses.** A **hyperlink** is an `href` the reader must act on: an
+inline or reference link, a `<scheme:…>` or bare-URL autolink, an email autolink. **Media** is a
+`src` the browser fetches unprompted: an inline or reference image. They are scoped separately
+because only one of them is contacted by rendering alone.
+
+**What a policy must be able to say.** Whether same-origin destinations are permitted (a relative
+path, a fragment, an empty URL); whether hostless schemes are permitted (`mailto:`, `tel:` — an
+egress channel with no host a rule could name, so it can only be permitted wholesale); whether every
+origin is permitted; and otherwise a positive list of rules, each naming a **host** — never a scheme,
+never a path — as either an exact host or a **suffix matched at a label boundary** (`docs.example`
+matches `eu.docs.example`, and never `notdocs.example`), scoped to a set of classes.
+
+**What a refusal renders as.** Not a silent neuter — "nothing happened" and "this was refused" are
+different facts and only one of them is debuggable. The destination becomes the inert literal
+
+```
+about:blank#fuaran-egress-refused
+```
+
+and the element carries `data-fuaran-egress-refused="<class>:<what>"`, where `<class>` is
+`hyperlink` or `media` and `<what>` is the normalised host, or the scheme for a hostless refusal
+(`hyperlink:mailto`). **The marker carries the class and the host, never the path or the query**: the
+query string of a refused exfiltration attempt is the payload itself, so a refusal record that quoted
+it would become the disclosure it exists to prevent. The attribute is emitted **last** on the
+element, after every attribute that was already there.
+
+**The scheme floor's own answer is unchanged.** A URL §19 rejects still renders the bare
+`about:blank` it rendered before this section existed, with **no** marker. The floor's refusal is a
+different fact from a policy refusal, it is pinned by the `sanitization/` corpus in this directory,
+and re-spelling it here would churn that corpus inside a change about egress — which is exactly where
+a genuine divergence hides.
+
+**Conformance.** A fixture in [`markdown/corpus.json`](./markdown/corpus.json) MAY carry a `policy`
+naming the policy the render is performed under. A host maps the name to a policy **it constructs**:
+
+| `policy` | The policy the host constructs |
+|---|---|
+| absent, or `"permissive"` | every origin permitted, same-origin permitted, hostless schemes permitted |
+| `"denyNonLocal"` | no rules; same-origin permitted; hostless schemes refused; no origin permitted |
+| `"declaredExample"` | `denyNonLocal`, plus exact host `cdn.example` scoped to **media**, plus host suffix `docs.example` scoped to **hyperlink** |
+
+`permissive` is the pure `source → html` function this corpus has pinned since Phase 292 and its
+fixtures are unchanged to the byte, so a host adopting this section changes no existing expectation.
+`declaredExample` is what makes the gate falsifiable in both directions: a host that refused every
+non-local destination unconditionally would fail its allowed fixtures, and one that ignored the
+policy would fail the `denyNonLocal` ones.
+
+**Forward coupling.** A change to the refusal shape, the class assignment of a destination, or the
+named policies updates the renderer in **every** conformant host and the corpus in the same
+change-set, per §11.
+
 ---
 
 ## 15. Wire versioning + forward/backward compatibility (Phase 319)
