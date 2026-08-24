@@ -2352,17 +2352,26 @@ Four fixtures, and note that one of them is an ACCEPT case:
 | `limit-node-depth-at-max` (node-round-trip) | a tree at EXACTLY 24 levels **decodes**. Rule 1, and the half hosts actually failed — two of the five aborted the process here |
 | `reject-limit-node-depth` | 25 levels → `LIMIT_EXCEEDED` |
 | `reject-limit-op-depth` | 25 nested `Batch` → `LIMIT_EXCEEDED`, the separate op axis |
-| `reject-limit-json-depth` | 300 levels of bare nesting → `LIMIT_EXCEEDED`, not `INVALID_JSON` |
+| `reject-limit-json-depth` | 257 levels of bare nesting — one PAST the limit → `LIMIT_EXCEEDED`, not `INVALID_JSON` |
+| `reject-limit-json-depth-at-max` | 256 levels — exactly AT the limit. Fails on shape, and must not be a limit breach |
 
-**Open: the hosts disagree by one level at the syntactic boundary.** The reject fixture above sits at
-300 rather than at 257 because they do not currently agree on where 256 ends. Four hosts refuse 257;
-the reference host accepts 257 and refuses 258. Nothing in §21.1 is ambiguous — "max JSON depth 256"
-means a document nesting 256 levels is admissible and 257 is not — so this is an off-by-one in one
-implementation rather than an under-specification, and it is recorded here rather than papered over.
-A fixture pinning the exact boundary belongs in the change that settles it; one landing before then
-would fail a host over an off-by-one rather than over the rule, which is the shared-gate failure this
-section already warns about. The node and op axes were checked at their boundaries too and **do**
-agree exactly on all five hosts — 24 accepted, 25 refused.
+**Every boundary is now pinned from both sides, on all three axes.** The syntactic pair above is the
+last to land, and it is worth recording what it took, because the divergence it closed was invisible
+until a fixture sat exactly on the line.
+
+When the depth family first landed, the hosts disagreed by one level: four refused 257 while the
+reference host accepted 257 and refused 258. §21.1 is not ambiguous — 256 levels are admissible and
+257 are not — so this was an off-by-one in one implementation, not an under-specification. The cause
+is worth naming because any host can reproduce it: its parser tested the depth **after** deciding the
+composite was empty, and an empty `{}` / `[]` returns without ever incrementing the counter. The
+innermost level of a `[[[…]]]` payload is always the empty one, so exactly one level went unmeasured.
+Test the bound **before** the empty-composite arm; §21.1 counts every `{` and `[`, empty or not.
+
+The at-the-limit fixture is the guard against the same class in the other direction. It expects a
+SHAPE error, not a limit breach — so a host whose bound sits one level too tight answers
+`LIMIT_EXCEEDED` there and fails. That is rule 1 expressed in the only form the reject machinery can
+express it for a syntactic bound, and a family of refusals alone would not have caught either
+version of the off-by-one.
 
 ---
 
