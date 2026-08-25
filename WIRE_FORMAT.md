@@ -148,6 +148,23 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
 - `style` (`SemanticStyle`) is `{ "emphasis": <Emphasis>, "tone": <ToneVariant>, "weight": <StyleWeight> }`, each a bare enum string (§3.5), plus the Phase 147 `role`/`voice`. **Omitted entirely when all fields are the default** (`emphasis` = `"Normal"`, `tone` = `"Default"`, `weight` = `"Standard"`, `role`/`voice` default); a decoder restores the default on absence. Each of `emphasis`/`tone`/`weight` is **individually** omitted-when-default on both boundaries (§3.6, Phase 460), matching `role`/`voice`: an absent field restores its identity default on decode, and the encoder omits a field at its identity default even when the object is emitted for the other fields.
 - `accessibility` carries optional keys `label` (`Binding<string>`), `labelledBy` (NodeId string), `describedBy` (NodeId string), `role` (ARIA role string), `liveRegion` (`"polite"`/`"assertive"`/`"off"`), `hidden` (`Binding<bool>`). Omitted entirely when `None`.
 
+  > **Ruling (2026-08-25): the trait's `Binding` slots are ordinary `Binding` slots, and the §3.6
+  > bare-scalar shape coercion applies to them — stated here explicitly because two hosts have
+  > already mis-read this position once.** A bare JSON string in `label` (`"label": "Home"`) and a
+  > bare bool in `hidden` decode as `{"$type":"Static","value": …}` under the general "any
+  > `Binding<'T>` slot" rule, decode-only, re-encoding to the canonical envelope — they are the
+  > sanctioned lenient shorthand, not invalid wire, and equally not a second canonical form. The
+  > considered alternative — rejecting the bare string with a didactic — was declined: the general
+  > §3.6 scalar rule already normatively covered every `Binding` slot when the question arose (its
+  > own admission evidence was measured: `fraction: 0.9` / `activeStep: 1` in the launch evals),
+  > and carving this one position out of it would have made the trait the single exception to a
+  > position-independent rule. What the defect that raised the question actually showed was two
+  > hosts implementing the slot as bare-string-ONLY (dropping the canonical envelope) — the
+  > opposite error, fixed host-side. Pinned cross-host by
+  > `lenient/lenient-shape-a11y-label-bare-scalar`; per §16 the profile is decode-only and does
+  > not change the negotiated wire version (§15) — no optional field is added, so §15.4's
+  > additive-minor question does not arise.
+
 ### 3.2 `NodeKind` discriminators (`kind.$type`)
 
 The `kind` object's `$type` is the node's primitive discriminator **directly** – the wire is **flat**, with no behavioural-category envelope and no `spec` wrapper. A node carrying a label/value row is `{"$type":"LabelValueRow","emphasis":…,"label":…,"value":…}` – the spec's fields hoisted directly under `$type`, exactly as `Custom`/`ErrorBoundary` and every nested DU carry their fields. The four behavioural categories – Layout / Display / Input / Visualisation – are a **host-side classification recovered on decode** (each primitive belongs to exactly one category), not a level of wire nesting.
