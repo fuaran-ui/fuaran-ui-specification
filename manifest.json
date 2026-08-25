@@ -1236,6 +1236,14 @@
       "description": "Input/Form (Phase 596 — symmetric auto-bind, omitted-value fields)"
     },
     {
+      "id": "form-field-rules",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-field-rules.json",
+      "expectedFile": "nodes/form-field-rules.json",
+      "description": "Input/Form (Phase 864 — declared field rules: format / pattern / length pair / cross-field compare)"
+    },
+    {
       "id": "form-local-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2004,6 +2012,33 @@
       "expectedErrorCode": "EMPTY_NODE_ID",
       "expectedPath": "$.id",
       "description": "Empty top-level id"
+    },
+    {
+      "id": "reject-fieldrule-empty",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-fieldrule-empty.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].rule",
+      "description": "FieldRule declaring no constraint — a message alone is not a rule (Phase 864)"
+    },
+    {
+      "id": "reject-fieldrule-length-unordered",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-fieldrule-length-unordered.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].rule",
+      "description": "FieldRule minLength above maxLength — the ordered-pair rule on a length pair (Phase 864)"
+    },
+    {
+      "id": "reject-formfield-near-miss-validation",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-formfield-near-miss-validation.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].validation",
+      "description": "'validation' near-miss on a FormField — the canonical key is 'rule' (Phase 864)"
     },
     {
       "id": "reject-invalid-empty",

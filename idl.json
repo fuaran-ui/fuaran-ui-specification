@@ -74,6 +74,25 @@
     },
     {
       "cases": [
+        "eq",
+        "neq",
+        "lt",
+        "lte",
+        "gt",
+        "gte"
+      ],
+      "hostCases": [
+        "Eq",
+        "Neq",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte"
+      ],
+      "name": "CompareOp"
+    },
+    {
+      "cases": [
         "Short",
         "Medium",
         "Long",
@@ -284,6 +303,19 @@
         "End"
       ],
       "name": "TextAnchor"
+    },
+    {
+      "cases": [
+        "email",
+        "url",
+        "tel"
+      ],
+      "hostCases": [
+        "Email",
+        "Url",
+        "Tel"
+      ],
+      "name": "TextFormat"
     },
     {
       "cases": [
@@ -3248,6 +3280,36 @@
     {
       "fields": [
         {
+          "name": "against",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "json"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
+          "name": "op",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "CompareOp"
+          }
+        }
+      ],
+      "name": "CompareRule"
+    },
+    {
+      "fields": [
+        {
           "name": "algorithm",
           "optionality": {
             "$type": "required"
@@ -3508,6 +3570,69 @@
     {
       "fields": [
         {
+          "name": "compare",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "record",
+            "name": "CompareRule"
+          }
+        },
+        {
+          "name": "format",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "TextFormat"
+          }
+        },
+        {
+          "name": "maxLength",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "int"
+          }
+        },
+        {
+          "name": "message",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "minLength",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "int"
+          }
+        },
+        {
+          "name": "pattern",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "name": "FieldRule"
+    },
+    {
+      "fields": [
+        {
           "name": "kind",
           "optionality": {
             "$type": "required"
@@ -3592,6 +3717,16 @@
             "$type": "union",
             "args": [],
             "name": "TextSource"
+          }
+        },
+        {
+          "name": "rule",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "record",
+            "name": "FieldRule"
           }
         }
       ],
