@@ -876,6 +876,54 @@
       "description": "2026-07-19 rename — the legacy cumSum window-fn tag coerces to the canonical cumulSum"
     },
     {
+      "id": "a11y-alert-assertive",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-alert-assertive.json",
+      "expectedFile": "nodes/a11y-alert-assertive.json",
+      "description": "Accessibility (Phase 955 — the announcement pair: role alert + liveRegion assertive)"
+    },
+    {
+      "id": "a11y-button-named",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-button-named.json",
+      "expectedFile": "nodes/a11y-button-named.json",
+      "description": "Accessibility (Phase 955 — Button: an explicit named role on a kind that already has a native one)"
+    },
+    {
+      "id": "a11y-image-decorative",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-image-decorative.json",
+      "expectedFile": "nodes/a11y-image-decorative.json",
+      "description": "Accessibility (Phase 955 — Image: the decorative shape, empty alt + hidden Static true)"
+    },
+    {
+      "id": "a11y-link-labelled",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-link-labelled.json",
+      "expectedFile": "nodes/a11y-link-labelled.json",
+      "description": "Accessibility (Phase 955 — Link: the accessible name overriding the visible 'Read more' text)"
+    },
+    {
+      "id": "a11y-wrapper-all-slots",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-wrapper-all-slots.json",
+      "expectedFile": "nodes/a11y-wrapper-all-slots.json",
+      "description": "Accessibility (Phase 955 — all six trait slots at once on a wrapper; Static label, named role, polite)"
+    },
+    {
+      "id": "a11y-wrapper-state-bound",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/a11y-wrapper-state-bound.json",
+      "expectedFile": "nodes/a11y-wrapper-state-bound.json",
+      "description": "Accessibility (Phase 955 — State-bound label + hidden, mixed-case custom role doc-pageFooter, off)"
+    },
+    {
       "id": "badge-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2122,6 +2170,60 @@
       "inputFile": "ops/op-updatestyle (phase 147 role=eyebrow + voice=structural).json",
       "expectedFile": "ops/op-updatestyle (phase 147 role=eyebrow + voice=structural).json",
       "description": "UpdateStyle (Phase 147 Role=Eyebrow + Voice=Structural)"
+    },
+    {
+      "id": "reject-a11y-hidden-nonbool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-hidden-nonbool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.accessibility.hidden",
+      "description": "accessibility.hidden bare scalar of the wrong type — §3.6 leniency is about SHAPE, not type (Phase 955)"
+    },
+    {
+      "id": "reject-a11y-labelledby-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-labelledby-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.accessibility.labelledBy",
+      "description": "accessibility.labelledBy not a NodeId string (Phase 955)"
+    },
+    {
+      "id": "reject-a11y-liveregion-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-liveregion-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.accessibility.liveRegion",
+      "description": "accessibility.liveRegion not a JSON string (Phase 955)"
+    },
+    {
+      "id": "reject-a11y-liveregion-unknown",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-liveregion-unknown.json",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.accessibility.liveRegion",
+      "description": "accessibility.liveRegion outside the closed set — the message names polite | assertive | off (Phase 955)"
+    },
+    {
+      "id": "reject-a11y-not-object",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-not-object.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.accessibility",
+      "description": "accessibility is not an object — the trait is a record, not a bare label (Phase 955)"
+    },
+    {
+      "id": "reject-a11y-role-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-a11y-role-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.accessibility.role",
+      "description": "accessibility.role not a JSON string — the slot is open to any role NAME, not to any value (Phase 955)"
     },
     {
       "id": "reject-daterange-unordered",
