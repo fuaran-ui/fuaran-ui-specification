@@ -1443,7 +1443,7 @@ called out because a list of families that quietly over- or under-counts is the 
 exists to end.
 
 1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
-   declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/fuaran-ui/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
+   declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/Fuaran-Core/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
    regenerating (`dotnet run --project tests/Fuaran.Core.Tests -- --regen-snapshots`) and syncing
    (`fuaran-dotnet` [`scripts/sync-generated-layer.ps1`](../fuaran-dotnet/scripts/sync-generated-layer.ps1))
    emits the generated `Fuaran.UI.Generated` module — the **type, canonical encoder, structural
