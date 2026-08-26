@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "description": "WIRE_FORMAT.md §23 — host-declared kind admission policy. Each case names a document, a declared policy, and the outcome a conformant decoder must produce. The point of the family is the PAIRING: the same bytes are admitted under one policy and refused under another, so what is pinned is that the narrowing is host-side and the default is unchanged. This manifest is HAND-AUTHORED and is not emitted by any host's corpus generator (the sanitization/ precedent); the root manifest.json is generated and would overwrite entries added here.",
+  "policies": [
+    {
+      "identity": "admit-all",
+      "admission": "all",
+      "description": "The shipped default. Indistinguishable from declaring no policy at all — a host that supplies nothing MUST behave exactly as this."
+    },
+    {
+      "identity": "closed-no-escape-hatches",
+      "admission": "allowlist",
+      "excludesFromVocabulary": ["Custom", "Mount"],
+      "description": "The recommended profile for an application that uses no escape hatches: every kind in the root manifest's `kinds` vocabulary EXCEPT the two named here. Stated as an exclusion FROM THE VOCABULARY rather than as a literal admitted list, because restating forty kind names here would make this file a second source of truth for a vocabulary the root manifest already owns. A host resolves it to an allow-list at construction, so a kind added to the language later is not admitted by this profile."
+    }
+  ],
+  "cases": [
+    {
+      "id": "admit-all-admits-custom",
+      "document": "../nodes/custom-1.json",
+      "policy": "admit-all",
+      "outcome": "admit",
+      "description": "the control for `closed-refuses-custom` — the same bytes, decoding unchanged under the default"
+    },
+    {
+      "id": "closed-refuses-custom",
+      "document": "../nodes/custom-1.json",
+      "policy": "closed-no-escape-hatches",
+      "outcome": "refuse",
+      "expectedErrorCode": "KIND_NOT_ADMITTED",
+      "expectedPath": "$.kind.$type",
+      "refusedKind": "Custom",
+      "description": "a root Custom node — the host-registered-renderer half of the guest boundary"
+    },
+    {
+      "id": "admit-all-admits-mount",
+      "document": "../nodes/mount-1.json",
+      "policy": "admit-all",
+      "outcome": "admit",
+      "description": "the control for `closed-refuses-mount`"
+    },
+    {
+      "id": "closed-refuses-mount",
+      "document": "../nodes/mount-1.json",
+      "policy": "closed-no-escape-hatches",
+      "outcome": "refuse",
+      "expectedErrorCode": "KIND_NOT_ADMITTED",
+      "expectedPath": "$.kind.$type",
+      "refusedKind": "Mount",
+      "description": "a root Mount node — the guest-composition half of the guest boundary"
+    },
+    {
+      "id": "admit-all-admits-nested-custom",
+      "document": "nested-custom.json",
+      "policy": "admit-all",
+      "outcome": "admit",
+      "description": "the control for `closed-refuses-nested-custom`. This document is authored in THIS directory rather than referenced from nodes/, because the root corpus carries no fixture with a Custom below the root and the emitter would delete one added there."
+    },
+    {
+      "id": "closed-refuses-nested-custom",
+      "document": "nested-custom.json",
+      "policy": "closed-no-escape-hatches",
+      "outcome": "refuse",
+      "expectedErrorCode": "KIND_NOT_ADMITTED",
+      "expectedPath": "$.kind.children[1].kind.$type",
+      "refusedKind": "Custom",
+      "description": "a Custom node BELOW the root, inside an admitted Box. The whole tree is refused and the path names the offending node — a policy that only checked the root would admit this document and is the obvious wrong implementation"
+    },
+    {
+      "id": "closed-admits-ordinary-tree",
+      "document": "../nodes/card-1.json",
+      "policy": "closed-no-escape-hatches",
+      "outcome": "admit",
+      "description": "the closed profile is a NARROWING, not a refusal of everything: a tree using no hatch kind decodes under it exactly as under the default"
+    },
+    {
+      "id": "closed-preserves-wrong-node-kind",
+      "document": "../reject/reject-wrongnodekind-widget.json",
+      "policy": "closed-no-escape-hatches",
+      "outcome": "refuse",
+      "expectedErrorCode": "WRONG_NODE_KIND",
+      "expectedPath": "$.kind.$type",
+      "description": "a discriminator the VOCABULARY does not have, under a narrowing policy. It must still report WRONG_NODE_KIND: `no such kind` and `not admitted here` are different facts with different repairs, and a policy that swallowed the first would send an author to invent a spelling that is already correct"
+    }
+  ]
+}

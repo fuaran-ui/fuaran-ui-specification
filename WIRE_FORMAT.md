@@ -1261,18 +1261,18 @@ blocker.
 
 ---
 
-## 6. `DecodeError` envelope + the seven codes
+## 6. `DecodeError` envelope + the eight codes
 
 Every wire-shape violation surfaces a **structured, recoverable** error (never a throw). The envelope:
 
 ```json
-{ "Code": "<one of the seven codes>",
+{ "Code": "<one of the eight codes>",
   "Path": "<JSONPath-ish location, e.g. $.kind.text>",
   "Message": "<human/AI-readable description>",
   "ExpectedShape": "<optional hint string>" }
 ```
 
-`Path` uses a `$`-rooted dotted form; `$type` appears literally in the path when the discriminator is at fault (e.g. `$.kind.$type`). The seven codes:
+`Path` uses a `$`-rooted dotted form; `$type` appears literally in the path when the discriminator is at fault (e.g. `$.kind.$type`). The eight codes:
 
 | Code | Raised when |
 |---|---|
@@ -1283,8 +1283,9 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the discriminators the §3.2 table enumerates, in any of its five recovered categories. Raised at `$.kind.$type`. (Deliberately not re-listed here: §3.2's table is generated and this sentence would be the copy that goes stale.) (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
+| `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->68<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->68<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2652,6 +2653,123 @@ the `sanitization/` family alongside the codec fixtures §11 already requires. T
 prove the slot round-trips; they say nothing about what happens when its contents reach a document,
 and a slot that round-trips perfectly while emitting a live handler is exactly the shape this
 obligation exists to refuse.
+
+---
+
+## 23. Host-declared kind admission policy (optional, host-side narrowing)
+
+An application that uses none of the vocabulary's escape hatches is *functionally* closed by
+omission: it registers no custom renderers, installs no guest seam, and so a `Custom` or `Mount` node
+in a decoded tree selects nothing. Closure by omission has two defects. It is invisible — nothing in
+the deployment states it, so it cannot be checked, claimed, or audited. And it is not monotone: it
+stops holding the day an unrelated registration lands somewhere else in the process, silently, with
+no change to any tree.
+
+This section specifies the mechanism by which a host closes the algebra **by declaration** instead: a
+decoder may be given an **admitted-kind set**, and a document naming a kind outside it is refused
+with `KIND_NOT_ADMITTED` rather than decoded into a node the host will not render. The refusal is a
+logged, attributable event naming the kind and the declaration that refused it.
+
+### 23.1 The default is unchanged, and this is a host narrowing rather than a wire one
+
+§22 states that a tree carrying a hostile payload is a **valid wire document** and that a decoder
+MUST NOT reject it. That is unchanged and this section does not qualify it. Specifically:
+
+- **A decoder given no policy has exactly the obligations it had before.** Every valid document
+  decodes; `KIND_NOT_ADMITTED` is unreachable.
+- **Conformance is measured with no policy declared.** Every other family in this corpus is decoded
+  at the default, and a host whose default decoder refuses any of them has narrowed the wire, which
+  this section does not permit.
+- **A document refused under a policy is still a valid wire document.** The refusal is a fact about a
+  deployment, not about the format. A host that re-encodes, forwards or stores a document it will not
+  itself decode under its policy must not treat it as malformed.
+
+The narrowing is therefore *of one host's acceptance*, never of the vocabulary. §11's forward-coupling
+rule and §15's version negotiation are untouched: a policy is not a profile, does not appear on the
+wire, and is not negotiated with a peer.
+
+### 23.2 The policy is written in wire discriminators
+
+An admitted set is a set of `kind.$type` **strings**. This is a specification choice rather than an
+implementation detail, and hosts must not substitute a closed enumeration of their own:
+
+- The admission decision is made at the discriminator, **before** any kind-specific decoding — which
+  is what makes the refusal cheap, and what makes it possible at all for a discriminator the host's
+  own type system cannot name.
+- The vocabulary is shared across hosts in five languages, only some of which have sum types. The
+  string set is the one representation all of them already agree on, and it is the one the corpus and
+  the JSON Schema are written in.
+- A host may be pinned to an older release than the tree's author. A string set expresses "the kinds I
+  declared" without requiring the declaring host to be able to *name* the kinds it excludes.
+
+### 23.3 Allow-list semantics
+
+A policy admits exactly the kinds it names. There is no deny-list form, and the asymmetry is
+deliberate: a deny-list of the hatch kinds known today silently admits any hatch-shaped kind added
+tomorrow, which is the same "closed until something changes elsewhere" failure that motivates the
+whole section.
+
+A host that prefers to think in exclusions resolves them **at the moment of declaration**, against a
+vocabulary it names, producing an allow-list. So a kind added to the language later is not admitted by
+a policy declared earlier. Hosts SHOULD offer this as a constructor; they MUST NOT offer a policy
+whose admitted set is computed lazily against whatever vocabulary is current at decode time.
+
+A policy carries a short, stable **identity** string. It appears in every refusal, so two deployments
+running different profiles produce distinguishable evidence; a refusal that does not say which
+declaration produced it is not auditable.
+
+### 23.4 The refusal
+
+A kind outside the admitted set is refused with:
+
+| | |
+|---|---|
+| `Code` | `KIND_NOT_ADMITTED` |
+| `Path` | the offending `kind.$type` — including for a kind nested below the root, whose whole document is refused. A policy applied only at the root admits a hatch one level down and is the obvious wrong implementation. |
+| `Message` | names the refused kind and the policy identity. |
+| `ExpectedShape` | the admitted vocabulary, so a repairing author sees what this deployment does take. |
+
+A discriminator that is not in the vocabulary at all stays `WRONG_NODE_KIND` under a policy, exactly
+as without one. The two are different facts: one says the spelling is wrong, the other says the
+spelling is right and the deployment declines it, and collapsing them sends an author to invent a name
+that is already correct.
+
+**Ops are gated on the same terms.** A node kind reaches a `TreeOp` two ways — inside a node-bearing
+operation, and as `EditNode`'s replacement kind — and a conformant policy-bearing op decoder refuses
+both. A policy enforced only on the initial tree is a property of the first decode rather than a
+closure.
+
+### 23.5 The recommended closed profile
+
+For an application that uses no escape hatches, the recommended profile admits the whole vocabulary
+**except `Custom` and `Mount`** — the two kinds through which host-supplied behaviour enters a
+rendered tree. `Custom` selects a host-registered renderer by a name taken off the wire; `Mount`
+composes a guest tree produced host-side under its own scope. Neither carries behaviour on the wire —
+decoding constructs no closures — which is precisely why omission alone does not close them: the tree
+still *selects*, and the selection becomes live the moment something registers.
+
+**What this profile does NOT close, stated because a partial closure read as a total one is worse
+than none.** A kind gate reaches kinds. It does not reach the action vocabulary a tree can name, a
+declared field rule's pattern (a slot on `Form` / `Filters`, both of which this profile admits), a
+renderer's own output, or anything a host registers outside a tree altogether. Those are different
+seams with different mechanisms, and a deployment claiming "no escape hatches" on the strength of this
+profile alone has claimed more than it has closed.
+
+**Forward coupling.** A new kind whose semantics is that a host supplies behaviour it names — a
+registry it selects from, a guest it composes, a seam it reaches — joins this profile's exclusions in
+the same change-set that adds the kind. A kind admitted into the recommended closed profile by default
+is one that has been asserted not to be a hatch, and that assertion should be deliberate.
+
+### 23.6 Conformance
+
+The [`decode-policy/`](decode-policy/) family is the executable form. Each case pairs a document with
+a declared policy and the outcome, and the same bytes appear under both an admitting and a refusing
+policy — the pairing is the assertion, since neither half alone distinguishes a policy from a decoder
+that simply dislikes the document. Its manifest is hand-authored and is not emitted by any host's
+corpus generator.
+
+A host that has not implemented this section declares the family **not-applicable with a reason**, on
+the §22.2 footing. Implementing §23 is optional; being silently untested on it is not.
 
 ---
 
