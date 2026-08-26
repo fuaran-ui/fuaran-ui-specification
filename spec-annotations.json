@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "description": "Hand-authored notes attached to the generated marker-block projections in WIRE_FORMAT.md. Each map is keyed by a name the generated block carries: `kinds` by kind.$type, `enums` by enum name, `omitDefaults` by `<field>=<identity default>`, `nodeFields` by node-envelope field name. The projection emits these verbatim in a Notes column and REFUSES to run when a key names nothing — an annotation whose subject was renamed or retired is a stale claim in a normative document, and the point of a projection is that such a thing cannot survive regeneration. Notes state what the IDL cannot know (a render-time obligation, where a nested enum lives, an asymmetry between the encoder and decoder); they never restate a field list, an enum vocabulary or a default, all of which are generated.",
+  "annotations": {
+    "kinds": {
+      "Box": "`layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See \"The `Box` container\" below.",
+      "CodeBlock": "The parity-checked render is a deterministic `<pre><code>`; syntax highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff.",
+      "Custom": "The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary.",
+      "DataGrid": "The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`.",
+      "Image": "`src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory.",
+      "Link": "`protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See \"Link protection\" below.",
+      "Math": "The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff.",
+      "Mount": "An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document.",
+      "Switch": "The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code.",
+      "FragmentRef": "An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time.",
+      "FragmentDecl": "NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion."
+    },
+    "enums": {
+      "DateStyle": "inside `Format.Date.dateStyle`",
+      "FileReadEncoding": "inside `Action.ReadFileBody.encoding`",
+      "HashStrictness": "inside `Custom.contentHash.strictness`",
+      "Motion": "a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9",
+      "RelativeTimeUnit": "inside `Format.RelativeTime.unit`"
+    },
+    "omitDefaults": {
+      "default=Default": "The tone for a value the `map` does not mention.",
+      "dismissable=true": "The one omit-when-TRUE: a toast is dismissable unless said otherwise.",
+      "emphasis=false": "The behavioural bool, not the `Emphasis` style DU — a different field that shares a name.",
+      "orientation=Horizontal": "`TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there."
+    },
+    "nodeFields": {
+      "extraAttributes": "The AI-opaque consumer-side hatch for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit.",
+      "motion": "Motion is consumer-authored, not AI-authored."
+    }
+  }
+}

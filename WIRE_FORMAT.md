@@ -167,21 +167,60 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
 
 ### 3.2 `NodeKind` discriminators (`kind.$type`)
 
-The `kind` object's `$type` is the node's primitive discriminator **directly** – the wire is **flat**, with no behavioural-category envelope and no `spec` wrapper. A node carrying a label/value row is `{"$type":"LabelValueRow","emphasis":…,"label":…,"value":…}` – the spec's fields hoisted directly under `$type`, exactly as `Custom`/`ErrorBoundary` and every nested DU carry their fields. The four behavioural categories – Layout / Display / Input / Visualisation – are a **host-side classification recovered on decode** (each primitive belongs to exactly one category), not a level of wire nesting.
+The `kind` object's `$type` is the node's primitive discriminator **directly** – the wire is **flat**, with no behavioural-category envelope and no `spec` wrapper. A node carrying a label/value row is `{"$type":"LabelValueRow","emphasis":…,"label":…,"value":…}` – the spec's fields hoisted directly under `$type`, exactly as `Custom`/`ErrorBoundary` and every nested DU carry their fields. The four behavioural categories – Layout / Display / Input / Visualisation – are a **host-side classification recovered on decode** (each primitive belongs to exactly one category), not a level of wire nesting. A fifth category, **Meta**, holds the structural cases: they are node kinds with no behavioural role of their own.
 
 The `kind.$type` is one of – and **only** one of – the following primitives or structural cases. Anything else is `WRONG_NODE_KIND` (a dedicated code distinct from `UNKNOWN_DU_CASE`, because the AI-emission eval surface pattern-matches specifically on "AI emitted something other than a valid node kind"):
 
-| Recovered category | `kind.$type` ∈ | Payload (hoisted under `$type`) |
-|---|---|---|
-| _Layout_ | `Box`,`SplitPanel`,`Tabs`,`Stepper`,`SummaryList`,`Disclosure`,`Modal`,`ScrollArea` | the spec's fields (incl. a `children` array) |
-| _Display_ | `Heading`,`Markdown`,`Metric`,`Badge`,`Sparkline`,`Callout`,`Progress`,`Skeleton`,`LabelValueRow`,`Fact`,`Link`,`Image`,`List`,`Toast`,`CodeBlock`,`Math`,`Drawing` | the spec's fields |
-| _Input_ | `Form`,`Button`,`FileUpload`,`Select` | the spec's fields |
-| _Input_ | `Filters` | `{ "items": [ … ] }` |
-| _Visualisation_ | `DataGrid`,`Chart`,`Map` | the spec's fields |
-| _(structural)_ | `Custom` | `{ "moduleId", "componentId", "props", "contentHash"?, "exposedNodeIds"? }` |
-| _(structural)_ | `ErrorBoundary` | `{ "child": <Node>, "fallback": <Node> }` |
-| _(structural)_ | `FragmentDecl` | `{ "name": <string>, "body": <Node>, "holes"?: [ <HoleDecl> ], "effect"?: <EffectClass> }` |
-| _(structural)_ | `FragmentRef` | `{ "name": <string>, "args"?: { <holeName>: <FragmentArg> } }` |
+> **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
+> [§12.2](#122-generated-tables-in-this-document). Field names are listed in the canonical wire key
+> order (Ordinal), spelled `field` when required, `field?` when optional, `field?=X` when
+> omitted-at-default `X` (§3.6 carries the full default table), and `field*` when the slot is
+> host-only and carries `"<closure>"` on the wire (§4).
+
+<!-- fuaran:spec-kinds -->
+| `kind.$type` | Recovered category | Fields (hoisted under `$type`) | Notes |
+|---|---|---|---|
+| `Box` | _Layout_ | `children`, `heading?`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
+| `Disclosure` | _Layout_ | `children`, `defaultOpen`, `heading`, `onToggle?`, `open` |  |
+| `Modal` | _Layout_ | `children`, `dismissable`, `heading?`, `onDismiss?`, `open` |  |
+| `ScrollArea` | _Layout_ | `children`, `maxHeight?`, `maxWidth?`, `orientation` |  |
+| `SplitPanel` | _Layout_ | `children`, `weight` |  |
+| `Stepper` | _Layout_ | `activeStep`, `children`, `onSelect?` |  |
+| `SummaryList` | _Layout_ | `children`, `heading?` |  |
+| `Tabs` | _Layout_ | `activeIndex`, `activeTag?`, `children`, `onSelect?`, `onSelectTag?`, `orientation?=Horizontal`, `tabHeaders?`, `tabTags?` |  |
+| `Badge` | _Display_ | `label`, `variant` |  |
+| `Callout` | _Display_ | `body`, `dismissable?=false`, `heading?`, `icon?`, `tone?=Default` |  |
+| `CodeBlock` | _Display_ | `code`, `copyable`, `highlightLines`, `language`, `lineNumbers` | The parity-checked render is a deterministic `<pre><code>`; syntax highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
+| `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
+| `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
+| `Heading` | _Display_ | `level`, `text`, `variant` |  |
+| `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
+| `Image` | _Display_ | `alt`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
+| `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
+| `List` | _Display_ | `items`, `ordered` |  |
+| `Markdown` | _Display_ | `text` |  |
+| `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
+| `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `value`, `weight?=Standard` |  |
+| `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
+| `Skeleton` | _Display_ | `rows` |  |
+| `Sparkline` | _Display_ | `source` |  |
+| `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
+| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
+| `FileUpload` | _Input_ | `accept`, `disabled?`, `label`, `multiple`, `onSelect?` |  |
+| `Filters` | _Input_ | `items` |  |
+| `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
+| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
+| `Chart` | _Visualisation_ | `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
+| `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
+| `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
+| `FragmentDecl` | _Meta_ | `body`, `effect?`, `holes?`, `name` | NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion. |
+| `FragmentRef` | _Meta_ | `args?`, `name` | An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time. |
+| `Mount` | _Meta_ | `capabilities`, `channel`, `inputs?`, `onBubble?`, `scopeId` | An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document. |
+| `Switch` | _Meta_ | `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
+<!-- /fuaran:spec-kinds -->
 
 Every `kind.$type` is globally unique. The former `Grid` collision (a Layout grid and a Visualisation data-grid both once named `Grid`) is fully resolved: the CSS-grid container is now a **`Box`** with `layout: {"$type":"Grid",…}` (Phase 390 – see below), and the data-bound grid is **`DataGrid`** (payload `GridSpec`). This global uniqueness is what lets the wire be flat – a single discriminator unambiguously selects both the primitive and its category.
 
@@ -718,24 +757,55 @@ fixtures now pin the faithful behaviour.)
 
 ### 3.5 Bare-string enums
 
-These DUs encode as a **bare JSON string** (not a `$type` object), matching the renderer's emission:
+These DUs encode as a **bare JSON string** (not a `$type` object), matching the renderer's emission.
+Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognised string is
+`UNKNOWN_DU_CASE` at that path (e.g. `tone: "Magenta"`).
 
-- `Orientation`: `"Vertical"` / `"Horizontal"`
+> **This list is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
+> [§12.2](#122-generated-tables-in-this-document).
+
+<!-- fuaran:spec-enums -->
 - `BadgeVariant`: `"Neutral"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
+- `BoxRole`: `"Dashboard"` / `"Card"` / `"Group"` / `"Separator"`
 - `ButtonVariant`: `"Primary"` / `"Secondary"` / `"Tertiary"` / `"Destructive"`
-- `HeadingVariant`: `"Standard"` / `"Eyebrow"` / `"Caption"` / `"Lead"`
-- `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
-- `StyleWeight`: `"Compact"` / `"Standard"` / `"Spacious"`
-- `Emphasis`: `"Quiet"` / `"Normal"` / `"Loud"`
+- `ChannelDirection`: `"OutOnly"` / `"TwoWay"`
+- `ChartDataLabels`: `"Off"` / `"Ends"`
 - `ChartKind`: `"Line"` / `"Bar"` / `"Area"` / `"Pie"` / `"Scatter"` / `"Heatmap"`
-- `AriaRole`: the raw ARIA string (`"button"`, `"link"`, `"dialog"`, …; `AriaRole.Custom raw` emits `raw`)
-- `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
-- `HashStrictness` (inside `Custom.contentHash.strictness`): `"StrictReplay"` / `"AdvisoryWarning"`
+- `ChartLegendPosition`: `"Top"` / `"Right"` / `"Bottom"` / `"None"`
+- `ChartXScale`: `"Category"` / `"Temporal"`
+- `CompareOp`: `"eq"` / `"neq"` / `"lt"` / `"lte"` / `"gt"` / `"gte"`
 - `DateStyle` (inside `Format.Date.dateStyle`): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
-- `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
+- `DateVariant`: `"Date"` / `"Time"` / `"DateTime"`
+- `DeterminismSource`: `"Deterministic"` / `"Clock"` / `"Random"` / `"Network"`
+- `DurationStyle`: `"Compact"` / `"Clock"` / `"Long"`
+- `DurationUnit`: `"Seconds"` / `"Minutes"` / `"Hours"`
+- `Emphasis`: `"Quiet"` / `"Normal"` / `"Loud"`
 - `FileReadEncoding` (inside `Action.ReadFileBody.encoding`): `"Text"` / `"Base64"` / `"DataUrl"`
+- `FontVoice`: `"Default"` / `"Display"` / `"Structural"`
+- `HashStrictness` (inside `Custom.contentHash.strictness`): `"StrictReplay"` / `"AdvisoryWarning"` / `"Enforced"`
+- `HeadingVariant`: `"Standard"` / `"Eyebrow"` / `"Caption"` / `"Lead"`
+- `HostEffect`: `"Pure"` / `"ReadsHost"` / `"WritesHost"`
+- `IconSize`: `"Small"` / `"Medium"` / `"Large"`
+- `ImageVariant`: `"Default"` / `"Avatar"` / `"Rounded"`
+- `LinkProtection`: `"email"`
+- `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
+- `MathDisplay`: `"Inline"` / `"Block"`
+- `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"`
+- `Orientation`: `"Vertical"` / `"Horizontal"`
+- `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
+- `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
+- `SortDirection`: `"asc"` / `"desc"`
+- `StyleRole`: `"None"` / `"Eyebrow"` / `"Data"` / `"Lede"` / `"Caption"`
+- `StyleWeight`: `"Compact"` / `"Standard"` / `"Spacious"`
+- `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
+- `TextFormat`: `"email"` / `"url"` / `"tel"`
+- `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
+<!-- /fuaran:spec-enums -->
 
-An unrecognised bare-enum string is `UNKNOWN_DU_CASE` at that path (e.g. `tone: "Magenta"`).
+One bare-string slot is deliberately **absent** from that list, because it is not a closed
+vocabulary and the IDL does not model it as one: **`AriaRole`** encodes the raw ARIA string
+(`"button"`, `"link"`, `"dialog"`, …; `AriaRole.Custom raw` emits `raw`), so no enumeration of it
+could be exhaustive and none is attempted here.
 
 ### 3.6 Stylistic fields – omitted-when-default + lenient-ingest (Phase 460)
 
@@ -749,23 +819,38 @@ emission carrying only the semantic fields (`label`, `value`, `kind`) is a compl
 **Identity-default table** (absent ⇒ this value; a present explicit-default value keeps decoding,
 read-compat):
 
-| Field | Type | Identity default | Sites |
-|---|---|---|---|
-| `format` | `CellFormat` | `None` | `MetricSpec`, `ColumnErased`, `LabelValueRowSpec` |
-| `tone` | `ToneVariant` | `Default` | `MetricSpec`, `SemanticStyle`, `ToastSpec`, `CalloutSpec`, `ProgressSpec`, `FactSpec` |
-| `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |
-| `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle`, `FactSpec` |
-| `width` | `ColumnWidth` | `Auto` | `ColumnErased` |
-| `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` – the tone for a value the `map` does not mention (Phase 750) |
-| `editable` | `bool` | `false` | `GridSpec` (DataGrid) – 0.2.0 |
-| `indeterminate` | `bool` | `false` | `ProgressSpec` – 0.2.0 |
-| `dismissable` | `bool` | `false` | `CalloutSpec` – 0.2.0 |
-| `dismissable` | `bool` | **`true`** | `ToastSpec` – 0.2.0; the one omit-when-TRUE (a toast is dismissable unless said otherwise) |
-| `orientation` | `Orientation` | `Horizontal` | `TabsSpec`, `FormFieldKind.SegmentedChoice` – 0.2.0 (encoder-symmetric) |
+> **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
+> [§12.2](#122-generated-tables-in-this-document). It is the **exhaustive** set of omitted-when-default
+> fields across every kind, record, union case and op: a field with an identity default that is not
+> listed here does not exist.
+
+<!-- fuaran:spec-omit-defaults -->
+| Field | Type | Identity default | Sites | Notes |
+|---|---|---|---|---|
+| `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
+| `dismissable` | `bool` | `false` | `CalloutSpec` |  |
+| `dismissable` | `bool` | `true` | `ToastSpec` | The one omit-when-TRUE: a toast is dismissable unless said otherwise. |
+| `editable` | `bool` | `false` | `DataGridSpec` |  |
+| `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
+| `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
+| `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
+| `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
+| `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
+| `reorderable` | `bool` | `false` | `DataGridSpec` |  |
+| `role` | `StyleRole` | `None` | `SemanticStyle` |  |
+| `size` | `IconSize` | `Medium` | `IconSpec` |  |
+| `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
+| `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
+| `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
+| `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
+<!-- /fuaran:spec-omit-defaults -->
 
 `CellFormat`'s own per-case payloads (`Currency.code`, `Date.format`, `SignificantDigits.digits`)
-stay **required** – only the parent *field* is omittable, never a DU payload. `LabelValueRowSpec.emphasis`
-is a **bool** (behavioural, not the style DU) and stays required – out of this seam's scope.
+stay **required** – only the parent *field* is omittable, never a DU payload. Note the table carries
+`emphasis` **twice**, at two different types: the `Emphasis` style DU (`MetricSpec`, `SemanticStyle`)
+and a behavioural **bool** on `FactSpec` / `LabelValueRowSpec`. Both are omitted-when-default; they are
+different fields that share a name, which is why the generated table keys on the field *and* its
+default rather than on the name alone.
 
 > **Scope note (symmetric omit-when-default).** The seam is symmetric on both boundaries: a
 > conformant **decoder** restores the identity default when the field is absent, and a conformant
@@ -885,11 +970,15 @@ surface, not just its rejection surface.
 Same date, the omitted-when-default posture (the identity-default table above) extended to the
 segmented `orientation` field on **`SegmentedChoice`** (forms and, post-unification, filter chips):
 absent ⇒ `Horizontal` (the language default and the universal segmented-control prior; observed
-omitted in eval emission data). **0.2.0 made this encoder-symmetric** – the encoder now omits
-`orientation` at `Horizontal` on `SegmentedChoice` AND `Tabs` (the identity-default table above),
-so the omitted form is the canonical bytes. The legacy `Stack` `orientation` stays required (no
-default is neutral there: vertical and horizontal stacks are both common). Pinned by
-`lenient/lenient-shape-segmented-orientation-omitted` + the regenerated `nodes/tabs-1.json`.
+omitted in eval emission data). **This one is asymmetric, and the asymmetry is the point:** the
+DECODER restores `Horizontal` when the field is absent, but the ENCODER always emits it on
+`SegmentedChoice`, so the omitted form is a §16 lenient-ingest accept there and **not** the canonical
+bytes — `lenient/lenient-shape-segmented-orientation-omitted.expected.json` carries
+`"orientation":"Horizontal"`. `Tabs` IS encoder-symmetric and appears in the identity-default table
+above; `SegmentedChoice` does not, because its field is required on the emit side. (This paragraph
+claimed the symmetry for both until the generated table disagreed with it — Phase 699.) The legacy
+`Stack` `orientation` stays required (no default is neutral there: vertical and horizontal stacks are
+both common).
 
 ---
 
@@ -1176,11 +1265,11 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `MISSING_FIELD` | A required key is absent on a Node / Spec / Op object. `Path` names the missing key. |
 | `WRONG_TYPE` | A value is present but the wrong JSON kind (e.g. `id` is a number, `children` is an object). |
 | `UNKNOWN_DU_CASE` | A `$type` discriminator (or bare-enum string) is not a recognised case. `ExpectedShape` enumerates valid cases. |
-| `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the flat Layout/Display/Input/Visualisation primitives (§3.2) nor Custom/ErrorBoundary/FragmentDecl/FragmentRef. Raised at `$.kind.$type`. (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
+| `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the discriminators the §3.2 table enumerates, in any of its five recovered categories. Raised at `$.kind.$type`. (Deliberately not re-listed here: §3.2's table is generated and this sentence would be the copy that goes stale.) (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 
-The 30 reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->60<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1241,15 +1330,27 @@ set, independently of round-tripping (§12).
 
 ## 9. Wire-omitted fields (by design)
 
-Three fields on the `Node` record are **never** emitted, and a decoder always sets them to their default:
+The `Node` record's **host-only** fields are never emitted at all — no key appears for them — and a
+decoder always sets them to their host-language default:
 
-| Field | Default on decode | Why omitted |
-|---|---|---|
-| `Node.Motion` (`Motion option`) | `None` | Motion is consumer-authored, not AI-authored. |
-| `Node.ExtraAttributes` (`Map<string,string> option`) | `None` | The "AI-opaque consumer-side hatch" for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit (see [`Types.fs`](../fuaran-dotnet/src/Fuaran.UI/Types.fs) ~lines 211–251). |
-| `Node.Accessibility` (`Accessibility option`) | `None` when the `accessibility` key is absent | Optional per rule 4; present only when authored. |
+> **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
+> [§12.2](#122-generated-tables-in-this-document). Its membership is exactly the node-envelope fields
+> the IDL classes `hostOnly`.
+
+<!-- fuaran:spec-wire-omitted -->
+| Field | Host surface (F#) | Default on decode | Why omitted |
+|---|---|---|---|
+| `extraAttributes` | `Map<string, string> option` | `None` | The AI-opaque consumer-side hatch for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit. |
+| `motion` | `Motion option` | `None` | Motion is consumer-authored, not AI-authored. |
+<!-- /fuaran:spec-wire-omitted -->
 
 A conformant host that emits these fields would diverge from the canonical wire shape and fail the corpus.
+
+**Not the same claim: the OPTIONAL node fields.** `accessibility`, `state` and `style` are optional
+per rule 4 — absent from the wire when unauthored, and **present when authored**. They are therefore
+not wire-omitted, and a host that dropped them would fail the corpus for the opposite reason. (This
+section counted `accessibility` among the never-emitted fields until Phase 699, while its own row
+said "present only when authored"; the generated table resolves the contradiction from the IDL.)
 
 ---
 
@@ -1414,10 +1515,28 @@ Layout:
 wire-format-fixtures/
 ├── manifest.json     # index: { version, schema, description, fixtures: [ { id, kind, decoder, inputFile, expectedFile?, expectedErrorCode?, expectedPath?, description } ] }
 ├── schema.json       # canonical Draft 2020-12 JSON Schema (see §13) — co-emitted by the same --emit-corpus run
-├── nodes/   *.json   # 70 canonical Node wire forms
-├── ops/     *.json   # 21 canonical TreeOp wire forms (incl. the Phase 364 nested-path set)
-└── reject/  *.json   # 30 malformed inputs
+├── nodes/   *.json   # canonical Node wire forms
+├── ops/     *.json   # canonical TreeOp wire forms (incl. the Phase 364 nested-path set)
+├── lenient/ *.json   # §16 shorthand inputs + their canonical twins
+├── envelope/*.json   # §15 profile-envelope negotiation cases
+├── elicitation/*.json# §18 elicitation envelopes, outcomes + answer documents
+└── reject/  *.json   # malformed inputs
 ```
+
+Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
+the counts drift where the manifest cannot. The current tallies, projected from it:
+<!-- fuaran:count kind=total -->315<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->134<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->60<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
+<!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
+<!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
+<!-- fuaran:count kind=elicitation-reject -->15<!-- /fuaran:count --> `elicitation-reject`,
+<!-- fuaran:count kind=elicitation-answer-accept -->3<!-- /fuaran:count --> `elicitation-answer-accept`,
+and <!-- fuaran:count kind=elicitation-answer-reject -->7<!-- /fuaran:count -->
+`elicitation-answer-reject`.
 
 A conformant host's test harness loads `manifest.json` and, per entry:
 - `kind: "node-round-trip"` / `"op-round-trip"` → decode `inputFile` with the `decoder`-named entry point, re-encode, assert byte-equal to `expectedFile`.
@@ -1426,6 +1545,40 @@ A conformant host's test harness loads `manifest.json` and, per entry:
 ### 12.1 Third-party certification kit
 
 Third-party implementations do not need to hand-build the harness above: the published **`@fuaran-ui/conformance`** npm package is a packaged certification kit – it bundles a versioned snapshot of this corpus (named in every report by manifest version + SHA-256 content digest), drives a candidate implementation through a small adapter seam (`decodeNode` / `encodeNode` / `decodeOp` / `encodeOp`, all optional), and emits a per-leg pass/fail report with honest partial-certification semantics for hosts that implement only part of the contract. The certification procedure – what "conformant host" means, mandatory vs optional legs, how to read the report, and the per-corpus-version caveat that follows from §11 – is defined in the TypeScript reference repo's `CONFORMANCE.md`. The bundled snapshot is byte-synced from this corpus and guarded by the kit's own test suite; when the corpus advances under §11, a new kit release ships the regenerated snapshot and hosts re-certify against it.
+
+### 12.2 Generated tables in this document
+
+Five surfaces of this specification are **projections**, not authored prose. Each sits between a
+marker pair and is regenerated from a machine-readable artefact; a hand edit inside one is reverted
+by the next regeneration and, before that, reported as drift by a gate.
+
+| Marker | Section | Source |
+|---|---|---|
+| `fuaran:spec-kinds` | §3.2 — the `kind.$type` → category table | [`idl.json`](idl.json) |
+| `fuaran:spec-enums` | §3.5 — the closed bare-string enum vocabularies | [`idl.json`](idl.json) |
+| `fuaran:spec-omit-defaults` | §3.6 — the identity-default table | [`idl.json`](idl.json) |
+| `fuaran:spec-wire-omitted` | §9 — the host-only node fields | [`idl.json`](idl.json) |
+| `fuaran:count kind=…` | every in-prose fixture count | [`manifest.json`](manifest.json) |
+
+```powershell
+# from fuaran-dotnet/ — regenerate, then verify
+dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --project-spec ..\wire-format-fixtures
+dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --check-spec   ..\wire-format-fixtures
+```
+
+**Notes columns are hand-authored.** A projection may not add information its source does not carry,
+so anything the IDL cannot know — that `Image.src` is routed through the §19 URL-scheme floor at
+render time, that `HashStrictness` lives inside `Custom.contentHash` — is written in
+[`spec-annotations.json`](spec-annotations.json), keyed by the vocabulary name it describes, and
+emitted verbatim into a Notes column. **The generator refuses to run when a key names nothing**: an
+annotation whose subject was renamed or retired is a stale claim in a normative document, and a
+projection exists precisely so that such a thing cannot survive a regeneration. Adding a kind, enum
+case, or omitted-when-default field therefore updates §3.2/§3.5/§3.6 **mechanically** — one fewer
+hand-step in §11.
+
+`--check-spec` also runs as an ordinary test in the F# host's conformance suite and as its own leg of
+the cross-implementation conformance workflow, so a specification edit and a vocabulary edit are both
+caught, from either side.
 
 ---
 
