@@ -2826,6 +2826,60 @@ the §22.2 footing. Implementing §23 is optional; being silently untested on it
 
 ---
 
+## 24. Declared-default resolution (normative renderer obligation)
+
+§19 and §22 state what a renderer owes at the seam where a string reaches a document. This section
+states what it owes at the seam **before** that one: what a `Binding` carrying a declared default
+resolves to when nothing has written its slot.
+
+### 24.1 The obligation
+
+**A `Binding.State` carrying a `defaultValue` resolves to that value until the named state slot is
+first written.** The same holds for `Binding.Filter` and `Binding.Selection`, whose declared defaults
+§1.1 and §3.3 already describe.
+
+**A renderer that holds no state MUST still resolve it.** A declared default is *authored data* — it
+travels in the document, it is the same on every host, and it is available to a renderer that has no
+store, no session and no client. It is not store state, and treating it as store state is the error
+this section exists to name. A host that emits nothing for a defaulted binding is emitting an
+**incomplete document**, not a cautious one.
+
+Writing wins over defaulting, and the order is normative: a renderer resolves the slot from its
+sources first and consults the declared default only when the slot is unwritten. Hydration therefore
+**re-resolves** a value the server already rendered; it never *first-fills* one the server left
+empty. A binding with neither a written slot nor a declared default is genuinely unresolved, and this
+section says nothing about what a renderer shows for it.
+
+### 24.2 Why this is stated on `State` and not left to its mirror
+
+§1.1's third 0.2.0 item introduces `Binding.Filter.defaultValue` as "the value the resolver yields …
+before the filter is first written", and calls it **a mirror of `State.defaultValue`**. That sentence
+fixed the resolution behaviour of the mirror and left the original implicit, on the reasonable
+assumption that a rule stated for one arm would be read across to the other.
+
+It was not. Measured across five render tiers on 2026-08-26 with the corpus fixture
+`nodes/a11y-wrapper-state-bound.json`, whose accessible name is a `Binding.State` with a declared
+default of `"Site footer"`: four tiers emitted `aria-label="Site footer"` and one emitted no
+`aria-label` at all — and **neither answer was non-conformant**, because the specification had not
+taken a position. A declared default that means different things on different hosts is not a default;
+it is a suggestion, and an author cannot build on it. So the rule is stated on the original.
+
+The divergent host was not being careless. It resolved the two sibling defaults and declined this one
+under a documented "unresolved until written" posture, which is a defensible reading of a slot named
+for a *store*. What made it wrong was not the reading but that the format permitted both.
+
+### 24.3 Conformance
+
+The existing `nodes/a11y-wrapper-state-bound.json` fixture is the executable form: a `Binding.State`
+carrying a declared default in a slot whose resolution is visible in rendered output. It needs no new
+bytes — the fixture was already in the corpus, and the divergence it exposed was a *render*-parity
+finding rather than a codec one, which is precisely why no codec family caught it.
+
+A rendering host asserts the resolved value; a host that only decodes, re-encodes or routes trees is
+unaffected by this section, on the §22 footing.
+
+---
+
 
 ## See also
 
