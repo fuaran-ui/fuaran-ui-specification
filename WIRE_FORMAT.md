@@ -2297,7 +2297,7 @@ The measured behaviour, across the five codec hosts:
 | Overflowing exponent (`1e999`) | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` |
 | Leading `+` on a number (`+1`) | accepted → `1` | accepted → `1` | **rejected** | **rejected** | accepted → `1` |
 | Bare `NaN` / `Infinity` literal | rejected | rejected | **accepted** | rejected | rejected |
-| §7 sentinel string at a typed float slot | accepted | accepted | **rejected** | **rejected** | accepted |
+| §7 sentinel string at a typed float slot | accepted | accepted | accepted | accepted | accepted |
 
 **Why the first row is the serious one.** The other rows differ on whether a document is *accepted*;
 a disagreement there is loud, and the stricter host simply refuses to proceed. Duplicate keys differ
@@ -2308,11 +2308,44 @@ host is the outlier: it is first-wins because its object parser accumulates entr
 then folds them into a map that lets later list entries win, so the reversed order leaves the
 *first-parsed* key standing. That is emergent, not designed.
 
-**The last row is a round-trip hole, not just a divergence.** §7 requires a decoder to accept the
-quoted `"NaN"` / `"Infinity"` / `"-Infinity"` sentinels at a float slot, and every host *emits* them.
-Two hosts do not accept them at every such slot, so a non-finite value encoded by one host does not
-decode on those hosts at all. Unlike the rows above, this one is already a §7 conformance defect
-rather than an open question, and it can be fixed per host without any spec decision.
+**The last row WAS a round-trip hole, and every host's CODEC now closes it.** §7 requires a decoder
+to accept the quoted `"NaN"` / `"Infinity"` / `"-Infinity"` sentinels at a float slot, and every host
+*emits* them. Two hosts did not accept them at every such slot, so a non-finite value encoded by one
+host did not decode on those hosts at all — a host emitting bytes its own decoder refused. Unlike the
+rows above this was already a §7 conformance defect rather than an open question, and it needed no
+spec decision, which is why it could close on its own while rules 1–5 below stayed open.
+
+The row above is the re-measurement, taken per **slot class** rather than at one slot, because the
+two lagging hosts each accepted the sentinels at *some* float slots and not others — a fix designed
+from one slot would have been a fix for one slot. The classes measured on all five hosts, with all
+three sentinels: a typed float scalar, a typed float nested in a shape, an optional typed float, a
+float inside a coordinate pair, a float behind a `Binding`'s `Static` envelope, and an element of a
+float **sequence**. All five hosts now accept at every one of them, `decode → encode → decode`
+closes, and the canonical bytes agree across all five.
+
+Two properties of the fix are worth stating, because a later host will have to reproduce them:
+
+- **A float slot widens; an integer slot does not.** §7 truncates at an integer slot and says nothing
+  about sentinels there, so `"Infinity"` at an integer slot stays a `WRONG_TYPE` on every host. Both
+  lagging hosts reached their integer slots through a separate gate, so the widening could not leak
+  into them — worth checking rather than assuming, in a host where one function serves both. A
+  non-sentinel string (`"banana"`) at a float slot stays a `WRONG_TYPE` everywhere too: the accept set
+  widens by exactly three strings.
+- **The decoded value is the FLOAT, not the sentinel string.** §7 says `JString "NaN"` → NaN, and the
+  distinction is observable: the bare overflowing literal `1e999` already decodes to an infinity
+  (row 3), so a host that answered a re-decode of its own canonical output with a string would hand a
+  consumer a float the first time and a string the second. Byte-stability alone does not catch that.
+
+**What is NOT yet done, stated because a reader would otherwise assume it is: there is no corpus
+fixture pinning this.** An accept-case `node-round-trip` fixture carrying a sentinel is the natural
+pin, and it cannot land yet. Every node fixture must also decode and re-encode byte-identically
+through the reference host's **IDL-generated structural layer**, and that layer's float primitive
+models a finite double only — it has no spelling for a non-finite in either direction. So a fixture
+pinning §7 would fail the reference host's build on a defect in a different layer from the one it is
+pinning. This is the same shape the corpus met before, when a UI vocabulary addition reached the
+fixtures ahead of the IDL and the coverage assertion carried a named residue until the IDL caught up;
+the order that worked then is IDL first, fixture second. Until it lands, the property is held by the
+hosts' generative decoder-fuzz legs, which is where the hole was found rather than by a curated case.
 
 **Proposed rules, for the decision to accept, amend or reject:**
 
@@ -2330,14 +2363,23 @@ rather than an open question, and it can be fixed per host without any spec deci
 5. **Overflowing exponent — specify the existing behaviour** (`1e999` → the corresponding infinity)
    rather than change it. All five hosts already agree; it is unspecified, not divergent.
 6. **§7 sentinels — bring the two hosts into line with §7** at *every* float-valued slot, including
-   float sequences, independently of rules 1–5.
+   float sequences, independently of rules 1–5. **The five codecs are DONE** (see the
+   round-trip-hole note above); the corpus fixture and the reference host's generated structural
+   layer are not. Kept here rather than struck out, because it is not finished until it is pinned.
 
-**What landing this requires.** Rules 1–4 are each a decoder-visible **breaking change** for at least
-one host, so they need a version/profile decision under §15 as well as a coordinated §11 change
+**What landing the REST requires.** Rules 1–4 are each a decoder-visible **breaking change** for at
+least one host, so they need a version/profile decision under §15 as well as a coordinated §11 change
 across encoder, decoder, corpus and every host. Fixtures pinning them are deliberately **not** in the
 corpus yet: the corpus is a shared gate that every host runs, so a fixture landing ahead of the hosts
 turns their builds red for a rule none of them has adopted. The fixtures land with the hosts, not
 before them.
+
+Rule 6 is the exception that shows the shape of that constraint rather than a breach of it. It widens
+an ACCEPT set, so no document that decoded before is refused now, and it restates an obligation §7
+already imposed rather than proposing a new one — which is why it could move ahead of the other five
+without a version decision. What it could NOT move ahead of is a host's own build, which is exactly
+the constraint this paragraph states, arriving from an unexpected direction: the blocker was not a
+host that had refused the rule, but a layer inside a host that has no way to express it yet.
 
 ---
 
