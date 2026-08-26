@@ -1172,6 +1172,14 @@
       "description": "Display/Drawing (degenerate — empty)"
     },
     {
+      "id": "drawing-nonfinite-sentinels",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/drawing-nonfinite-sentinels.json",
+      "expectedFile": "nodes/drawing-nonfinite-sentinels.json",
+      "description": "Display/Drawing (Phase 1063 — §5/§7 non-finite sentinels at typed float scalars and a nested shape coordinate)"
+    },
+    {
       "id": "drawing-rotated-labels",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -1796,6 +1804,14 @@
       "description": "Display/Metric (Phase 283 — Binding.Invoke capability source)"
     },
     {
+      "id": "metric-nonfinite-sentinel",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/metric-nonfinite-sentinel.json",
+      "expectedFile": "nodes/metric-nonfinite-sentinel.json",
+      "description": "Display/Metric (Phase 1063 — §5/§7 non-finite sentinels behind a Binding.Static envelope)"
+    },
+    {
       "id": "modal-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -1890,6 +1906,14 @@
       "inputFile": "nodes/spark-1.json",
       "expectedFile": "nodes/spark-1.json",
       "description": "Display/Sparkline"
+    },
+    {
+      "id": "spark-nonfinite-sentinel",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/spark-nonfinite-sentinel.json",
+      "expectedFile": "nodes/spark-nonfinite-sentinel.json",
+      "description": "Display/Sparkline (Phase 1063 — §5/§7 non-finite sentinels as float SEQUENCE elements)"
     },
     {
       "id": "split-1",

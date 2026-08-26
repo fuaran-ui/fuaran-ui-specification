@@ -1541,8 +1541,8 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->329<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->140<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->332<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->143<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->68<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
@@ -2336,16 +2336,27 @@ Two properties of the fix are worth stating, because a later host will have to r
   (row 3), so a host that answered a re-decode of its own canonical output with a string would hand a
   consumer a float the first time and a string the second. Byte-stability alone does not catch that.
 
-**What is NOT yet done, stated because a reader would otherwise assume it is: there is no corpus
-fixture pinning this.** An accept-case `node-round-trip` fixture carrying a sentinel is the natural
-pin, and it cannot land yet. Every node fixture must also decode and re-encode byte-identically
-through the reference host's **IDL-generated structural layer**, and that layer's float primitive
-models a finite double only — it has no spelling for a non-finite in either direction. So a fixture
-pinning §7 would fail the reference host's build on a defect in a different layer from the one it is
-pinning. This is the same shape the corpus met before, when a UI vocabulary addition reached the
-fixtures ahead of the IDL and the coverage assertion carried a named residue until the IDL caught up;
-the order that worked then is IDL first, fixture second. Until it lands, the property is held by the
-hosts' generative decoder-fuzz legs, which is where the hole was found rather than by a curated case.
+**The corpus now pins it, and it takes three fixtures rather than one.** The natural pin is an
+accept-case `node-round-trip` fixture carrying a sentinel — not a reject fixture: the defect was a
+*conformant* document being refused, so what needs pinning is that it decodes. Three, because the
+per-slot-class measurement above found the lagging hosts accepting at some float slots and not
+others, so "this host accepts the sentinels" was never a well-formed claim. One per distinct decoder
+path: `drawing-nonfinite-sentinels` (all three sentinels at typed float scalars, plus one at a
+coordinate nested inside a shape), `spark-nonfinite-sentinel` (elements of a float **sequence**,
+among finite neighbours), and `metric-nonfinite-sentinel` (behind a `Binding`'s `Static` envelope —
+the one class every host already handled, pinned so that stays a fact rather than an assumption).
+The integer boundary keeps its own pins: the corpus's integer controls must go on refusing.
+
+Landing them needed the reference host's **IDL-generated structural layer** first, which is a second
+decoder inside that host and one a codec fix does not reach: every node fixture must also decode and
+re-encode byte-identically through it, and its float primitive modelled a finite double only, in
+both directions. So a fixture pinning §7 would have failed the reference host's build on a defect in
+a different layer from the one it was pinning — the same shape the corpus met when a UI vocabulary
+addition reached the fixtures ahead of the IDL. The order that worked then worked again: IDL first,
+fixture second. The generated float slot now emits the sentinel and reads it back, and the generated
+JSON schema admits it at a float slot and still refuses it at an integer one. The hosts' generative
+decoder-fuzz legs — where the hole was found in the first place — keep running beside the fixtures
+rather than in place of them.
 
 **Proposed rules, for the decision to accept, amend or reject:**
 
