@@ -2532,6 +2532,15 @@
       "description": "InsertChild missing parentId"
     },
     {
+      "id": "reject-op-insertchild-retired-position",
+      "kind": "reject",
+      "decoder": "op",
+      "inputFile": "reject/reject-op-insertchild-retired-position.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.position",
+      "description": "InsertChild carries the retired 'position' — the migration window is closed (Phase 687)"
+    },
+    {
       "id": "reject-op-missing-type",
       "kind": "reject",
       "decoder": "op",
@@ -2539,6 +2548,15 @@
       "expectedErrorCode": "MISSING_FIELD",
       "expectedPath": "$.$type",
       "description": "Op missing $type entirely"
+    },
+    {
+      "id": "reject-op-movenode-retired-newposition",
+      "kind": "reject",
+      "decoder": "op",
+      "inputFile": "reject/reject-op-movenode-retired-newposition.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.newPosition",
+      "description": "MoveNode carries the retired 'newPosition' — the migration window is closed (Phase 687)"
     },
     {
       "id": "reject-op-reorderchildren-wrongtype",

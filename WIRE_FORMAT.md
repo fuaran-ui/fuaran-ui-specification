@@ -680,11 +680,26 @@ and the like stay positional: those are bounded payload collections inside one n
 structure, and their items have no identity to address. An ordinal is legitimate exactly where
 identity is absent.
 
-**Migration window.** A decoder currently ACCEPTS AND IGNORES a legacy `position` / `newPosition` on
-these two ops, so a stored v1 emission still applies (as an append) while hosts adopt independently.
-That tolerance is a migration mechanism, not a second dialect: nothing in this spec, the corpus, or
-the prompt pack offers the field, and a conformant encoder must never write it. The window closes
-when every host is positionless, after which the field is a decode error.
+**The field is GONE, not deprecated.** A conformant decoder MUST REFUSE `position` on `InsertChild`
+and `newPosition` on `MoveNode`, naming the field: `WRONG_TYPE` at `$.position` / `$.newPosition`.
+The refusal is BY NAME and is the enumerated-near-miss narrowing of §2 rule 2 — a genuinely unknown
+key is still tolerated, because a slot a future profile may add must stay addable. See
+`reject/reject-op-insertchild-retired-position.json` and
+`reject/reject-op-movenode-retired-newposition.json`.
+
+There was a **migration window**, and how it closed is worth stating because it is not the obvious
+thing. While it stood, a decoder accepted and ignored the field so a stored v1 emission still applied
+— as an append — and the hosts could adopt independently. But *silence was the whole mechanism*:
+these decoders read named fields and ignore the rest, so **not reading it** was the tolerance. There
+was never a read to delete, and a host that merely stopped mentioning the field would have gone on
+accepting it forever, indistinguishably from one that had never adopted. Closing the window is
+therefore an act of ADDING a refusal, not removing an acceptance.
+
+That asymmetry is the reason the window was gated on evidence rather than on a date, and the reason
+the refusal must name the field rather than fall through to a generic unknown-key error. An ordinal
+that is ignored does not fail — the op decodes, applies, and puts the node somewhere other than where
+the author asked. A wrong id fails loudly; a stale index succeeds quietly. Refusing by name is what
+converts the second into the first.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -1269,7 +1284,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 
-The <!-- fuaran:count kind=reject -->66<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->68<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5). Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1525,10 +1540,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->327<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->329<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->140<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->66<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->68<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
