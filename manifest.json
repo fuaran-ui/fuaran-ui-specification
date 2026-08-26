@@ -1324,6 +1324,134 @@
       "description": "FragmentRef (parameterised — value + slot args)"
     },
     {
+      "id": "frag-stdlib-confirm-action-pair",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-confirm-action-pair.json",
+      "expectedFile": "nodes/frag-stdlib-confirm-action-pair.json",
+      "description": "FragmentDecl (stdlib 'confirm-action-pair' — A primary confirm and a secondary cancel, both writing one declared state key.)"
+    },
+    {
+      "id": "frag-stdlib-confirm-action-pair-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-confirm-action-pair-ref.json",
+      "expectedFile": "nodes/frag-stdlib-confirm-action-pair-ref.json",
+      "description": "FragmentRef (stdlib 'confirm-action-pair' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-empty-state-panel",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-empty-state-panel.json",
+      "expectedFile": "nodes/frag-stdlib-empty-state-panel.json",
+      "description": "FragmentDecl (stdlib 'empty-state-panel' — A titled nothing-to-show card whose call to action is a caller-supplied Button slot.)"
+    },
+    {
+      "id": "frag-stdlib-empty-state-panel-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-empty-state-panel-ref.json",
+      "expectedFile": "nodes/frag-stdlib-empty-state-panel-ref.json",
+      "description": "FragmentRef (stdlib 'empty-state-panel' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-filter-bar",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-filter-bar.json",
+      "expectedFile": "nodes/frag-stdlib-filter-bar.json",
+      "description": "FragmentDecl (stdlib 'filter-bar' — A free-text chip and a status chip, both bound to their own host filter keys.)"
+    },
+    {
+      "id": "frag-stdlib-filter-bar-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-filter-bar-ref.json",
+      "expectedFile": "nodes/frag-stdlib-filter-bar-ref.json",
+      "description": "FragmentRef (stdlib 'filter-bar' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-kpi-strip",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-kpi-strip.json",
+      "expectedFile": "nodes/frag-stdlib-kpi-strip.json",
+      "description": "FragmentDecl (stdlib 'kpi-strip' — A headed horizontal strip of one to six figures — the dashboard's top band.)"
+    },
+    {
+      "id": "frag-stdlib-kpi-strip-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-kpi-strip-ref.json",
+      "expectedFile": "nodes/frag-stdlib-kpi-strip-ref.json",
+      "description": "FragmentRef (stdlib 'kpi-strip' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-labelled-metric-row",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-labelled-metric-row.json",
+      "expectedFile": "nodes/frag-stdlib-labelled-metric-row.json",
+      "description": "FragmentDecl (stdlib 'labelled-metric-row' — A label and its figure on one line — the smallest read-only composite in the set.)"
+    },
+    {
+      "id": "frag-stdlib-labelled-metric-row-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-labelled-metric-row-ref.json",
+      "expectedFile": "nodes/frag-stdlib-labelled-metric-row-ref.json",
+      "description": "FragmentRef (stdlib 'labelled-metric-row' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-loading-placeholder",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-loading-placeholder.json",
+      "expectedFile": "nodes/frag-stdlib-loading-placeholder.json",
+      "description": "FragmentDecl (stdlib 'loading-placeholder' — One to eight skeleton rows — the shape a list takes while its query is in flight.)"
+    },
+    {
+      "id": "frag-stdlib-loading-placeholder-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-loading-placeholder-ref.json",
+      "expectedFile": "nodes/frag-stdlib-loading-placeholder-ref.json",
+      "description": "FragmentRef (stdlib 'loading-placeholder' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-metric-card",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-metric-card.json",
+      "expectedFile": "nodes/frag-stdlib-metric-card.json",
+      "description": "FragmentDecl (stdlib 'metric-card' — A card carrying one headline figure and the caption that qualifies it.)"
+    },
+    {
+      "id": "frag-stdlib-metric-card-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-metric-card-ref.json",
+      "expectedFile": "nodes/frag-stdlib-metric-card-ref.json",
+      "description": "FragmentRef (stdlib 'metric-card' — a representative application)"
+    },
+    {
+      "id": "frag-stdlib-section-header",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-section-header.json",
+      "expectedFile": "nodes/frag-stdlib-section-header.json",
+      "description": "FragmentDecl (stdlib 'section-header' — An eyebrow above a title, at a caller-chosen heading level.)"
+    },
+    {
+      "id": "frag-stdlib-section-header-ref",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/frag-stdlib-section-header-ref.json",
+      "expectedFile": "nodes/frag-stdlib-section-header-ref.json",
+      "description": "FragmentRef (stdlib 'section-header' — a representative application)"
+    },
+    {
       "id": "glayout-1",
       "kind": "node-round-trip",
       "decoder": "node",
