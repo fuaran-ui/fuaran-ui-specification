@@ -2250,6 +2250,51 @@
       "description": "accessibility.role not a JSON string — the slot is open to any role NAME, not to any value (Phase 955)"
     },
     {
+      "id": "reject-binding-float-bool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-float-bool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.trend",
+      "description": "Binding<float> Static payload is a JSON boolean — a second float slot on the same spec, so a host guarding `value` and not `trend` is caught (Phase 1064)"
+    },
+    {
+      "id": "reject-binding-float-sentinel-case",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-float-sentinel-case.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fraction",
+      "description": "Binding<float> bare scalar is a MIS-CASED sentinel (\"nan\") — §7's three tokens are exact, and a case-folding host would accept a document no encoder emits (Phase 1064)"
+    },
+    {
+      "id": "reject-binding-float-string",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-float-string.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.value",
+      "description": "Binding<float> Static payload is a non-sentinel string — §7's float accept set is JSON number plus exactly \"NaN\" / \"Infinity\" / \"-Infinity\" (Phase 1064)"
+    },
+    {
+      "id": "reject-binding-int-bool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-int-bool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.activeIndex",
+      "description": "Binding<int> Static payload is a JSON boolean — §7 gives an integer slot no non-numeric form (Phase 1064)"
+    },
+    {
+      "id": "reject-binding-int-sentinel-string",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-int-sentinel-string.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.activeStep",
+      "description": "Binding<int> Static payload is a §7 non-finite sentinel — the sentinels are FLOAT-slot only; an integer slot has no non-finite form (Phase 1064)"
+    },
+    {
       "id": "reject-daterange-unordered",
       "kind": "reject",
       "decoder": "node",
