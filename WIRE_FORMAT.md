@@ -965,7 +965,7 @@ objects). A shape is coerced only when the foreign shape can denote **exactly on
 | `Grid` layout with **no** `cols`/`columns`/`templateColumns` | `{"$type":"Grid"}` | `{"$type":"Auto"}` – the CSS auto-grid prior maps to the language's existing responsive auto-tile layout (accept-and-canonicalise) |
 | embedded `Transform` source with **no** `schema` | `{"columns":{…}}` | the explicit-schema form – column types INFER deterministically from the cells (all-int→int, any fractional→float, all-bool→bool, all-string→string; NEVER date/timestamp; empty/mixed → didactic reject). Authority: the Fuaran.Core columnar codec (fuaran-core#88); 2026-07-18 |
 | embedded `Transform` source column as a bare **array** | `"amount": [100, 200]` | `{"values":[…],"validity":[true,…]}` – the just-the-data prior; the wire has no JSON null, so a bare array can only mean all-present. Same authority; 2026-07-18 |
-| embedded `Transform` **source slot** carrying a `State`/`Static`/`Bound` binding **envelope** | `{"$type":"State","defaultValue":[…],"key":…}` | the wrapped data itself – the envelope unwraps to its `defaultValue` (else `value`) BEFORE the columnar decode (initial-snapshot semantics; a LIVE state-sourced Transform is deliberately future charter work, not this). A wrapper carrying NEITHER payload member is not unwrappable and refuses downstream (`reject/reject-transform-source-empty-wrapper`). Observed cross-family in the Tier-D pilot (claude, gemini, kimi). Pinned by `lenient/lenient-transform-source-state-rows`. fuaran#815; 2026-08-13 |
+| embedded `Transform` **source slot** carrying a `State`/`Static`/`Bound` binding **envelope** | `{"$type":"State","defaultValue":[…],"key":…}` | the wrapped data itself – the envelope unwraps to its `defaultValue` (else `value`) BEFORE the columnar decode (initial-snapshot semantics; a LIVE state-sourced Transform is deliberately future charter work, not this). A wrapper carrying NEITHER payload member is not unwrappable and refuses downstream (`reject/reject-transform-source-empty-wrapper`). **An EMPTY array payload (`"defaultValue": []`) is the EMPTY TABLE, not a malformed one** — an initially-empty live collection ("count the requests in an empty log") is a complete intent with zero rows and no columns to infer, and it is also how a live source spells "I read this key and carry no data of my own" while the bare wrapper stays refused. Since §24.4 that spelling is what lets a Transform derive over a slot a SIBLING reader seeds; it declares nothing itself. Read this way by the reference host since 0.23.1, unspecified until fuaran#1075 and therefore refused by a second conformant host for a year — the divergence a rule stated on one implementation and not in the format always eventually produces. Pinned by `nodes/shared-source-seeded-pair`. Observed cross-family in the Tier-D pilot (claude, gemini, kimi). Pinned by `lenient/lenient-transform-source-state-rows`. fuaran#815; 2026-08-13; empty-payload rule fuaran#1075, 2026-08-27 |
 | embedded `Transform` source as **row-major** rows | `[{"dept":"ops","amount":100},…]` | the canonical columnar `{"columns":{…}}` – transposed with the FIRST row's key set (sorted), absent cells null; ragged / mixed-type rows still refuse didactically downstream. Pinned by `lenient/lenient-transform-source-rowmajor`. fuaran#815; 2026-08-13 |
 | grid column `kind` tagged `{"$type":"Pill"}` **carrying** `map` / `toneMap` / `tones` | `{"$type":"Pill","field":"status","map":{…}}` | `{"$type":"TonedPill","field":"status","map":{…}}` – "pill" is the word for the thing, so the declarative tone rule arrives under the closure case's tag. Unambiguous: a closure `Pill` carries only `labelFn`/`toneFn` and can never carry a tone map. **This coercion prevents silent data loss**, not merely a parse failure: before Phase 750 the extra keys were accepted and DISCARDED, so the author's whole intent vanished with no error at any host. 2026-07-30 |
 
@@ -1591,8 +1591,8 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->338<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->144<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->339<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->145<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->73<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
@@ -2927,6 +2927,66 @@ finding rather than a codec one, which is precisely why no codec family caught i
 
 A rendering host asserts the resolved value; a host that only decodes, re-encodes or routes trees is
 unaffected by this section, on the §22 footing.
+
+### 24.4 Slot seeding — a declared default fills the slot, not only its own reader
+
+§24.1 states what a declared default resolves to **for the reader that carries it**. This subsection
+states what it means for every OTHER reader of the same slot, which §24.1 left open and which two
+readers of one key make unavoidable.
+
+**A `Binding.State` carrying a `defaultValue` SEEDS its slot: the declared value is the value of
+`$state.<key>` for every reader in the tree, not a fallback private to the binding that declares
+it.** So a grid bound to `$state.members` and carrying the rows, beside a badge whose `Transform`
+derives over the same key and carries nothing, read the same rows.
+
+Five rules complete it, and each answers a question two readers raise that one does not.
+
+1. **Who declares.** Any `Binding.State` with a present `defaultValue`, in any slot. There is no
+   separate declaration form and no new namespace — `$state.<key>` is the one the language already
+   has.
+2. **Precedence: host value > written value > seed.** A seed is the value of a slot before anything
+   else has said anything, never an override. This is the only reading consistent with the standing
+   posture that a host owns named data (§24.5), and it is what makes §24.1's "writing wins over
+   defaulting" continue to hold unchanged.
+3. **Order-independence.** Seeding happens over the whole tree BEFORE any binding resolves — decode
+   produces a tree and resolution happens at render, so there is no ordering between a declaration
+   and a reference. A badge that appears before the grid declaring the rows is not a special case,
+   and document order carries no meaning here.
+4. **Two declarations of one key.** Two readers declaring the SAME value agree and are unremarkable.
+   Two declaring DIFFERENT values are a defect (`FUARAN106`, Error — one slot cannot hold two
+   values); a renderer must still be deterministic and takes the FIRST declaration in tree order, so
+   every conformant host renders the same thing while the validator names the disagreement. An
+   **empty** declaration (`"defaultValue": []` in a table-shaped slot) declares nothing: it is the
+   value an unseeded slot already has, so it neither seeds nor conflicts.
+5. **A host-reserved key is never seeded.** A seed is a tree-originated write, and §12's reserved
+   `host.` namespace refuses those on every path. A declaration naming one resolves for its own
+   reader exactly as §24.1 says and fills nothing.
+
+**What this changes for an already-shipped document, stated plainly because it is a heavier class of
+change than adding a case.** No wire byte moves and no document changes its decode. What moves is
+what a document RENDERS, and only in one direction: a tree in which one reader declared a value and
+another read the same key now shows the declared data where it previously showed the slot's empty
+state. A tree with at most one reader per key renders exactly as before.
+
+### 24.5 `DataSource.Ref` and `Binding.State` — one line that keeps them apart
+
+The format has exactly one way to name host data and exactly one way to name tree-scoped data, and
+seeding does not add a third:
+
+> **`DataSource.Ref` names a table the HOST HAS. `Binding.State` names a slot the TREE CAN FILL.** A
+> tree that carries its own rows uses the second; a tree that defers to its deployment uses the
+> first.
+
+`Ref` keeps its exact meaning — the host resolves the name, the wire carries the name and never the
+rows — and gains no sibling case, no tree-first resolution order and no second reading.
+
+### 24.6 Conformance for §24.4
+
+`nodes/shared-source-seeded-pair.json` is the executable form: one declared table under
+`$state.members`, read by a grid's `source` and by a badge's `Transform`. A conformant rendering host
+resolves the badge's derivation over the grid's two rows. It is a *render*-parity obligation, like
+§24.3's: the bytes round-trip identically with or without the rule, which is exactly why no codec
+family catches a host that has not adopted it.
 
 ---
 
