@@ -328,6 +328,13 @@
         "Info"
       ],
       "name": "ToneVariant"
+    },
+    {
+      "cases": [
+        "HigherIsBetter",
+        "LowerIsBetter"
+      ],
+      "name": "TrendPolarity"
     }
   ],
   "kinds": [
@@ -1958,6 +1965,20 @@
             "$type": "union",
             "args": [],
             "name": "CellFormat"
+          }
+        },
+        {
+          "name": "trendPolarity",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "HigherIsBetter"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "TrendPolarity"
           }
         },
         {

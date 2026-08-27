@@ -201,7 +201,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `List` | _Display_ | `items`, `ordered` |  |
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
-| `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `value`, `weight?=Standard` |  |
+| `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
 | `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
 | `Skeleton` | _Display_ | `rows` |  |
 | `Sparkline` | _Display_ | `source` |  |
@@ -815,6 +815,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
+- `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
 <!-- /fuaran:spec-enums -->
 
 One bare-string slot is deliberately **absent** from that list, because it is not a closed
@@ -855,6 +856,7 @@ read-compat):
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
+| `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
 | `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
@@ -994,6 +996,46 @@ above; `SegmentedChoice` does not, because its field is required on the emit sid
 claimed the symmetry for both until the generated table disagreed with it — Phase 699.) The legacy
 `Stack` `orientation` stays required (no default is neutral there: vertical and horizontal stacks are
 both common).
+
+### 3.6.1 `tone` and `trendPolarity` — the composition rule (Phase 867)
+
+`Metric` carries two slots that both look like judgements about a number, and the whole reason
+`trendPolarity` exists is that they are not the same judgement. Stated once, normatively:
+
+> **`tone` says how the reading STANDS. `trendPolarity` says which way the quantity IMPROVES. They
+> are never the same statement, and a host never derives one from the other.**
+>
+> 1. `tone` colours the **metric tile**, exactly as it did before this field existed. Nothing about
+>    `trendPolarity` reaches it.
+> 2. A host computes the trend's **sentiment** from the resolved trend and the declared polarity
+>    alone: `sentiment = sign(trend) × polarity`, where `HigherIsBetter` is `+1` and `LowerIsBetter`
+>    is `−1`. A positive product is an improvement, a negative product a regression, a zero trend
+>    neither.
+> 3. The sentiment is rendered on the **trend element only**, through its own hook. The numeric text
+>    — including its sign — is **unchanged** by polarity: a −7.34% trend prints −7.34% under either
+>    declaration. Polarity changes how the number READS, never what it SAYS.
+> 4. An absent `trendPolarity` is `HigherIsBetter`. An absent `trend` makes the slot inert — a
+>    `Metric` with no `trend` that declares a polarity is legal, and says nothing.
+
+Three consequences, each ruling out a spelling someone will otherwise propose.
+
+**It never negates the value.** The cheap trick — let the emitter flip the sign so up is always good
+— is refused by clause 3. A −7.34% error rate printed as +7.34% is a false statement about the world,
+and the format would be manufacturing it.
+
+**It never writes to `tone`.** A host that inferred "trend is an improvement ⇒ tile is `Success`"
+would re-create in the render the exact conflation the slot was added to remove, and would override
+an emitter's deliberate `Critical` on a metric improving from a bad place. `nodes/metric-inverted-polarity.json`
+pins that pair on one node: `"tone":"Warning"` with a falling trend under `"trendPolarity":"LowerIsBetter"`,
+which is the case a single `tone` slot could never express.
+
+**It is total and it is local.** Sentiment is a function of two things the host already has at render
+time. It needs no second binding, no cross-node coordination, and no state.
+
+Sentiment carried by **colour alone fails WCAG 1.4.1**, so a rendering host owes a non-colour channel
+for it. That obligation is a §22-class semantic invariant rather than a byte contract — the reference
+renderers discharge it with a sentiment glyph carrying an `aria-label`, and a native surface may
+discharge it differently — but discharging it somehow is not optional.
 
 ---
 
@@ -1541,8 +1583,8 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->337<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->143<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->338<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->144<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->73<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
