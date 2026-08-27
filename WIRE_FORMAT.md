@@ -195,7 +195,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered` |  |
@@ -248,7 +248,7 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures:
 
-- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"caption"?:<TextSource>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"srcSet"?:[<SrcSetEntry>,…],"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. Phase 1078 added `caption`, which is optional content rather than a presentation token and is omitted when absent (rule 4) – see §3.6.3. Phase 1080 added `srcSet`, a list of alternate renditions omitted when EMPTY – see §3.6.4. See `nodes/image-1.json` (none of the five, the pre-phase shape), `nodes/image-presentation-1.json` (all three presentation slots off-default), `nodes/image-caption-1.json` / `nodes/image-caption-i18n-1.json` (the caption, `Literal` and `I18n`), and `nodes/image-srcset-1.json` (three candidates).
+- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"caption"?:<TextSource>,"expandable"?:<bool>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"srcSet"?:[<SrcSetEntry>,…],"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. Phase 1078 added `caption`, which is optional content rather than a presentation token and is omitted when absent (rule 4) – see §3.6.3. Phase 1080 added `srcSet`, a list of alternate renditions omitted when EMPTY – see §3.6.4. Phase 1079 added `expandable`, a bool omitted when `false` that declares the full asset is reachable from the rendered image – see §3.6.5 for the anchor a host MUST emit for it. See `nodes/image-1.json` (none of the five, the pre-phase shape), `nodes/image-presentation-1.json` (all three presentation slots off-default), `nodes/image-caption-1.json` / `nodes/image-caption-i18n-1.json` (the caption, `Literal` and `I18n`), and `nodes/image-srcset-1.json` (three candidates), `nodes/image-expandable-1.json` (the expansion declaration) and `nodes/image-expandable-figure-1.json` (expandable + caption + srcSet on one node).
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
@@ -861,6 +861,7 @@ read-compat):
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
+| `expandable` | `bool` | `false` | `ImageSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -1213,6 +1214,81 @@ condition would additionally put a free-form CSS string on the wire, which is th
 token vocabularies exist to close. The `sizes` attribute an HTML host emits is therefore bounded and
 host-chosen, never author-supplied.
 
+### 3.6.5 `Image.expandable` — the declared expansion (Phase 1079)
+
+`Image` carries a sixth optional slot, `expandable`: a plain bool, `false` by default and omitted
+from the wire at that default. It is the only slot on the record that declares an INTERACTION rather
+than a picture.
+
+```json
+{"id":"image-expandable-1","kind":{"$type":"Image","alt":"Fishing boats moored at first light","expandable":true,"src":{"$type":"Static","value":"/harbour.jpg"},"variant":"Default"}}
+```
+
+What it declares is that **the full-size asset is reachable from the rendered image** — not that a
+lightbox appears. The distinction is the whole of the design, and the rules follow from it.
+
+**The rendered baseline is a REAL LINK, and this is a normative render obligation.** A rendering host
+that honours `expandable` MUST wrap the image element in an ordinary anchor whose target is the
+resolved primary `src`, and MUST mark that anchor so an enhancement tier can find it. On an HTML host
+that is:
+
+```html
+<a class="fuaran-image-expand" href="{the sanitised src}" data-fuaran-expandable>
+  <img class="fuaran-image" src="{the sanitised src}" alt="…">
+</a>
+```
+
+The marker attribute is VALUELESS, because the slot is a bool whose `false` is the absence of the
+attribute — there is no second value for it to carry. A host that emitted a scripted control instead
+of a link, or a marked-up element with no navigable target, would be conformant to nothing: the
+declaration would render as a dead affordance for every reader without JavaScript, which is a crawler,
+a text browser, a locked-down client, and every reader whose hydration has not finished yet. The
+overlay is a REFINEMENT of a working link, never the mechanism.
+
+**A `src` the render-time URL floor refused emits NO anchor.** This is §3.6.4's dropped-candidate rule
+turned on the affordance. The `<img>`'s `src` must exist, so a refused URL collapses to the blank /
+refusal substitute; an anchor has no such obligation, and a link to `about:blank` is exactly the dead
+control the rule above forbids. The image still renders, carrying its refusal marker, and the reader
+is simply not offered an expansion that could not work. As with `src` and the `srcSet` candidates this
+is a RENDER-time obligation and not a wire constraint — a document declaring `expandable` over a URL
+that fails the floor is still a valid wire document.
+
+**Nothing crosses the dispatch gate.** `expandable` declares no `Action`, adds no handler slot and
+reaches no closure-bearing position (§4). It is presentation: the wire says the asset is reachable,
+the anchor makes it reachable, and where the picture opens is a rendering choice. That is why the slot
+is a bool and not, say, an `Action` — an `Action` would make every expandable image a dispatch site
+and put a host's interaction policy in the path of looking at a photograph.
+
+**The overlay, where a host provides one, is a DIALOG.** A host that upgrades the anchor in place owes
+the reader the same contract a declarative `Modal` node owes: `role="dialog"` + `aria-modal="true"`,
+a focus trap, `Escape` to dismiss, and focus restored to the element that opened it. The upgrade is
+CLIENT-ONLY and sits outside every parity comparison — no renderer emits it, exactly as no renderer
+emits syntax highlighting or KaTeX output (§3.2 `CodeBlock` / `Math`). A host that ships no
+enhancement is fully conformant; its readers get the link.
+
+**Composition with the other five slots**, because this is the slot most likely to be read in
+isolation:
+
+- With `caption` (§3.6.3): the `<figure>` wraps the ANCHOR, so the emission nests
+  `figure > a > img` with the `<figcaption>` as the anchor's sibling. The caption is deliberately
+  OUTSIDE the link target — it is prose a reader selects, quotes and reads, not a second click
+  surface, and putting interactive content inside the element whose job is to LABEL the image
+  inverts the relationship `<figure>`/`<figcaption>` exists to express.
+- With `srcSet` (§3.6.4): the candidates are renditions of the THUMBNAIL, sized for the layout box,
+  and stay on the `<img>`. The anchor's target is the primary `src` — the full asset. A host that put
+  a candidate behind the link would satisfy every structural check and defeat the feature: the reader
+  would click a thumbnail and be shown a thumbnail.
+- With `fit` / `aspectRatio` / `loading` (§3.6.2): orthogonal. They describe the thumbnail's box and
+  are unchanged by the anchor around it.
+
+`nodes/image-expandable-1.json` pins the declaration alone;
+`nodes/image-expandable-figure-1.json` pins the three-slot composition (the gallery thumbnail);
+`lenient/lenient-image-explicit-expandable-false.json` pins that an explicit `false` canonicalises
+away; and `reject/reject-image-expandable-nonbool.json` refuses the stringified boolean
+(`WRONG_TYPE` at `$.kind.expandable`) rather than coercing it — a truthiness rule would have to rule
+on `"false"` and `""` as well, and two hosts ruling differently would disagree about whether a
+document declares an affordance at all.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -1503,7 +1579,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->77<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->78<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1759,11 +1835,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->350<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->149<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->354<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->151<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->77<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->64<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->78<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
