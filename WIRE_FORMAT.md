@@ -195,7 +195,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `fit?=Natural`, `loading?=Eager`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `fit?=Natural`, `loading?=Eager`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered` |  |
@@ -248,7 +248,7 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures:
 
-- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. See `nodes/image-1.json` (none of the three, the pre-phase shape) and `nodes/image-presentation-1.json` (all three off-default).
+- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"caption"?:<TextSource>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. Phase 1078 added `caption`, which is optional content rather than a presentation token and is omitted when absent (rule 4) – see §3.6.3. See `nodes/image-1.json` (none of the four, the pre-phase shape), `nodes/image-presentation-1.json` (all three presentation slots off-default), and `nodes/image-caption-1.json` / `nodes/image-caption-i18n-1.json` (the caption, `Literal` and `I18n`).
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
@@ -1103,6 +1103,48 @@ no attribute at all and leaves the browser's own default in place, while `Lazy` 
 declaration (the reference renderers emit `loading="lazy"`). A host MUST NOT infer laziness from
 position, viewport, or anything else the tree does not say.
 
+### 3.6.3 `Image.caption` — the figure binding (Phase 1078)
+
+`Image` carries a fourth optional slot, `caption`, and it sits in this section for adjacency rather
+than membership: it is **not** an identity default and is **not** in §3.6's table. A caption is
+CONTENT. There is no default caption the way there is a default fit, so the field takes the ordinary
+optional-field posture — omitted from the wire when absent (rule 4), present when authored.
+
+```json
+{"id":"image-caption-1","kind":{"$type":"Image","alt":"Fishing boats moored at first light","caption":"The harbour at dawn, 1908. Oil on canvas.","src":{"$type":"Static","value":"/harbour.jpg"},"variant":"Default"}}
+```
+
+Three rules.
+
+**It is a `TextSource`, not a string.** Every case of the DU rides the slot, so a caption is
+i18n-capable on exactly the terms `alt`, a heading, or any other authored text is — there is no
+caption-specific resolution path and no caption-specific shorthand. This is the rule a second host
+is most likely to break, because a caption reads like a string and narrowing the slot costs nothing
+until somebody needs a locale. `nodes/image-caption-i18n-1.json` carries an `I18n` caption with a
+populated arg bag, and `lenient/lenient-image-caption-envelope.json` pins the enveloped
+`{"$type":"Literal","text":…}` input canonicalising to the bare string, both on this slot
+specifically.
+
+**Present, it means `<figure>` / `<figcaption>` — and that is a §22-class semantic invariant, not a
+byte contract.** The claim a rendering host must honour is the BINDING: the caption is presented as
+the image's caption, so an assistive technology announces the two together rather than reading the
+text as the next paragraph — which is precisely what an ad-hoc sibling text node could never say.
+On an HTML host that is `<figure>` wrapping the `<img>` with the resolved text in a `<figcaption>`
+(the reference renderers add `fuaran-image-figure` and `fuaran-image-figure-caption`); a native
+surface expresses the same binding its own way. Nothing else moves: the accessibility projection,
+the sanitised `src` and any egress marker stay on the element they describe.
+
+**Absent, there is no wrapper at all.** Not an empty `<figure>`, not a wrapper with an empty
+caption — the emission is the bare `<img>` a pre-1078 document always produced, byte for byte.
+`nodes/image-1.json` carries no `caption` and was not touched by the phase, which is that claim's
+proof on the wire side.
+
+Why a slot on `ImageSpec` rather than a `Figure` node kind: a captioned image is one thing an author
+declares, not two things an author must remember to associate, and the association is exactly what
+was missing. A wrapper kind would also admit captioned *anything*, which is a strictly larger
+vocabulary question than the one this slot answers — if that demand arrives, it arrives as its own
+proposal against §3's kind-admission bar, not as this field widened.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -1649,11 +1691,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->343<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->146<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->346<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->148<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->75<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->62<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=lenient-accept -->63<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,

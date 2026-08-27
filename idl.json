@@ -1638,6 +1638,17 @@
             "$type": "enum",
             "name": "ImageLoading"
           }
+        },
+        {
+          "name": "caption",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
         }
       ],
       "tag": "Image"

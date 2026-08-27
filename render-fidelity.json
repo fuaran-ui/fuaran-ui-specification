@@ -272,8 +272,8 @@
     {
       "kind": "Image",
       "sensitive": false,
-      "source": "the src, alt, variant, and the fit / aspectRatio / loading presentation tokens",
-      "fallback": "a real `<img>` with the sanitised `src` (unknown or dangerous schemes collapse to `about:blank`), `alt` always emitted, the per-variant class, and the per-token fit / aspect classes plus `loading=\"lazy\"` under `loading = Lazy`. The aspect box is reserved by CSS alone, so the space is held in the server-rendered output with no script",
+      "source": "the src, alt, variant, the fit / aspectRatio / loading presentation tokens, and the optional caption",
+      "fallback": "a real `<img>` with the sanitised `src` (unknown or dangerous schemes collapse to `about:blank`), `alt` always emitted, the per-variant class, and the per-token fit / aspect classes plus `loading=\"lazy\"` under `loading = Lazy`. The aspect box is reserved by CSS alone, so the space is held in the server-rendered output with no script. A `caption` wraps the `<img>` in `<figure class=\"fuaran-image-figure\">` with the resolved text in a `<figcaption>`; with no caption there is no wrapper at all",
       "rich": {
         "class": "none",
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
