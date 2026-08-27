@@ -195,7 +195,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `fit?=Natural`, `loading?=Eager`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered` |  |
@@ -248,7 +248,7 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures:
 
-- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. See `nodes/image-1.json`.
+- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. See `nodes/image-1.json` (none of the three, the pre-phase shape) and `nodes/image-presentation-1.json` (all three off-default).
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
@@ -809,6 +809,9 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `HeadingVariant`: `"Standard"` / `"Eyebrow"` / `"Caption"` / `"Lead"`
 - `HostEffect`: `"Pure"` / `"ReadsHost"` / `"WritesHost"`
 - `IconSize`: `"Small"` / `"Medium"` / `"Large"`
+- `ImageAspect`: `"Natural"` / `"Square"` / `"FourThree"` / `"ThreeTwo"` / `"SixteenNine"`
+- `ImageFit`: `"Natural"` / `"Cover"` / `"Contain"`
+- `ImageLoading`: `"Eager"` / `"Lazy"`
 - `ImageVariant`: `"Default"` / `"Avatar"` / `"Rounded"`
 - `LinkProtection`: `"email"`
 - `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
@@ -851,14 +854,17 @@ read-compat):
 <!-- fuaran:spec-omit-defaults -->
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
+| `aspectRatio` | `ImageAspect` | `Natural` | `ImageSpec` |  |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
 | `dismissable` | `bool` | `true` | `ToastSpec` | The one omit-when-TRUE: a toast is dismissable unless said otherwise. |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
+| `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
+| `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
@@ -1052,6 +1058,50 @@ Sentiment carried by **colour alone fails WCAG 1.4.1**, so a rendering host owes
 for it. That obligation is a §22-class semantic invariant rather than a byte contract — the reference
 renderers discharge it with a sentiment glyph carrying an `aria-label`, and a native surface may
 discharge it differently — but discharging it somehow is not optional.
+
+### 3.6.2 `Image` presentation — `fit`, `aspectRatio` and `loading` (Phase 1077)
+
+`Image` carries three presentation slots beside `variant`. All three are omitted-when-default on
+**both** boundaries (they are in §3.6's identity-default table), so a document written before they
+existed decodes to today's behaviour and re-encodes to the bytes it already had — the untouched
+`nodes/image-1.json` fixture is that claim's proof rather than a restatement of it.
+
+| Slot | Vocabulary | Absent means | What it declares |
+|---|---|---|---|
+| `fit` | `Natural` / `Cover` / `Contain` | `Natural` | how the decoded pixels fill the box the layout gives the element |
+| `aspectRatio` | `Natural` / `Square` / `FourThree` / `ThreeTwo` / `SixteenNine` | `Natural` | the box the element reserves **before** the image arrives |
+| `loading` | `Eager` / `Lazy` | `Eager` | whether the browser fetches during initial load or defers until the element nears the viewport |
+
+Four rules, each ruling out a spelling someone will otherwise propose.
+
+**They are TOKENS, never CSS values.** `aspectRatio` names one of four ratios; it does not carry a
+number, a pair, or the stylesheet spelling (`"16 / 9"`, `"16:9"`, `1.7778`). A rendering host maps
+each token to a class it owns — the reference renderers emit
+`fuaran-image-aspect-{square|four-three|three-two|sixteen-nine}` and
+`fuaran-image-fit-{cover|contain}`, and emit **no** class for `Natural` on either axis. Admitting
+an arbitrary ratio would put an author-supplied value in a style attribute, which is the free-form
+escape this format does not have and which the `ImageVariant` precedent already refused. The
+`reject/reject-unknown-image-aspect` fixture pins the refusal, at the bare slot with no `.$type`
+suffix (§6).
+
+**`aspectRatio` is a LAYOUT reservation, not a crop.** Declaring it says only how much space the
+box occupies before the bytes land; what happens to pixels that do not match the box is `fit`'s
+statement, and a host derives neither from the other. The two read as a pair in practice and are
+independently declarable in the format, because a host stylesheet may size the element some other
+way.
+
+**The reservation is a CSS-only obligation.** A conformant rendering host must hold the space
+without script and therefore without hydration — which is what makes the declaration worth anything
+in server-rendered output, where the layout settles once and nothing below the image moves when it
+loads. It is a §22-class semantic invariant rather than a byte contract: a native surface may
+reserve the box its own way.
+
+**`Eager` is the default deliberately, and it is not the "unoptimised" value.** Deferring an
+above-the-fold image is a regression — it delays the largest contentful paint rather than helping
+it — and only the author knows where the image sits. So the format declines to guess: `Eager` emits
+no attribute at all and leaves the browser's own default in place, while `Lazy` is a positive
+declaration (the reference renderers emit `loading="lazy"`). A host MUST NOT infer laziness from
+position, viewport, or anything else the tree does not say.
 
 ---
 
@@ -1343,7 +1393,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->74<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->75<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1599,11 +1649,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->340<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->145<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->343<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->146<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->74<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->75<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->62<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,

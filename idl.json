@@ -192,6 +192,31 @@
     },
     {
       "cases": [
+        "Natural",
+        "Square",
+        "FourThree",
+        "ThreeTwo",
+        "SixteenNine"
+      ],
+      "name": "ImageAspect"
+    },
+    {
+      "cases": [
+        "Natural",
+        "Cover",
+        "Contain"
+      ],
+      "name": "ImageFit"
+    },
+    {
+      "cases": [
+        "Eager",
+        "Lazy"
+      ],
+      "name": "ImageLoading"
+    },
+    {
+      "cases": [
         "Default",
         "Avatar",
         "Rounded"
@@ -1570,6 +1595,48 @@
           "type": {
             "$type": "enum",
             "name": "ImageVariant"
+          }
+        },
+        {
+          "name": "fit",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Natural"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ImageFit"
+          }
+        },
+        {
+          "name": "aspectRatio",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Natural"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ImageAspect"
+          }
+        },
+        {
+          "name": "loading",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Eager"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ImageLoading"
           }
         }
       ],
