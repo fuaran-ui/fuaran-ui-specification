@@ -1966,6 +1966,75 @@
       "category": "Display",
       "fields": [
         {
+          "name": "controls",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": true
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "kind",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "MediaKind"
+          }
+        },
+        {
+          "name": "label",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "loop",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": false
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "src",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "str"
+              }
+            ],
+            "name": "Binding"
+          }
+        }
+      ],
+      "tag": "Media"
+    },
+    {
+      "category": "Display",
+      "fields": [
+        {
           "name": "label",
           "optionality": {
             "$type": "required"
@@ -6709,6 +6778,49 @@
         }
       ],
       "name": "LocaleSource",
+      "params": []
+    },
+    {
+      "cases": [
+        {
+          "fields": [
+            {
+              "name": "autoplay",
+              "optionality": {
+                "$type": "omitDefault",
+                "default": {
+                  "$type": "bool",
+                  "value": false
+                }
+              },
+              "type": {
+                "$type": "bool"
+              }
+            },
+            {
+              "name": "poster",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "str"
+                  }
+                ],
+                "name": "Binding"
+              }
+            }
+          ],
+          "tag": "Video"
+        },
+        {
+          "fields": [],
+          "tag": "Audio"
+        }
+      ],
+      "name": "MediaKind",
       "params": []
     },
     {

@@ -8,6 +8,7 @@
       "Custom": "The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary.",
       "DataGrid": "The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`.",
       "Image": "`src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory.",
+      "Media": "One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry.",
       "Link": "`protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See \"Link protection\" below.",
       "Math": "The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff.",
       "Mount": "An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document.",
@@ -24,7 +25,8 @@
     },
     "omitDefaults": {
       "default=Default": "The tone for a value the `map` does not mention.",
-      "dismissable=true": "The one omit-when-TRUE: a toast is dismissable unless said otherwise.",
+      "controls=true": "Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key.",
+      "dismissable=true": "Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE.",
       "emphasis=false": "The behavioural bool, not the `Emphasis` style DU — a different field that shares a name.",
       "orientation=Horizontal": "`TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there."
     },

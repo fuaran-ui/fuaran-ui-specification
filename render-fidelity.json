@@ -373,6 +373,23 @@
       "contract": "Phases 293, 658; WIRE_FORMAT.md 3.2; docs/SSR.md; docs/MATH-DEGRADATION.md"
     },
     {
+      "kind": "Media",
+      "sensitive": true,
+      "source": "the src binding, the mandatory accessible label, the controls / loop declarations, and the MediaKind variant — Video, carrying autoplay and an optional poster binding, or Audio, carrying neither",
+      "fallback": "a real `<video class=\"fuaran-media fuaran-media-video\">` or `<audio class=\"fuaran-media fuaran-media-audio\">` a browser plays with no script. The sanitised `src` (unknown or dangerous schemes collapse to the refusal URL) and an `aria-label` carrying the resolved label are ALWAYS emitted — the label is mandatory on the wire and a transport has no decorative case. `controls` emits unless the document switches it off; `loop` only when declared. A `poster` passes the same URL-scheme + egress floor as `src` and a refused one is DROPPED rather than emitted, because a `<video>` with no poster shows its first frame while a poster at the refusal URL is a broken image over the player. `autoplay` is emitted ONLY together with `muted` — the pairing is what the declaration means, not a default, which is why the wire carries no separate muted slot to fall out of step with it. The Audio variant has NO autoplay pathway at all: the case declares no such slot, so there is nothing for a renderer to read",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [
+        "nodes/media-video-1.json",
+        "nodes/media-video-poster-1.json",
+        "nodes/media-video-autoplay-1.json",
+        "nodes/media-audio-1.json"
+      ],
+      "contract": "Phase 1076; WIRE_FORMAT.md 3.6.6; docs/SSR.md (media)"
+    },
+    {
       "kind": "Metric",
       "sensitive": false,
       "source": "the label + value source + format",

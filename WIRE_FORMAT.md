@@ -201,6 +201,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `List` | _Display_ | `items`, `ordered` |  |
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
+| `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. |
 | `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
 | `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
 | `Skeleton` | _Display_ | `rows` |  |
@@ -855,9 +856,11 @@ read-compat):
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
 | `aspectRatio` | `ImageAspect` | `Natural` | `ImageSpec` |  |
+| `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
+| `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
-| `dismissable` | `bool` | `true` | `ToastSpec` | The one omit-when-TRUE: a toast is dismissable unless said otherwise. |
+| `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
@@ -866,6 +869,7 @@ read-compat):
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
+| `loop` | `bool` | `false` | `MediaSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
@@ -1291,6 +1295,89 @@ document declares an affordance at all.
 
 ---
 
+### 3.6.6 `Media` — the playback surface (Phase 1076)
+
+`Media` is a Display kind carrying a mandatory accessible label, a source, two shared declarations,
+and a `MediaKind` variant that says which surface it is:
+
+```json
+{"id":"media-video-1","kind":{"$type":"Media","kind":{"$type":"Video"},"label":"Studio walkthrough","src":{"$type":"Static","value":"/walkthrough.mp4"}}}
+{"id":"media-audio-1","kind":{"$type":"Media","kind":{"$type":"Audio"},"label":"Curator's commentary","src":{"$type":"Static","value":"/commentary.mp3"}}}
+```
+
+**ONE kind, two variants — never two kinds.** Everything a video surface and an audio surface share
+is stated once on the record: the source, the accessible name, whether the transport is shown,
+whether playback repeats. Only the slots that genuinely differ live in the variant, and there are two
+of them, both on `Video`. Minting a second kind would have duplicated four slots, two decoders, two
+schema entries and one entry in every host's kind dispatch, in exchange for nothing a `$type` inside
+`kind` does not already say.
+
+**`label` is REQUIRED, and this is the one place the media contract differs from `Image`'s.** An
+image can honestly be decorative and say so with an empty `alt`; a media element is a TRANSPORT — a
+control a reader focuses, plays, pauses and seeks — so it is never decorative. A `<video>` with no
+accessible name is announced as "video" and nothing more, which tells the reader that a player exists
+and nothing about what it plays. A host emits the resolved label as the element's accessible name
+(on an HTML host, `aria-label`), always. A document omitting `label` is refused —
+`reject/reject-media-missing-label.json`, `MISSING_FIELD` at `$.kind.label` — because there is no
+value to default to that would not be a fabricated name for someone else's recording.
+
+**`controls` is omitted at TRUE.** It is the second such slot in the vocabulary (`Toast.dismissable`
+is the first) and the polarity is deliberate: a media element without a transport cannot be paused,
+seeked or muted by a keyboard user at all, so the accessible setting is what a document gets for
+free, and taking it away is the deviation that costs a key. `loop` takes the ordinary polarity,
+omitted at `false`.
+
+**`autoplay` (Video only) is a DECLARATION whose rendering is constrained, and the constraint is
+normative.** A host that honours `autoplay` MUST emit it together with a muted attribute:
+
+```html
+<video class="fuaran-media fuaran-media-video" src="…" aria-label="…" autoplay muted>
+```
+
+There is deliberately **no separate `muted` slot** on the wire, and its absence is the design rather
+than an omission. A muted slot would be a second knob free to disagree with the first, and the only
+combination it would add is the one no host may render. The pairing is not a default a caller
+overrides; it is what the declaration MEANS. It is also the honest rendering: every mainstream
+browser blocks unmuted autoplay, so a host emitting `autoplay` alone produces a video that silently
+never starts — the document's declaration would mean nothing and the failure would be invisible. The
+converse holds too: a host MUST NOT emit a muted attribute where `autoplay` is absent, because muting
+a video the reader pressed play on is a defect of the same family in the other direction.
+
+**`Audio` has NO autoplay pathway — in the type, on the wire, or in the emission.** The case declares
+no such slot, so there is nothing for a host to read and nothing for a renderer to branch on. This is
+stronger than a default of `false`: a slot that defaults to off is one a document can switch on, and
+there is no document this format wants to be able to state in which a page begins making sound
+unbidden. A document carrying `{"$type":"Audio","autoplay":true}` decodes to an audio surface that
+does not autoplay, because the value has nowhere to land.
+
+**`poster` (Video only) is a second URL through the §19 floor, and a refused one is DROPPED.** A
+poster frame is fetched by the browser with no user act, exactly as `src` is, so it carries the same
+render-time obligation. The two differ in what a refusal means, and the rule is §3.6.4's
+dropped-candidate rule applied to a single slot: an element must have a source, so a refused `src`
+collapses to the refusal substitute and carries its marker, while an anchorless `poster` simply
+leaves. A `<video>` with no poster shows its first frame, which is a working rendering; a poster
+pointing at the refusal URL is a broken image painted over the player. As everywhere else in §19,
+this is a RENDER-time obligation and not a wire constraint — a document naming a URL that fails the
+floor is still a valid wire document.
+
+**The variant is `$type`-discriminated, so an unknown case reports at `$.kind.kind.$type`** — the
+`Binding` / `TextSource` position, not the bare-enum one (§6). The set is closed at `Video | Audio`;
+`reject/reject-unknown-media-kind.json` refuses `"Stream"` exactly as it would refuse a name nobody
+has proposed, so admitting a third surface later is an ADDITION rather than a re-meaning of shipped
+bytes.
+
+Fixtures: `nodes/media-video-1.json` (the minimum — both bool defaults omitted and the payload the
+bare discriminator), `nodes/media-video-poster-1.json` (the poster inside the case object rather than
+beside it), `nodes/media-video-autoplay-1.json` (all three bools off their defaults at once, which is
+where an encoder built as a chain of `if`s gets the canonical key order wrong),
+`nodes/media-audio-1.json` (the variant whose payload is the discriminator alone),
+`reject/reject-media-missing-label.json`, `reject/reject-unknown-media-kind.json`, and
+`reject/reject-media-autoplay-nonbool.json` (`WRONG_TYPE` at `$.kind.kind.autoplay` — the stringified
+boolean refused rather than coerced, on the slot where a truthiness rule would make one host start
+playing a video another host leaves still).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -1579,7 +1666,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->78<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->81<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1835,10 +1922,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->354<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->151<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->361<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->155<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->78<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->81<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
