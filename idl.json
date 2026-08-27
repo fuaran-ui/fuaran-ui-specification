@@ -1640,6 +1640,23 @@
           }
         },
         {
+          "name": "srcSet",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "list",
+              "items": []
+            }
+          },
+          "type": {
+            "$type": "list",
+            "of": {
+              "$type": "record",
+              "name": "SrcSetEntry"
+            }
+          }
+        },
+        {
           "name": "caption",
           "optionality": {
             "$type": "optional"
@@ -4030,6 +4047,35 @@
         }
       ],
       "name": "SemanticStyle"
+    },
+    {
+      "fields": [
+        {
+          "name": "src",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "str"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
+          "name": "width",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "int"
+          }
+        }
+      ],
+      "name": "SrcSetEntry"
     },
     {
       "fields": [

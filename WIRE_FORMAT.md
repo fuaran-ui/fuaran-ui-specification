@@ -195,7 +195,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `fit?=Natural`, `loading?=Eager`, `src`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered` |  |
@@ -248,7 +248,7 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures:
 
-- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"caption"?:<TextSource>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. Phase 1078 added `caption`, which is optional content rather than a presentation token and is omitted when absent (rule 4) – see §3.6.3. See `nodes/image-1.json` (none of the four, the pre-phase shape), `nodes/image-presentation-1.json` (all three presentation slots off-default), and `nodes/image-caption-1.json` / `nodes/image-caption-i18n-1.json` (the caption, `Literal` and `I18n`).
+- **`Image`** (Display) – `{"$type":"Image","alt":<TextSource>,"aspectRatio"?:<ImageAspect>,"caption"?:<TextSource>,"fit"?:<ImageFit>,"loading"?:<ImageLoading>,"src":<Binding>,"srcSet"?:[<SrcSetEntry>,…],"variant":"Default"|"Avatar"|"Rounded"}`. `src` is a `Binding<string>`; the renderer routes it through the §19 URL-scheme floor – sanitisation is a render-time obligation, not a wire constraint, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. Phase 1077 added the three presentation slots, each omitted-when-default on both boundaries – see §3.6.2 for their rules. Phase 1078 added `caption`, which is optional content rather than a presentation token and is omitted when absent (rule 4) – see §3.6.3. Phase 1080 added `srcSet`, a list of alternate renditions omitted when EMPTY – see §3.6.4. See `nodes/image-1.json` (none of the five, the pre-phase shape), `nodes/image-presentation-1.json` (all three presentation slots off-default), `nodes/image-caption-1.json` / `nodes/image-caption-i18n-1.json` (the caption, `Literal` and `I18n`), and `nodes/image-srcset-1.json` (three candidates).
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
@@ -869,6 +869,7 @@ read-compat):
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
+| `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
 | `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
 | `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
@@ -1144,6 +1145,73 @@ declares, not two things an author must remember to associate, and the associati
 was missing. A wrapper kind would also admit captioned *anything*, which is a strictly larger
 vocabulary question than the one this slot answers — if that demand arrives, it arrives as its own
 proposal against §3's kind-admission bar, not as this field widened.
+
+### 3.6.4 `Image.srcSet` — responsive candidate sources (Phase 1080)
+
+`Image` carries a fifth optional slot, `srcSet`: a list of alternate renditions of the SAME picture
+at declared intrinsic pixel widths, from which a client picks one. Unlike `caption` it **is** an
+omit-at-default field and **is** in §3.6's table — but its identity is the **empty list**, not a
+token:
+
+```json
+{"id":"image-srcset-1","kind":{"$type":"Image","alt":"Fishing boats moored at first light","src":{"$type":"Static","value":"/harbour.jpg"},"srcSet":[{"src":{"$type":"Static","value":"/harbour-1600.jpg"},"width":1600},{"src":{"$type":"Static","value":"/harbour-800.jpg"},"width":800},{"src":{"$type":"Static","value":"/harbour-400.jpg"},"width":400}],"variant":"Default"}}
+```
+
+Each entry is a `SrcSetEntry` — `{"src":<Binding<string>>,"width":<positive integer>}` — with both
+members required *within* the entry.
+
+Five rules.
+
+**Absent MEANS the empty list, and `null` is refused.** This is the missing-list-field decode class,
+and it is stated here rather than left to each host's reading because it is the single most likely
+cross-host divergence in this slot: a decoder that answers `null`, `undefined`, or `None` for an
+absent `srcSet` has produced a value its own encoder cannot round-trip. An absent slot and an empty
+one denote the SAME document, so a host MUST decode absence to the empty list and MUST omit an empty
+list on encode. A present `"srcSet":null` is a REJECT (`WRONG_TYPE` at `$.kind.srcSet`): absence
+already has a spelling, and admitting a second would let two conformant hosts emit different
+canonical bytes for one document. `lenient/lenient-image-empty-srcset.json` pins the encode
+direction (an explicit `[]` canonicalising to the omitted form) and
+`reject/reject-image-srcset-null.json` the refusal.
+
+**`width` is a POSITIVE integer, and the floor is a decode rule.** It is the `w` descriptor a client
+selects on. Zero and negative values are a REJECT (`WRONG_TYPE` at `$.kind.srcSet[<i>].width`, naming
+the entry by index), and zero is refused as firmly as a negative on purpose: a `0w` candidate is not
+a small image, it is one a client can never select, so admitting it would let the wire state a
+rendition no host can render. The published `schema.json` says the same thing as `minimum: 1`.
+`reject/reject-image-srcset-nonpositive-width.json` puts a well-formed entry first so the error path
+has to identify the second.
+
+**The ARRAY ORDER is the author's, and a codec MUST NOT re-sort it.** A JSON array is ordered data;
+canonicalisation sorts object KEYS (§2) and never array elements. A host that sorted on encode would
+emit bytes differing from what it decoded, breaking round-trip identity for every document whose
+author did not happen to write the entries in that order. `nodes/image-srcset-1.json` is authored
+DESCENDING by width precisely so a re-sorting codec fails it.
+
+**Presentation order is the RENDERER's, and it is ascending by width.** The wire preserves authored
+order; a rendering host that emits an HTML `srcset` attribute orders the candidates ascending by
+width so its output is canonical for a given tree. The two rules are not in tension — they answer
+different questions, and putting the sort in the renderer is what lets both be true.
+
+**Every entry's `src` passes the §19 URL-scheme floor exactly as the primary `src` does.** A srcset
+candidate is a URL a client fetches with no user act — the same class as the primary source, and
+therefore the same obligation; a slot that skipped the floor would be a documented way around it. A
+candidate that fails the floor is **dropped from the emitted candidate list** rather than emitted in
+neutered form: the primary `src` must exist so it collapses to the blank/refusal URL, but a candidate
+has no such obligation, and offering a client a rendition guaranteed to fail is worse than offering
+it one fewer. The primary `src` remains the fallback the whole mechanism rests on. As with the
+primary source this is a RENDER-time obligation and not a wire constraint — a document carrying a
+candidate that fails the floor is still a valid wire document.
+
+A host that ignores `srcSet` entirely is still conformant as a RENDERER: `src` is the rendition every
+host can serve, and the slot names an optimisation. It is not optional as a CODEC — the round-trip,
+the reject vectors and the absent-means-empty rule bind every conformant host.
+
+Why widths and not device-pixel-ratio descriptors or per-entry media conditions: those are
+alternative candidate-selection algebras, and a list mixing them is one a browser refuses outright,
+so admitting either alongside `w` would let the wire state a document no host can render. A media
+condition would additionally put a free-form CSS string on the wire, which is the escape §3.6.2's
+token vocabularies exist to close. The `sizes` attribute an HTML host emits is therefore bounded and
+host-chosen, never author-supplied.
 
 ---
 
@@ -1435,7 +1503,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->75<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->77<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1691,11 +1759,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->346<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->148<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->350<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->149<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->75<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->63<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->77<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->64<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
