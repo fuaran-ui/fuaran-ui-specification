@@ -1024,6 +1024,14 @@ both common).
 >    declaration. Polarity changes how the number READS, never what it SAYS.
 > 4. An absent `trendPolarity` is `HigherIsBetter`. An absent `trend` makes the slot inert — a
 >    `Metric` with no `trend` that declares a polarity is legal, and says nothing.
+> 5. **`Neutral` is RESERVED, not admitted.** The vocabulary is exactly
+>    `HigherIsBetter | LowerIsBetter`; a document naming `"Neutral"` is a decode error —
+>    `UNKNOWN_DU_CASE` at the `trendPolarity` slot (a bare enum, so the path carries no `.$type`
+>    suffix; §6) — refused exactly like a name nobody has ever proposed. The reservation is **not**
+>    distinguished at the wire, and a host MUST NOT alias it onto a canonical case or read it as the
+>    default: a silent `HigherIsBetter` would give a document a reading its author did not write, and
+>    a hint that advertised `Neutral` would tell an author to emit a spelling the format refuses.
+>    Admitting the case later must be an ADDITION, never a re-meaning of shipped bytes.
 
 Three consequences, each ruling out a spelling someone will otherwise propose.
 
@@ -1322,7 +1330,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
   "ExpectedShape": "<optional hint string>" }
 ```
 
-`Path` uses a `$`-rooted dotted form; `$type` appears literally in the path when the discriminator is at fault (e.g. `$.kind.$type`). The eight codes:
+`Path` uses a `$`-rooted dotted form. **`$type` appears literally in the path when, and only when, the DISCRIMINATOR is at fault** — that is, when the document carries a literal `"$type"` member whose value is not a recognised case (e.g. `$.kind.$type`, `$.kind.text.$type`, `$.kind.shapes[0].$type`). A **bare enum** — a plain JSON string in a named field, with no `$type` member at that position (`style.tone`, `kind.trendPolarity`, `accessibility.liveRegion`, `kind.protection`, `kind.staticRows.defaultSort.direction`) — carries no discriminator on the wire, so its `Path` is the **field's own, with no suffix** (`$.style.tone`). Both populations raise `UNKNOWN_DU_CASE`; they differ only in the path. A suffix appended to a bare enum names a JSON member the document does not contain and an author cannot repair at, which is why this is a rule rather than a stylistic preference. _(Phase 1073 ruled the bare-enum spelling. It is a clarification of the sentence this paragraph already carried, not a new decision — but it had to be made explicit, because three hosts including BOTH reference implementations appended the suffix uniformly and the §11 reject leg's prefix matching, below, is structurally blind to it.)_ The eight codes:
 
 | Code | Raised when |
 |---|---|
@@ -1335,7 +1343,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->73<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->74<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1591,10 +1599,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->339<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->340<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->145<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->73<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->74<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->61<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -1606,7 +1614,7 @@ and <!-- fuaran:count kind=elicitation-answer-reject -->7<!-- /fuaran:count -->
 
 A conformant host's test harness loads `manifest.json` and, per entry:
 - `kind: "node-round-trip"` / `"op-round-trip"` → decode `inputFile` with the `decoder`-named entry point, re-encode, assert byte-equal to `expectedFile`.
-- `kind: "reject"` → decode `inputFile`; assert the error's code == `expectedErrorCode` and its path starts with `expectedPath`.
+- `kind: "reject"` → decode `inputFile`; assert the error's code == `expectedErrorCode` and its path starts with `expectedPath`. **Matching stays a PREFIX, with one ruled exception: where `expectedPath` does not end in `.$type`, the emitted path MUST NOT either** (§6). The latitude is deliberate — a host may legitimately name a position *deeper* than the corpus's stated slot, and is then more precise rather than divergent: the corpus records the author-facing `$.kind.trend` where a decoder reports the wrong-typed `$.kind.trend.value` (the four `reject-binding-*` fixtures), and records `$` for the whole refused document where §21 licenses naming the position at which the limit was breached (`reject-limit-node-depth`, `reject-limit-op-depth`). Tightening to equality would red those six on arrival and buy nothing. What the exception forbids is different in kind — a suffix naming a position that does not exist in the document **at all**, which is precisely the defect that survived undetected until Phase 1073 because a prefix match cannot see it.
 
 ### 12.1 Third-party certification kit
 
