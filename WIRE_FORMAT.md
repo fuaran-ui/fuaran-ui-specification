@@ -165,6 +165,47 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   > not change the negotiated wire version (§15) — no optional field is added, so §15.4's
   > additive-minor question does not arise.
 
+#### Near-miss slot names are refused, not ignored (Phase 959)
+
+Rule 2's tolerance of unknown keys has a second **enumerated** exception, on the `accessibility`
+trait — the §3.2 grid narrowing applied at the position where its cost is highest. These names decode
+to a `WRONG_TYPE` error naming the canonical slot:
+
+| Family | Name | Canonical slot |
+|---|---|---|
+| ARIA attribute name | `aria-label`, `aria-labelledby`, `aria-describedby`, `aria-role`, `aria-live`, `aria-hidden` | `label`, `labelledBy`, `describedBy`, `role`, `liveRegion`, `hidden` |
+| its camelCase (JSX) spelling | `ariaLabel`, `ariaLabelledBy`, `ariaDescribedBy`, `ariaRole`, `ariaLive`, `ariaHidden` | the same six |
+| the un-prefixed or un-cased slot name | `labelledby`, `describedby`, `live`, `liveregion` | `labelledBy`, `describedBy`, `liveRegion` |
+
+**Why the trait is the sharpest position for this rule.** Everywhere else a tolerated near miss has
+*some* feedback channel: a mislabelled column is on screen, an ignored `currentPage` shows a pager
+that does not move. The accessibility trait has **no visible output at all**. An ignored `ariaLabel`
+looks identical to an honoured one from the author's side and from the emitting model's side, so the
+declaration silently reaches assistive technology as nothing, and nothing anywhere will ever say so.
+The refusal is the only feedback that can exist.
+
+**Why they are refused rather than aliased — and note the argument differs from §3.2's.** There the
+names were not synonyms. Here `ariaLabel` *is* an unambiguous synonym, so admission turns on §16's
+other half: a shorthand earns its place by being a **genuine assist to the emitting model**, and a
+six-character key rename is not one. Aliasing would buy no tokens and spend the only channel that
+teaches the vocabulary. `live` is the case that settles it — it is not merely a rename, because the
+HTML idiom it is borrowed from also spells a **boolean**, so an alias would bind a possibly-boolean
+prior onto a closed three-token set. Refusing names the key *and* the tokens.
+
+**Two entries are named by measured evidence, not derived.** Across 12,722 language-tier emissions in
+the evaluation corpora, `live` appears 6 times against `liveRegion`'s 12 — a third of every
+live-region declaration was being discarded — and `ariaLabel` once against `label`'s 44. The other
+fourteen are the rest of those two names' families: a set refusing only the spellings that happened
+to be observed would teach nothing about the third one.
+
+**The enum TOKENS need no entry, and that is not an omission.** An unrecognised bare-enum token
+already raises `UNKNOWN_DU_CASE` naming the closed set (§3.5, `reject/reject-a11y-liveregion-unknown`),
+and `role` is deliberately open to any role *name*. Only the keys were ever silent, because only
+unknown keys are tolerated.
+
+`schema.json` forbids each name with `not: { required: [...] }`, so the two artefacts agree, and the
+`reject/reject-nearmiss-a11y-*` fixtures pin one per family plus the two measured spellings.
+
 ### 3.2 `NodeKind` discriminators (`kind.$type`)
 
 The `kind` object's `$type` is the node's primitive discriminator **directly** – the wire is **flat**, with no behavioural-category envelope and no `spec` wrapper. A node carrying a label/value row is `{"$type":"LabelValueRow","emphasis":…,"label":…,"value":…}` – the spec's fields hoisted directly under `$type`, exactly as `Custom`/`ErrorBoundary` and every nested DU carry their fields. The four behavioural categories – Layout / Display / Input / Visualisation – are a **host-side classification recovered on decode** (each primitive belongs to exactly one category), not a level of wire nesting. A fifth category, **Meta**, holds the structural cases: they are node kinds with no behavioural role of their own.
@@ -1666,7 +1707,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->80<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->84<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1922,10 +1963,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->360<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->364<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->155<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->80<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->84<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
