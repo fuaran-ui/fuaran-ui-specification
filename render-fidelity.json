@@ -1,7 +1,7 @@
 {
   "version": 1,
   "$id": "https://fuaran.dev/wire-format/v1/render-fidelity.json",
-  "description": "Per-NodeKind render-fidelity declaration for the Fuaran UI wire format. For each canonical kind.$type: what the wire carries (source), what the parity-checked render pins (fallback), and what, if anything, is declared client-only rich. Generated from Fuaran.UI.RenderFidelity; it transcribes the shipped fidelity contracts and introduces no wire or renderer behaviour. A consumer deriving per-node fidelity badges reads this rather than hand-annotating. See WIRE_FORMAT.md 13.",
+  "description": "Per-NodeKind render-fidelity declaration for the Fuaran UI wire format. For each canonical kind.$type: what the wire carries (source), what the parity-checked render pins (fallback), and what, if anything, is declared client-only rich. Generated from Fuaran.UI.RenderFidelity; it transcribes the shipped fidelity contracts and introduces no wire or renderer behaviour. A consumer deriving per-node fidelity badges reads this rather than hand-annotating. Each kind also declares the checkable render obligations it owes, drawn from the closed obligationVocabulary and bound to the spec section that states each one; a host render suite asserts every obligation for the kinds it renders and REPORTS any it cannot check, because not checked is not passed. See WIRE_FORMAT.md 13.",
   "tiers": [
     {
       "tier": "source",
@@ -16,6 +16,44 @@
       "meaning": "the declared client-only render, explicitly outside every parity comparison rather than silently divergent"
     }
   ],
+  "obligationVocabulary": [
+    {
+      "id": "accessible-name-always",
+      "meaning": "an accessible name is emitted on every instance of the kind, never only where an author supplied one"
+    },
+    {
+      "id": "autoplay-muted-pairing",
+      "meaning": "autoplay is emitted only together with muted; neither attribute ever appears without the other"
+    },
+    {
+      "id": "no-autoplay-pathway",
+      "meaning": "a variant declaring no autoplay slot emits no autoplay pathway at all - neither the attribute nor its pair"
+    },
+    {
+      "id": "refused-source-dropped",
+      "meaning": "a secondary source the URL-scheme and egress floor refuses is dropped rather than emitted at the refusal URL"
+    },
+    {
+      "id": "alt-always-emitted",
+      "meaning": "the alternative-text attribute is emitted always, the empty string included - absent and empty are different claims"
+    },
+    {
+      "id": "anchor-affordance-on-expandable",
+      "meaning": "a declared expansion emits a real working anchor to the full-size asset, honoured with no script at all"
+    },
+    {
+      "id": "refused-src-no-affordance",
+      "meaning": "a source the egress floor refused emits no affordance - an expansion that cannot be honoured is worse than none"
+    },
+    {
+      "id": "figure-caption-outside-link",
+      "meaning": "the caption sits outside the expansion anchor, so the caption text is not part of the link target"
+    },
+    {
+      "id": "srcset-ascending-by-width",
+      "meaning": "responsive candidates are emitted in ascending width order, and a refused candidate is dropped rather than emitted"
+    }
+  ],
   "kinds": [
     {
       "kind": "Badge",
@@ -27,6 +65,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -39,6 +78,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -53,6 +93,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Input - rendered inert)"
     },
     {
@@ -65,6 +106,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -81,6 +123,7 @@
       "fixtures": [
         "nodes/chart-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 526; docs/SSR.md (Visualisation)"
     },
     {
@@ -97,6 +140,7 @@
       "fixtures": [
         "nodes/code-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 290; WIRE_FORMAT.md 3.2; docs/SSR.md (deterministic-render + client-only-enhancement contract)"
     },
     {
@@ -113,6 +157,7 @@
       "fixtures": [
         "nodes/custom-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 141; docs/SSR.md (custom-renderer registry); SANITIZATION.md"
     },
     {
@@ -129,6 +174,7 @@
       "fixtures": [
         "nodes/grid-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 393; docs/SSR.md (Visualisation, sortable rendered tables)"
     },
     {
@@ -141,6 +187,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Layout.Disclosure)"
     },
     {
@@ -153,6 +200,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -165,6 +213,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -177,6 +226,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -191,6 +241,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Input - rendered inert)"
     },
     {
@@ -205,6 +256,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Input - rendered inert)"
     },
     {
@@ -219,6 +271,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Input - rendered inert)"
     },
     {
@@ -231,6 +284,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -243,6 +297,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -255,6 +310,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -267,6 +323,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -284,6 +341,33 @@
         "nodes/image-expandable-1.json",
         "nodes/image-expandable-figure-1.json"
       ],
+      "obligations": [
+        {
+          "id": "alt-always-emitted",
+          "statement": "`alt` is emitted on every image, the empty string included — a decorative image declares an empty alt rather than omitting the attribute",
+          "section": "WIRE_FORMAT.md 3.6.2"
+        },
+        {
+          "id": "anchor-affordance-on-expandable",
+          "statement": "under `expandable` the `<img>` is wrapped in a real `<a class=\"fuaran-image-expand\" href=\"<the sanitised src>\" data-fuaran-expandable>` — a WORKING link to the full-size asset with no script",
+          "section": "WIRE_FORMAT.md 3.6.5"
+        },
+        {
+          "id": "refused-src-no-affordance",
+          "statement": "a `src` the URL-scheme + egress floor refused emits no anchor at all, because an affordance that cannot be honoured is worse than none",
+          "section": "WIRE_FORMAT.md 3.6.5"
+        },
+        {
+          "id": "figure-caption-outside-link",
+          "statement": "with a caption the anchor nests INSIDE the `<figure>` — `<figure>` wraps `<a>` wraps `<img>`, and the `<figcaption>` follows the anchor — so the caption is not part of the link target",
+          "section": "WIRE_FORMAT.md 3.6.3, 3.6.5"
+        },
+        {
+          "id": "srcset-ascending-by-width",
+          "statement": "a non-empty `srcSet` emits `<url> <width>w` candidates ordered ASCENDING by width; a candidate the egress floor refuses is dropped rather than emitted, so the primary `src` remains the fallback",
+          "section": "WIRE_FORMAT.md 3.6.4"
+        }
+      ],
       "contract": "Phase 1079; WIRE_FORMAT.md 3.6.5; docs/SSR.md (expandable images)"
     },
     {
@@ -296,6 +380,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -310,6 +395,7 @@
       "fixtures": [
         "nodes/link-protected-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 812; WIRE_FORMAT.md 3.2 (link protection); docs/SSR.md (protected email links)"
     },
     {
@@ -322,6 +408,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -338,6 +425,7 @@
       "fixtures": [
         "nodes/map-1.json"
       ],
+      "obligations": [],
       "contract": "docs/SSR.md (Visualisation)"
     },
     {
@@ -354,6 +442,7 @@
       "fixtures": [
         "nodes/markdown-1.json"
       ],
+      "obligations": [],
       "contract": "Phases 292, 293; WIRE_FORMAT.md 14; docs/MARKDOWN.md"
     },
     {
@@ -370,6 +459,7 @@
       "fixtures": [
         "nodes/math-1.json"
       ],
+      "obligations": [],
       "contract": "Phases 293, 658; WIRE_FORMAT.md 3.2; docs/SSR.md; docs/MATH-DEGRADATION.md"
     },
     {
@@ -387,6 +477,28 @@
         "nodes/media-video-autoplay-1.json",
         "nodes/media-audio-1.json"
       ],
+      "obligations": [
+        {
+          "id": "accessible-name-always",
+          "statement": "an `aria-label` carrying the resolved label is ALWAYS emitted — the label is mandatory on the wire and a transport has no decorative case",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "autoplay-muted-pairing",
+          "statement": "`autoplay` is emitted ONLY together with `muted`, and `muted` rides `autoplay` — the pairing is what the declaration means, not a default, which is why the wire carries no separate muted slot to fall out of step with it",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "no-autoplay-pathway",
+          "statement": "the Audio variant has NO autoplay pathway at all: the case declares no such slot, so an `<audio>` emission carries neither `autoplay` nor `muted`",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "refused-source-dropped",
+          "statement": "a `poster` the URL-scheme + egress floor refuses is DROPPED rather than emitted, because a `<video>` with no poster shows its first frame while a poster at the refusal URL is a broken image over the player",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        }
+      ],
       "contract": "Phase 1076; WIRE_FORMAT.md 3.6.6; docs/SSR.md (media)"
     },
     {
@@ -399,6 +511,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -415,6 +528,7 @@
       "fixtures": [
         "nodes/modal-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 289; WIRE_FORMAT.md 3.2; docs/SSR.md (overlay + overflow render-fidelity contract)"
     },
     {
@@ -427,6 +541,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -439,6 +554,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -453,6 +569,7 @@
       "fixtures": [
         "nodes/scroll-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 289; WIRE_FORMAT.md 3.2; docs/SSR.md (overlay + overflow render-fidelity contract)"
     },
     {
@@ -467,6 +584,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "Phase 291; docs/SSR.md (Input - rendered inert)"
     },
     {
@@ -479,6 +597,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -495,6 +614,7 @@
       "fixtures": [
         "nodes/spark-1.json"
       ],
+      "obligations": [],
       "contract": "docs/SSR.md (Display.Sparkline)"
     },
     {
@@ -507,6 +627,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -521,6 +642,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Layout)"
     },
     {
@@ -533,6 +655,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -545,6 +668,7 @@
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "WIRE_FORMAT.md 3.2; docs/SSR.md (per-kind server behaviour)"
     },
     {
@@ -559,6 +683,7 @@
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [],
+      "obligations": [],
       "contract": "docs/SSR.md (Layout.Tabs)"
     },
     {
@@ -573,6 +698,7 @@
       "fixtures": [
         "nodes/toast-1.json"
       ],
+      "obligations": [],
       "contract": "Phase 289; WIRE_FORMAT.md 3.2 (Toast vs Action.Notify); docs/SSR.md"
     }
   ]

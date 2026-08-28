@@ -1930,6 +1930,27 @@ the cheap side of the host/surface line precisely because it inherits the certif
 Rust core rather than re-implementing one – the §11 forward-coupling tax lands on `fuaran-rs` once and
 the native surface rides it.
 
+**Render-obligation adoption (§13).** The render obligations are a *second* bar, orthogonal to the
+byte-parity one above: a codec host can be byte-perfect and still fail every render obligation, and a
+render projection that carries no codec leg at all still owes them for the kinds it renders. A host
+adopts by driving its render suite from `render-fidelity.json`'s `obligations` arrays and reporting
+every claim it does not assert, in the three-outcome shape §13 specifies. Adoption is per host and is
+recorded here rather than inferred:
+
+| Host | Render-obligation adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
+| `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending – its renderer already asserts the media obligations by hand; the manifest-driven enumeration is what is outstanding |
+| `fuaran-rs` | pending – as above, for its WASM client renderer |
+| `fuaran-swift` | pending – expected to carry *declared exemptions*: the surface has no playback engine, so several claims are vacuous-and-stated rather than asserted |
+| `fuaran-kt` | pending – as above |
+
+A host that has not adopted is **not thereby exempt**: it owes the obligations and has simply not made
+its answer visible. "Pending" here and "unchecked" in a host's own report are the same statement at two
+scales, and both are recorded rather than silent.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -2165,9 +2186,42 @@ The artefact also distinguishes a third posture from those two. A **`behavioural
   dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-fidelity ..\wire-format-fixtures
   ```
 
-- **Shape.** A single JSON object: `version`, `$id`, `description`, `tiers` (the three tier definitions above, so the artefact is self-describing), and `kinds` - one entry per canonical `kind.$type`, Ordinal-sorted so an addition lands as one clean insert. Each entry carries `kind`, `sensitive` (whether the kind has an explicit, phase-pinned fidelity contract, as against being trivially single-tier), `source`, `fallback`, `rich` (`{ "class": "none" | "behavioural" | "clientOnly", ... }`), `fixtures` (corpus-relative paths pinning the fallback, declared for the fidelity-sensitive kinds), and `contract` (where the contract is written down).
+- **Shape.** A single JSON object: `version`, `$id`, `description`, `tiers` (the three tier definitions above, so the artefact is self-describing), `obligationVocabulary` (the closed set of checkable claims — see "Render obligations" below), and `kinds` - one entry per canonical `kind.$type`, Ordinal-sorted so an addition lands as one clean insert. Each entry carries `kind`, `sensitive` (whether the kind has an explicit, phase-pinned fidelity contract, as against being trivially single-tier), `source`, `fallback`, `rich` (`{ "class": "none" | "behavioural" | "clientOnly", ... }`), `fixtures` (corpus-relative paths pinning the fallback, declared for the fidelity-sensitive kinds), `obligations` (the checkable claims this kind owes, each bound to the section that states it), and `contract` (where the contract is written down).
 - **Conformance.** Two guards on the F# side. A **completeness rule** asserts one row per canonical wire kind, measured against this manifest's own generated `kinds` enumeration rather than a hand list - so a kind added under the §11 forward-coupling rule appears here and fails the rule until its posture is declared, and the class cannot silently grow. A **stale-artefact guard** asserts byte-equality between the committed file and a fresh emission, naming the regeneration command, exactly as the stale-schema guard does. Every fixture a row names is checked to exist. The artefact **describes the existing render contract only**: no wire byte and no renderer behaviour changed when it landed.
 - **Scope.** Render fidelity, not interactivity. An inert server-rendered control becoming live at hydration is `behavioural`; what happens *after* a user interacts is outside this artefact entirely. Kinds the §15.3 tolerance path preserves without understanding have no row by construction, which is the honest answer rather than a missing one.
+
+**Render obligations — the checkable remainder (normative).** The `fallback` prose above is complete and normative, and a machine cannot check a paragraph. A host can render a kind, pass every byte-parity fixture in the corpus, and still have silently dropped an obligation that paragraph states: `<audio>` gaining an autoplay pathway the case declares no slot for, `autoplay` emitted without its `muted` pair, an accessible name emitted only where an author supplied one, an expansion anchor pointing at a destination the egress floor refused. None of those is a missing discriminator arm, so no codec test and no compiler reaches them.
+
+Each kind entry therefore also carries an `obligations` array — the subset of its fallback contract stated as **checkable claims**, drawn from a **closed vocabulary** the artefact enumerates at the top level as `obligationVocabulary`:
+
+```json
+"obligationVocabulary": [
+  { "id": "autoplay-muted-pairing", "meaning": "autoplay is emitted only together with muted; neither attribute ever appears without the other" }
+],
+"kinds": [
+  { "kind": "Media",
+    "obligations": [
+      { "id": "autoplay-muted-pairing",
+        "statement": "`autoplay` is emitted ONLY together with `muted`, and `muted` rides `autoplay` — the pairing is what the declaration means, not a default",
+        "section": "WIRE_FORMAT.md 3.6.6" } ] }
+]
+```
+
+- **`id`** is the vocabulary token, and the vocabulary is **closed**. An open free-form vocabulary would let a host accept a claim it has no checker for; a closed one means a host can enumerate what exists independently of the rows it happens to read, and report an id it does not implement.
+- **`statement`** is the normative sentence *for that kind* — the same claim reads differently on a transport (an accessible name is mandatory on the wire) and on a decorative image (it is the empty string).
+- **`section`** binds the claim to the section that states it. An obligation with no section is an assertion about a host's habits rather than about this specification, and is not admissible.
+
+**A conformant host's render suite asserts every obligation declared for the kinds it renders, and REPORTS every one it does not — because not checked is not passed.** The reporting shape:
+
+| Outcome | When | What the host must do |
+|---|---|---|
+| `asserted` | the host renders the kind and its suite checks the claim in emitted output | nothing; the claim is met |
+| `unchecked` | the host renders the kind and has no checker for the claim | print the kind, the claim id, the section, **and a reason**; fail the gate unless the exemption is *declared* in the suite |
+| `not rendered` | the host does not render the kind at all | print it; nothing is owed |
+
+The enumeration a host iterates is **this artefact's**, never a list beside its checkers. That is the whole mechanism: an obligation added to one kind's row arrives in every adopting host as a claim with no checker and turns that host's gate red, rather than as a paragraph a future reader may or may not re-read. A host whose closed vocabulary does not carry a claim id the artefact names is **behind the artefact** and must report that too — it cannot have checked what it cannot name.
+
+Obligations are **additive within a major version** and land under the §11 forward-coupling rule: declaring one is a change to this artefact and to every adopting host's suite in the same change-set. A kind whose `obligations` array is empty states no checkable claim; that is not a statement that its fallback prose is optional.
 
 **Deriving a fidelity badge (the consumer recipe).** A surface that shows per-node fidelity - a legend, a certification report, a degradation exhibit - derives it and hard-codes nothing:
 
