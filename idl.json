@@ -6719,6 +6719,29 @@
             }
           ],
           "tag": "Grid"
+        },
+        {
+          "fields": [
+            {
+              "name": "cols",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "int"
+              }
+            },
+            {
+              "name": "gap",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "int"
+              }
+            }
+          ],
+          "tag": "Masonry"
         }
       ],
       "name": "LayoutMode",

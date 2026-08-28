@@ -33,7 +33,7 @@
       "kind": "Box",
       "sensitive": false,
       "source": "the child list + layout spec",
-      "fallback": "the full structural container, classes identical on both sides",
+      "fallback": "the full structural container, classes identical on both sides; the layout mode's declared fill direction realised per WIRE_FORMAT §3.6.7 (row-fill for `Grid`, column-fill for `Masonry`)",
       "rich": {
         "class": "none",
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"

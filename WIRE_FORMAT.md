@@ -279,7 +279,8 @@ The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`)
 `layout` is a discriminated object:
 
 - `{"$type":"Flex","direction":"Vertical"|"Horizontal","gap":<int?>,"wrap":<bool>}` – `gap` omitted when `None`. (`direction` + `wrap` required.)
-- `{"$type":"Grid","cols":<int>,"gap":<int?>,"templateColumns":<string?>}` – `gap` / `templateColumns` omitted when `None`. (`cols` required; a `Some templateColumns` supersedes `cols`.)
+- `{"$type":"Grid","cols":<int>,"gap":<int?>,"templateColumns":<string?>}` – `gap` / `templateColumns` omitted when `None`. (`cols` required; a `Some templateColumns` supersedes `cols`.) Fills by ROW.
+- `{"$type":"Masonry","cols":<int>,"gap":<int?>}` – `gap` omitted when `None`. (`cols` required and POSITIVE; there is no `templateColumns` twin.) Fills by COLUMN — see §3.6.7, which makes the realising CSS normative.
 - `{"$type":"Auto"}` – responsive auto-tile (the retired `Dashboard`'s renderer-owned behaviour; no author column count).
 
 The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direction,wrap},role:"Group"}`; `gridLayout` → `{layout:{$type:Grid,cols},role:"Group"}`; `dashboard` → `{layout:{$type:Auto},role:"Dashboard"}`; `card` → `{layout:{$type:Flex,Vertical,false},heading,role:"Card"}`. See `nodes/stack-1.json`, `nodes/glayout-1.json`, `nodes/dash-empty.json`, `nodes/card-1.json`.
@@ -1419,6 +1420,94 @@ playing a video another host leaves still).
 
 ---
 
+### 3.6.7 `Masonry` — the column-fill layout mode (Phase 1082)
+
+`BoxLayout` carries a fourth case beside `Flex`, `Grid` and `Auto`. It names a FILL DIRECTION, which
+is the one thing `Grid` structurally cannot say:
+
+```json
+{"id":"masonry-1","kind":{"$type":"Box","children":[…],"layout":{"$type":"Masonry","cols":3},"role":"Group"}}
+{"id":"masonry-gap","kind":{"$type":"Box","children":[…],"layout":{"$type":"Masonry","cols":4,"gap":16},"role":"Group"}}
+```
+
+`cols` is REQUIRED; `gap` is an optional pixel spacing omitted at absence (rule 4), exactly as on
+`Flex` and `Grid`.
+
+**`Grid` fills by ROW, `Masonry` fills by COLUMN, and no value of any `Grid` field changes that.**
+`Grid` carries `cols` and a `templateColumns` sizing function — both statements about how many
+columns there are and how wide each is, neither a statement about the order children occupy them. So
+a grid of children with unequal intrinsic heights leaves each row as tall as its tallest member, with
+whitespace beneath the shorter ones. That is a legitimate look and is often the better one for
+similarly-proportioned children; it is not masonry, and it is not reachable from masonry either.
+This is why the mode is a fourth CASE and not a fifth field on `Grid`: a fill direction is not a
+refinement of a track model.
+
+**The realising CSS is NORMATIVE, and it is the multi-column family.** A rendering host that honours
+`Masonry` MUST realise it with CSS multi-column layout — `column-count` carrying the declared `cols`,
+and the declared `gap` reaching `column-gap`. On an HTML host that is:
+
+```html
+<div class="fuaran-layout-masonry" style="column-count:3">…</div>
+```
+
+Naming the mechanism rather than the intent is deliberate, and it follows §3.6.5's lesson: a slot
+that declares a BEHAVIOUR and leaves the rendering to each host produces surfaces that agree on the
+bytes and disagree on the page. Two mechanisms could plausibly serve here and they do not behave
+alike, so the specification picks one.
+
+**`grid-template-rows: masonry` is explicitly NOT the mechanism**, and a host MUST NOT substitute it.
+It is the more natural-looking spelling and it is rejected on availability: it is not
+deterministically supported across engines, so a document rendered through it would lay out as a
+masonry on some readers' browsers and as an ordinary grid on others'. A layout mode whose rendered
+result depends on which engine reads it is not a wire contract. Multi-column is chosen because every
+engine implements it and because its behaviour is fully determined by the two properties the wire
+carries.
+
+**Children MUST NOT be split across a column boundary.** Multi-column layout fragments its content by
+default, so a host that emits only `column-count` will cut a card, a picture or a paragraph block in
+half down the page. A conformant host applies the break-avoidance rule to the container's direct
+children (`break-inside: avoid`); the reference stylesheet does this on `.fuaran-layout-masonry > *`.
+This is a render obligation, not a wire constraint — the bytes cannot carry it — but a host that
+omits it has not rendered the declared layout.
+
+**Reading order runs DOWN each column, not across the page, and that is a consequence authors must
+weigh.** Multi-column fills the first column to the container's height before starting the second, so
+document order and visual order agree column-wise and disagree row-wise. For a picture wall, where
+each child stands alone, this is invisible. For content meant to be read in sequence it is not, and
+`Grid` is the correct mode there. The specification states this rather than leaving it to be
+discovered because it is the one respect in which `Masonry` is not a drop-in substitute for `Grid`.
+
+**`cols` MUST be a positive integer.** Zero and negatives are a `WRONG_TYPE` at
+`$.kind.layout.cols`, which is also what the published schema's `minimum: 1` says, so the two
+expressions of the contract agree (the §3.6.4 `srcSet` width precedent). Zero is refused as firmly as
+a negative and is the interesting half: `column-count: 0` is invalid CSS, so a container declaring it
+would fall back to whatever the host's own stylesheet last said, and the wire would be carrying a
+layout whose rendered result is host-defined.
+
+**There is deliberately NO auto-column leniency here, unlike `Grid`.** §16 canonicalises a `Grid`
+carrying no column spec to `{"$type":"Auto"}`, because the language already owns the concept the
+author meant — the responsive auto-tile. A `Masonry` with no `cols` has no such case to be rewritten
+into: `Auto` is a row-fill mode, so canonicalising to it would silently discard the author's entire
+intent rather than recover it. The absence is a `MISSING_FIELD`, and a non-positive value is refused
+rather than repaired.
+
+**`Masonry` carries no `templateColumns`.** That field is a verbatim `grid-template-columns` sizing
+function, and the multi-column model has no track list for it to name. The omission is what keeps
+this case BOUNDED: every property a `Masonry` container can cause a host to emit is fixed by this
+section, so the case opens no route for arbitrary CSS to enter the stack and adds no entry to the
+escape-hatch inventory. `Grid`'s own `templateColumns` escape is unchanged and unaffected.
+
+**Kind-class hook.** A `Group`-role box in this mode takes `fuaran-kind-masonry`, not
+`fuaran-kind-grid-layout`. The two modes fill differently, so a host styling "the grid container"
+must not catch both.
+
+Fixtures: `nodes/masonry-1.json` (the minimum — `gap` omitted at absence), `nodes/masonry-gap.json`
+(the gap slot present, which is otherwise unreachable on the wire), and
+`reject/reject-box-masonry-nonpositive-cols.json` (`WRONG_TYPE` at `$.kind.layout.cols` — the zero
+column count refused rather than canonicalised).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -1707,7 +1796,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->84<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->85<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -1963,10 +2052,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->364<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->155<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->367<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->157<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->84<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->85<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
