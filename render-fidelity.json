@@ -52,6 +52,10 @@
     {
       "id": "srcset-ascending-by-width",
       "meaning": "responsive candidates are emitted in ascending width order, and a refused candidate is dropped rather than emitted"
+    },
+    {
+      "id": "unregistered-custom-labelled",
+      "meaning": "an unregistered custom node with an available contract card renders a labelled placeholder derived from that card - identity, summary and a machine-readable verdict marker - never a blank and never a guess"
     }
   ],
   "kinds": [
@@ -147,7 +151,7 @@
       "kind": "Custom",
       "sensitive": true,
       "source": "the component name, a bounded prop map, and the optional content-identity envelope",
-      "fallback": "whatever the host's SERVER custom-renderer registry emits for the component; an unregistered node renders the same labelled placeholder on both sides",
+      "fallback": "whatever the host's SERVER custom-renderer registry emits for the component; an unregistered node renders a labelled placeholder, identical on both sides — derived from the contract card (WIRE_FORMAT §25) where one is available, and identity-only where none is",
       "rich": {
         "class": "clientOnly",
         "technique": "the host's registered client renderer",
@@ -157,8 +161,14 @@
       "fixtures": [
         "nodes/custom-1.json"
       ],
-      "obligations": [],
-      "contract": "Phase 141; docs/SSR.md (custom-renderer registry); SANITIZATION.md"
+      "obligations": [
+        {
+          "id": "unregistered-custom-labelled",
+          "statement": "where no renderer is registered for a Custom node and a contract card for its identity is available, the emitted placeholder carries the component identity, the card's summary where the card declares one, and a machine-readable verdict marker; it emits no prop value and no guess at the component's appearance, and where the card's content hash contradicts the node's it withholds the description rather than showing one that describes a different shape",
+          "section": "WIRE_FORMAT.md 25.4"
+        }
+      ],
+      "contract": "Phase 141; Phase 1108; docs/SSR.md (custom-renderer registry); WIRE_FORMAT.md 25; SANITIZATION.md"
     },
     {
       "kind": "DataGrid",

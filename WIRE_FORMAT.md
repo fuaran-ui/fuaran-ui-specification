@@ -1951,6 +1951,27 @@ A host that has not adopted is **not thereby exempt**: it owes the obligations a
 its answer visible. "Pending" here and "unchecked" in a host's own report are the same statement at two
 scales, and both are recorded rather than silent.
 
+**Contract-card adoption (§25).** A THIRD bar, and orthogonal to both above. Reading a contract card
+is not implied by driving a render suite from the manifest: a host can enumerate
+`unregistered-custom-labelled` from `render-fidelity.json`, correctly report it unchecked, and hold no
+card reader at all. A host adopts by decoding the `cards/` corpus family (its `contract-card` /
+`contract-card-bundle` decoder names) and by emitting the §25.4 degradation placeholder — the three-way
+verdict marker included, since that is the part a conformance suite can assert.
+
+| Host | Contract-card adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** – codec, card store, and the server renderer's degradation path |
+| `fuaran-ts` | **adopted** – card reader + validator in `@fuaran-ui/schema`, degradation path in the server renderer |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending |
+| `fuaran-rs` | pending |
+| `fuaran-swift` | pending – a render projection owes §25.4 for the kinds it renders, and owes no codec leg |
+| `fuaran-kt` | pending – as above |
+
+**A pending host is unchanged, not broken.** §25.4's obligation is conditional on a card being
+*available*, and a host with no card reader has none available for any identity, so its existing
+identity-only placeholder is the conformant answer. What it cannot say is that it has adopted.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -2073,7 +2094,7 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->367<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->381<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->157<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->85<!-- /fuaran:count --> `reject`,
@@ -3502,6 +3523,211 @@ rows — and gains no sibling case, no tree-first resolution order and no second
 resolves the badge's derivation over the grid's two rows. It is a *render*-parity obligation, like
 §24.3's: the bytes round-trip identically with or without the rule, which is exactly why no codec
 family catches a host that has not adopted it.
+
+---
+
+## 25. Contract cards + the unregistered-degradation obligation (Phase 1108)
+
+`NodeKind.Custom` is the language's bounded escape: a host registers a component under a
+`moduleId`/`componentId` pair, declares its prop contract, and from then on the component behaves
+like a built-in — an emitter targets its declared prop schema, a validator checks the prop bag, and
+a renderer dispatches to it. **All of that is deployment-local.** Cross the deployment boundary and
+every part of it disappears at once: a conformant host receiving the same node has no contract, no
+schema, and no renderer, so the best it can honestly do is name the component and stop.
+
+What the issuing deployment had, and the receiving one did not, was never a *renderer*. It was the
+**description** — the prop rows, the content hash, the declared payload languages (§25.1), and one
+line saying what the component is. A **contract card** is that description as a specified,
+transportable artefact. It makes a foreign `Custom` node **legible but unrendered** rather than
+opaque, at a small fraction of the cost of a portable renderer, and without asking any host to
+execute anything it did not choose to execute.
+
+> **A card is not a renderer, not a permission, and not evidence that a component is safe to run.**
+> Nothing in this section dispatches to anything. A card's only two consumers are a **prop
+> validator** and a **placeholder**. The trust boundary stays exactly where §3.2's `Custom` contract
+> and each host's own registry put it, and a card arriving from anywhere cannot move it.
+
+### 25.1 The card document
+
+```json
+{ "$card":       "1",
+  "componentId": "sparkline",
+  "contentHash": { "algorithm": "SHA256", "hash": "<hex digest>" },
+  "moduleId":    "analytics",
+  "props": [
+    { "name":     "series",
+      "payload":  { "gate": "chartspec-gate:1.2", "language": "chartspec" },
+      "required": true,
+      "type":     "string" },
+    { "name": "title", "required": false, "type": "string" } ],
+  "summary": "A compact trend line with a period-over-period delta." }
+```
+
+Canonical §2 encoding throughout — Ordinal-sorted keys, canonical escaping, optionals omitted when
+absent. Decoders stay order-tolerant, as everywhere else in this format.
+
+| Member | | Meaning |
+|---|---|---|
+| `$card` | required | Format-version tag. `"1"` is the only version. |
+| `moduleId` / `componentId` | required | The identity the card describes — the same pair a `Custom` node carries. |
+| `contentHash` | required | `{ algorithm, hash }`: the digest the issuing deployment derived from the component's declared shape. **Required**, and see §25.4 for why. |
+| `props` | required | The declared prop rows, **in declaration order** (a schema is ordered; the array is not sorted). May be empty. |
+| `summary` | optional | One line saying what the component IS. |
+
+A **prop row** carries `name`, `type`, `required`, and an optional `payload`.
+
+- **`type`** is the prop's declared type as a stable tag: `string` / `int` / `float` / `bool` /
+  `object` / `array` / `json`, or `enum(a|b|c)` for a closed choice. `enum()` is not a legal tag —
+  an enum admitting nothing would be spelled as though it admitted one empty choice.
+- **`payload`** is the payload-language declaration: `language` (required within the object)
+  names the inner wire format the value is written in, and `gate` optionally names the gate that
+  judges it, as the single `gate:version` stamp. **A `payload` carrying a gate and no language is
+  refused** — the language is the declaration and the gate is an annotation on it, so a gate alone
+  names a judge for nothing. `gate` absent is the *declared-but-ungated* state, which is a real and
+  distinguishable claim rather than a spelling of "undeclared".
+
+**`summary` does not enter `contentHash`.** The hash folds the declared *shape*; a reworded sentence
+must not invalidate every strict-replay consumer of a component that emits exactly what it emitted
+before.
+
+**`contentHash` carries no strictness.** A `Custom` node's `ContentHash` (§3.2) has a third member
+saying what a host should do on mismatch, because the *emitter of that tree* is declaring a policy
+about its own replay. A card is a description of a component, not a policy about anyone's tree; a
+card that carried a strictness would be a foreign deployment's policy arriving as data.
+
+### 25.2 The card bundle
+
+The document a deployment publishes:
+
+```json
+{ "$cards": "1",
+  "cards": [ <card>, <card>, … ] }
+```
+
+`$cards` is the bundle format-version tag; `cards` is emitted **sorted by `(moduleId, componentId)`
+Ordinal**, so two deployments holding the same cards publish the same bytes whatever order their
+registries iterated in.
+
+**A bundle carrying two cards for one identity is refused (`DUPLICATE_CARD`).** A host's card *store*
+may resolve a duplicate by whatever order it folded cards in; a *document* has no order to appeal
+to, so accepting one would make the description a reader gets depend on decoder implementation
+detail.
+
+### 25.3 Decode
+
+Both documents are **default-deny by shape**: every object position refuses an undeclared key
+(`UNDECLARED_FIELD`). A card is a protocol artefact, not a forward-compatibility carrier — its
+evolution is the explicit `$card` / `$cards` version bump, and a decoder that shrugged at an unknown
+key would silently accept a newer producer's document while ignoring exactly the part that was new.
+Decode is fail-fast with one structured §6 `DecodeError`, in the deterministic member order this
+section lists, so every conformant host surfaces the same first error.
+
+Structural failures reuse the §6 codes (`INVALID_JSON` / `MISSING_FIELD` / `WRONG_TYPE`); three are
+specific to this artefact.
+
+| Code | When |
+|---|---|
+| `UNSUPPORTED_VERSION` | `$card` / `$cards` names a version the decoder does not implement |
+| `UNDECLARED_FIELD` | a key this section does not declare, in any object position |
+| `DUPLICATE_CARD` | a bundle carries two cards for one `(moduleId, componentId)` |
+| `UNKNOWN_DU_CASE` | a prop `type` tag the decoding host's vocabulary does not carry |
+
+That last one is the one worth stating plainly. A card written by a **newer** producer can name a
+prop type that did not exist when the reading host was built. **Refusing it at the boundary is
+normative**: resolving an unreadable tag to a permissive type would silently turn a check into a
+pass, which is worse than not reading the card at all. A host that constructs a card in-process
+rather than decoding one (a registry projecting its own contracts) may hold an unresolvable row; it
+reports the row as unresolvable and offers no verdict on it.
+
+### 25.4 The unregistered-degradation obligation (normative)
+
+**Where a host renders a `Custom` node for which no renderer is registered, and a contract card for
+that identity is available, the emitted placeholder MUST carry the component identity, the card's
+summary where the card declares one, and a machine-readable verdict marker (below). It MUST NOT emit
+a prop value, and MUST NOT guess at the component's appearance. Where no card is available the
+placeholder is unchanged — the identity-only form §3.2 already required.**
+
+That the uncarded path is untouched is not a courtesy. It is what makes this obligation safe to
+declare on a kind every roster host already renders: a host that holds no cards emits exactly the
+bytes it emitted before.
+
+**The verdict is three-way, and the three cases are different licences to speak rather than three
+degrees of confidence in one answer.** A `moduleId`/`componentId` pair is an *address*: two
+deployments can ship different components at the same address, and the same component at two
+versions certainly will. So a card that matches by name is not thereby a description of *this* node.
+
+| Marker | When | What the host may show |
+|---|---|---|
+| `described` | the node declares a content hash and it equals the card's | everything |
+| `unverified` | there is nothing to compare — the node declares no hash, or the two name different algorithms | everything, **and the marker says the claim is unverified** |
+| `hash-mismatch` | the node declares a hash and it differs from the card's | identity and the marker only |
+
+Two of those rows are decisions rather than consequences.
+
+**`unverified` shows the description.** Most nodes declare no hash, so degrading to identity-only
+here would throw away the common case for no gain — a card matching by name is still the best
+description anyone has, and saying so is the honest form. **Two digests under different algorithms
+are `unverified`, never `hash-mismatch`**: they are incomparable, not unequal, and reporting a
+mismatch would withhold a good description on the strength of a comparison that was never made.
+
+**`hash-mismatch` WITHHOLDS the summary and the prop rows.** The card describes a different shape at
+the same address; printing its description would be exactly the guess this obligation forbids, and a
+confident wrong description is worse than none. What is **not** withheld is the identity and the fact
+of the mismatch — hiding those would leave a reader with less than the uncarded placeholder gave
+them.
+
+**Prop validation.** A host holding a card MAY validate the node's prop bag against the card's rows,
+and where it does it MUST reach the same verdict a host holding the contract reaches — that
+agreement is the entire claim a card makes. This is the half of the mechanism that is not cosmetic:
+a foreign host can now say a `Custom` node is *malformed*, where before it could only fail to render
+it. Under `hash-mismatch` no verdict is offered, for the same reason the description is withheld: the
+schema is not this node's.
+
+**In the render-fidelity manifest.** This obligation is carried as the §13 claim
+**`unregistered-custom-labelled`** on the `Custom` row, so an adopting host's render suite
+enumerates it from `render-fidelity.json` rather than from this paragraph, and reports it in the
+three-outcome shape §13 specifies. §13's rules apply unchanged, the reporting shape included: a host
+that has not adopted is not thereby exempt.
+
+### 25.5 Transport (deliberately minimal)
+
+**v1 specifies the artefact, not a protocol.** There is no card registry service, no fetching
+protocol, no negotiation, and no discovery mechanism. A host supplies its cards however it likes —
+bundled beside the application, read from disk at start-up, or served — and folds them into its own
+lookup.
+
+Where a host *does* serve its bundle over HTTP, the conventional location is
+**`/.well-known/fuaran-cards.json`**. That is a convention and nothing more: no host is obliged to
+serve it, none may assume another does, and nothing in this format fetches it. The convention exists
+so that hosts which choose to serve a bundle all choose the same path, which is the whole of what a
+convention buys. A transport worth specifying is a later, separately-motivated question — and it
+should be asked only once demand exists, because the failure mode of specifying one early is a
+protocol nobody implements sitting in a normative document.
+
+### 25.6 Conformance
+
+The corpus family is **`cards/`**, with the `contract-card-round-trip` and `contract-card-reject`
+manifest kinds and the `contract-card` / `contract-card-bundle` decoder names. `manifest.json` is the
+authoritative enumeration.
+
+**It is its own family, and never `nodes/`.** A card is not a node: it never appears inside a tree,
+it is not addressed by a `NodeId`, and the node family's round-trip law is stated over the canonical
+*node* encoder, which has nothing to say about this document. Filing a card among the node fixtures
+would quietly change what every host's node-corpus leg was asserting.
+
+The round-trip payloads are **emitted by a conformant encoder from typed card values**, not
+transcribed, so a hand-copying error cannot make the corpus disagree with the encoder it exists to
+pin. The reject payloads are hand-written of necessity: their whole content is a document no encoder
+would produce.
+
+**Adoption is per host and recorded in §11.0**, on the same terms as the render-obligation adoption
+table beside it. Reading a card is a *second* obligation beyond §13's: a host can drive its render
+suite from the manifest, correctly report `unregistered-custom-labelled` as unchecked, and still hold
+no card reader at all.
+
+**Forward coupling.** A change to any member, ordering, encoding, refusal class or verdict rule in
+this section updates the normative text, the `cards/` corpus family, and every codec host in the
+§11.0 roster that has adopted, in the same change-set.
 
 ---
 
