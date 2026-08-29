@@ -1941,15 +1941,23 @@ recorded here rather than inferred:
 |---|---|
 | `fuaran` (F#) | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
 | `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
-| `fuaran-py` | pending |
-| `fuaran-go` | pending – its renderer already asserts the media obligations by hand; the manifest-driven enumeration is what is outstanding |
-| `fuaran-rs` | pending – as above, for its WASM client renderer |
-| `fuaran-swift` | pending – expected to carry *declared exemptions*: the surface has no playback engine, so several claims are vacuous-and-stated rather than asserted |
-| `fuaran-kt` | pending – as above |
+| `fuaran-py` | **adopted** – asserts all 10 declared claims in emitted HTML; nothing exempt |
+| `fuaran-go` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. The hand assertions its renderer already carried are now reached *through* the artefact's enumeration rather than standing beside it |
+| `fuaran-rs` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. Stated over the server render emission, which is the single surface both its headless and WASM-client roles produce |
+| `fuaran-swift` | **adopted** – asserts 8 of 10 over its render projections; declares 2 *exemptions*, `Image/alt-always-emitted` and `Image/figure-caption-outside-link`, both being claims about an emitted document this projection does not produce (no attribute bag, no anchor element, no network image loader) |
+| `fuaran-kt` | **adopted** – asserts 3 of 10 (`Media/accessible-name-always`, `Media/no-autoplay-pathway`, `Custom/unregistered-custom-labelled`); declares 7 *exemptions* – with no playback engine and no network image loader the media arm is a labelled transport tile and the image arm a labelled placeholder box, so those claims are vacuous-and-stated rather than asserted |
 
 A host that has not adopted is **not thereby exempt**: it owes the obligations and has simply not made
 its answer visible. "Pending" here and "unchecked" in a host's own report are the same statement at two
 scales, and both are recorded rather than silent.
+
+**A declared exemption is a conformant answer; a silently absent obligation is not.** The two native
+render projections carry exemptions because they render into a widget tree rather than a document, and
+a checker asserting the absence of output a surface never produces would be a green that guards
+nothing. What the bar requires of them is the same thing it requires of a host that asserts everything:
+that the enumeration be the artefact's, so a newly declared claim arrives as a failing gate rather than
+as a paragraph, and that whatever is not asserted be printed with its section and its reason on every
+run.
 
 **Contract-card adoption (§25).** A THIRD bar, and orthogonal to both above. Reading a contract card
 is not implied by driving a render suite from the manifest: a host can enumerate
@@ -1971,6 +1979,13 @@ verdict marker included, since that is the part a conformance suite can assert.
 **A pending host is unchanged, not broken.** §25.4's obligation is conditional on a card being
 *available*, and a host with no card reader has none available for any identity, so its existing
 identity-only placeholder is the conformant answer. What it cannot say is that it has adopted.
+
+That is exactly the state the five roster hosts are now in, and it is why the two tables disagree.
+Each adopted the render-obligation bar above while holding no card reader, so each asserts
+`unregistered-custom-labelled` **for the uncarded path alone** — that the placeholder carries the
+component identity, echoes no prop value, and invents no description — and each says so in its own
+suite. Taking the obligation is not taking §25: these rows stay `pending` deliberately, and a reader
+should not infer a card reader from an `adopted` row in the table above.
 
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
