@@ -81,7 +81,12 @@ try {
 const manifest = JSON.parse(read('manifest.json'));
 const fixtures = manifest.fixtures;
 
-const ajv = new Ajv2020({ strict: false, allErrors: true });
+// allErrors MUST stay false: with allErrors:true, ajv's evaluation of the deeply
+// recursive node schema over the §21 depth-limit fixture (limit-node-depth-at-max,
+// 256 nesting levels) is effectively unbounded — measured >6h in CI and >120s
+// locally, vs 5ms with allErrors:false. First-error reporting is sufficient for a
+// gate: an invalid document still fails, naming the first divergence.
+const ajv = new Ajv2020({ strict: false, allErrors: false });
 const schemaValid = ajv.compile(JSON.parse(read('schema.json')));
 
 // ── Fail-loud divergence reporting ───────────────────────────────────────────
