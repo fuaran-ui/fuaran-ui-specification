@@ -2074,8 +2074,9 @@ discriminator still passes every fixture that does not exercise it, and the corp
 unadopted host quietly skips or fails as an ordinary decode error attributable to anything.
 **Vocabulary attestation is the separate leg that names the gap.**
 
-`manifest.json` therefore carries a generated enumeration per attested family, derived from the encoded
-node fixtures by `Corpus.emit` (never hand-authored), and each codec host pins its own declared
+`manifest.json` therefore carries a generated enumeration per attested family, derived by `Corpus.emit`
+from the encoded fixtures of the family's own carrier — the node fixtures for the two that ride inside a
+node, the op fixtures for `ops` — and never hand-authored. Each codec host pins its own declared
 vocabulary against it in **both** directions — *the manifest names a case this host lacks* and *this
 host declares a case the corpus does not know*. Both failures name the offending case, so the report is
 "host X lacks `DateRange`", not a diff.
@@ -2084,6 +2085,14 @@ host declares a case the corpus does not know*. Both failures name the offending
 |---|---|---|---|
 | `kinds` | `NodeKind` | `$.kind.$type`, recursively | all five codec hosts (since the kind-set pin landed) |
 | `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python; Go and Rust pending |
+| `ops` | `TreeOp` | `$.$type` on an op payload (§14) | F#; every other host pending |
+
+The `ops` row closes an ASYMMETRY rather than a missing check. The op vocabulary already had the
+estate's strongest declaration — [`idl.json`](./idl.json)'s `ops` array carries each op's tag *and* its
+wire field names *and* their optionality — but no host's harness reads `idl.json`; every one of them
+loads `manifest.json`. So a host with no op decode arm at all could certify the op fixtures it happened
+to carry and still declare nothing about the op set, because the list it would have failed against was
+in the artefact it never opens. The enumeration is the reach; the IDL remains the stronger statement.
 
 **Match a carrier by its parent discriminator, never by property name.** `DataGrid.columns[].kind.$type`
 is a `CellKindErased` and shares the token `Text` with `FormFieldKind`; a sweep keyed on the property
