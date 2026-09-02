@@ -1,1 +1,1 @@
-{"hash":"63e9b99eaf137d6a3443a8a890a7194bb0a572b9dea961cc042c039cb916a872","op":{"$type":"RemoveNode","target":"n1"},"parents":[],"resultEnvelope":{"$type":"Success"},"streamId":"s1","timestamp":1700000000,"tombstoned":false,"userId":"u1"}
+{"actor":{"kind":"human","id":"u1"},"hash":"b740ddb03e3215459ca1c0c1eb6330e8bea9903c6c7d64a0ae05c38f09d86f5e","op":{"$type":"RemoveNode","target":"n1"},"parents":[],"resultEnvelope":{"$type":"Success"},"streamId":"s1","timestamp":1700000000,"tombstoned":false}

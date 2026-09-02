@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form. See fuaran-dotnet/docs/WIRE_FORMAT.md.",
+  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive; re-addressed by Phase 1144). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form and the actor field nests the canonical typed-actor form (Human | Agent) — both embedded verbatim in their own pinned encodings. Phase 1144 replaced the pre-1144 bare userId member with the typed actor, in the wire record AND in the content-address pre-image, so every hash in this family was re-minted and pre-1144 DAG addresses do not carry forward. See fuaran-dotnet/docs/WIRE_FORMAT.md.",
   "fixtures": [
     {
       "id": "dag-genesis",
@@ -14,7 +14,7 @@
       "kind": "dag-record-round-trip",
       "inputFile": "dag-linear-step.json",
       "expectedFile": "dag-linear-step.json",
-      "description": "Single-parent DAG record (linear step, promptId present)"
+      "description": "Single-parent DAG record (linear step, promptId present, agent actor)"
     },
     {
       "id": "dag-merge",
