@@ -242,7 +242,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `List` | _Display_ | `items`, `ordered` |  |
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
-| `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. |
+| `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
 | `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
 | `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
 | `Skeleton` | _Display_ | `rows` |  |
@@ -885,6 +885,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
+- `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
 - `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
 <!-- /fuaran:spec-enums -->
 
@@ -917,6 +918,7 @@ read-compat):
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
+| `default` | `bool` | `false` | `TrackEntry` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
 | `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
@@ -934,6 +936,7 @@ read-compat):
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
+| `tracks` | `TrackEntry[]` | `[]` | `MediaSpec` |  |
 | `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
 | `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
@@ -1424,15 +1427,105 @@ floor is still a valid wire document.
 has proposed, so admitting a third surface later is an ADDITION rather than a re-meaning of shipped
 bytes.
 
+#### Text tracks and the transcript (Phase 1110)
+
+`tracks` carries the element's timed-text tracks and `transcript` its text alternative. Both live on
+the SPEC rather than on `MediaKind.Video`, and the second placement is the one worth explaining: a
+transcript is the accessibility affordance an AUDIO surface needs most, because a recording with no
+visual channel has nowhere else to put its words, where a video can usually be served by captions
+riding the timeline it already has.
+
+```json
+{"id":"media-video-captions-1","kind":{"$type":"Media","kind":{"$type":"Video"},"label":"Studio walkthrough","src":{"$type":"Static","value":"/walkthrough.mp4"},"tracks":[{"default":true,"kind":"Captions","label":"English captions","src":{"$type":"Static","value":"/walkthrough.en.vtt"},"srcLang":"en"}]}}
+{"id":"media-audio-transcript-1","kind":{"$type":"Media","kind":{"$type":"Audio"},"label":"Curator's commentary","src":{"$type":"Static","value":"/commentary.mp3"},"transcript":"The harbour was rebuilt twice: once after the storm of 1908, and again in 1953."}}
+```
+
+A `TrackEntry` carries `kind` (a bare `TrackKind` enum — `Subtitles`, `Captions`, `Descriptions`,
+`Chapters`), `src` (a `Binding<string>`), `srcLang`, `label` (a `TextSource`), and `default`. Four of
+the five are REQUIRED, which makes it the strictest record on the wire; `default` is the one
+omitted-at-`false` slot. `tracks` itself is omitted when EMPTY — an absent list and an empty one
+denote the same document — so a decoder restores `[]`, never a null. `transcript` is an ordinary
+optional: absent means the document offers no transcript, which is a different statement from
+offering an empty one.
+
+**`srcLang` is REQUIRED on every kind**, where HTML makes `srclang` mandatory only on a subtitles
+track. The extra strictness costs an author one value and buys a menu a user agent can order, a
+speech engine can pronounce, and a reader can tell apart; a track with no language is one nothing
+downstream can route, and there is no value to default to that would not be an invented claim about
+someone else's recording. A document omitting it is refused —
+`reject/reject-media-track-missing-srclang.json`, `MISSING_FIELD` at `$.kind.tracks[0].srcLang`, the
+path carrying the array index so a document with four tracks names the one at fault.
+
+**`label` is REQUIRED for the reason `MediaSpec.label` is.** It is the entry a user agent puts in its
+track menu and the only thing distinguishing one track from another there, so an unlabelled track is
+offered as its kind alone — and a reader choosing between a plain and a verbose captions cut is shown
+two identical choices. The wire requires the member; an authoring-side gate refuses the empty value
+that satisfies the requirement while meaning nothing.
+
+**`metadata` is NOT a track kind, and its absence is the design.** Its cues are rendered by no user
+agent and read only by script, so a declarative document naming it would state an intent no
+conformant host could honour without leaving the vocabulary. The set is closed at four; a fifth is an
+addition, not a spelling a decoder may guess at.
+
+**RENDER OBLIGATIONS.** Four, none of which the bytes can carry, all of them normative:
+
+1. **Emission.** A host emits each track as a `<track kind srclang label>` child of the media
+   element, with `default` where the entry elects it:
+
+   ```html
+   <video class="fuaran-media fuaran-media-video" src="…" aria-label="…">
+     <track kind="captions" src="…" srclang="en" label="English captions" default>
+   </video>
+   ```
+
+   The `kind` attribute carries the lower-case HTML token (`subtitles` / `captions` / `descriptions`
+   / `chapters`) for the wire's `TrackKind` case, and `srclang` the lower-case HTML spelling of the
+   wire's `srcLang`.
+
+2. **Authored order is PRESERVED.** The tracks are emitted in the order the array carries them,
+   never re-sorted. This is the OPPOSITE of §3.6.4's `srcSet` rule and the difference is not an
+   inconsistency: a browser picks ONE candidate from a srcset by an algorithm, so ordering it is
+   canonicalisation, while a reader picks a track from a menu the user agent builds in DOCUMENT
+   order, so ordering it would be rewriting someone else's menu. `nodes/media-video-tracks-2.json`
+   is authored in an order no sort produces, which is what makes the two rules separately testable.
+
+3. **At most one `default` per KIND, first election wins.** A document electing two default captions
+   tracks is legal bytes — the decoder does not refuse it, because a lenient host would render it
+   anyway and HTML leaves the case undefined — so the host resolves it, and every host resolves it
+   the same way: the FIRST election of a kind is honoured and a later one is emitted WITHOUT the
+   attribute. The track is still emitted; only its claim on the menu is dropped. The election is
+   per kind, so a captions default and a subtitles default coexist.
+
+4. **A refused track source DROPS the track.** A track file is fetched by the browser with no user
+   act, so it carries the same §19 render-time obligation `src` and `poster` do. It takes the
+   POSTER's disposition rather than the source's: an element must have a source, but it need not
+   have this track, and a `<track>` pointing at the refusal URL is a menu entry that opens onto
+   nothing.
+
+**The `transcript` renders as a disclosure BESIDE the transport, never inside it.** `<video>` and
+`<audio>` admit only source-ish children, so a transcript placed there would be fallback content a
+browser never shows — which is why a present transcript is the one case where the emission gains a
+wrapper. The disclosure carries the MEDIA's resolved label as its own accessible name, so a reader
+meeting it out of context is told which recording it transcribes. The reference emission is a
+`<details class="fuaran-media-transcript">` with a `<summary>` inside a
+`<div class="fuaran-media-group">`; absent, the emission is the bare element it would otherwise be.
+
 Fixtures: `nodes/media-video-1.json` (the minimum — both bool defaults omitted and the payload the
 bare discriminator), `nodes/media-video-poster-1.json` (the poster inside the case object rather than
 beside it), `nodes/media-video-autoplay-1.json` (all three bools off their defaults at once, which is
 where an encoder built as a chain of `if`s gets the canonical key order wrong),
 `nodes/media-audio-1.json` (the variant whose payload is the discriminator alone),
-`reject/reject-media-missing-label.json`, `reject/reject-unknown-media-kind.json`, and
-`reject/reject-media-autoplay-nonbool.json` (`WRONG_TYPE` at `$.kind.kind.autoplay` — the stringified
-boolean refused rather than coerced, on the slot where a truthiness rule would make one host start
-playing a video another host leaves still).
+`nodes/media-video-captions-1.json` (one elected captions track — the whole `TrackEntry` key order in
+one line), `nodes/media-video-tracks-2.json` (three tracks in an unsortable authored order, two of
+them electing the same kind as default), `nodes/media-audio-transcript-1.json` (the optional
+`TextSource` on the spec), `reject/reject-media-missing-label.json`,
+`reject/reject-unknown-media-kind.json`, `reject/reject-media-autoplay-nonbool.json` (`WRONG_TYPE` at
+`$.kind.kind.autoplay` — the stringified boolean refused rather than coerced, on the slot where a
+truthiness rule would make one host start playing a video another host leaves still),
+`reject/reject-media-track-missing-srclang.json`, and
+`reject/reject-media-track-default-nonbool.json` (`WRONG_TYPE` at `$.kind.tracks[0].default` — the
+same stringified boolean one level further in, at the position a host decoding array elements with a
+looser walker than its records would get wrong).
 
 ---
 
@@ -1812,7 +1905,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->85<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->87<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2134,10 +2227,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->382<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->158<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->387<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->161<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->85<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->87<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

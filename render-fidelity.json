@@ -56,6 +56,18 @@
     {
       "id": "unregistered-custom-labelled",
       "meaning": "an unregistered custom node with an available contract card renders a labelled placeholder derived from that card - identity, summary and a machine-readable verdict marker - never a blank and never a guess"
+    },
+    {
+      "id": "authored-child-order",
+      "meaning": "repeated children are emitted in the authored order the wire carries, never re-sorted"
+    },
+    {
+      "id": "single-default-per-kind",
+      "meaning": "at most one repeated child per declared kind carries the default marker; a later duplicate election is emitted without it"
+    },
+    {
+      "id": "transcript-disclosure-named",
+      "meaning": "a declared transcript renders as a disclosure beside the transport, carrying its own accessible name"
     }
   ],
   "kinds": [
@@ -485,7 +497,10 @@
         "nodes/media-video-1.json",
         "nodes/media-video-poster-1.json",
         "nodes/media-video-autoplay-1.json",
-        "nodes/media-audio-1.json"
+        "nodes/media-audio-1.json",
+        "nodes/media-video-captions-1.json",
+        "nodes/media-video-tracks-2.json",
+        "nodes/media-audio-transcript-1.json"
       ],
       "obligations": [
         {
@@ -505,7 +520,22 @@
         },
         {
           "id": "refused-source-dropped",
-          "statement": "a `poster` the URL-scheme + egress floor refuses is DROPPED rather than emitted, because a `<video>` with no poster shows its first frame while a poster at the refusal URL is a broken image over the player",
+          "statement": "a `poster` or a `track` source the URL-scheme + egress floor refuses is DROPPED rather than emitted, because a `<video>` with no poster shows its first frame while a poster at the refusal URL is a broken image over the player, and a `<track>` at the refusal URL is a caption menu entry that opens onto nothing",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "authored-child-order",
+          "statement": "`<track>` children are emitted in the AUTHORED order the wire carries, never re-sorted - the opposite of `srcSet`, because a browser picks one candidate from a srcset by an algorithm while a reader picks a track from a menu built in document order",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "single-default-per-kind",
+          "statement": "at most one `<track>` of a given `kind` carries `default`: the FIRST election of a kind is honoured and a later one is emitted without the attribute, the track itself still emitted",
+          "section": "WIRE_FORMAT.md 3.6.6"
+        },
+        {
+          "id": "transcript-disclosure-named",
+          "statement": "a declared `transcript` renders as a `<details>` disclosure BESIDE the transport, carrying the media's resolved label as its accessible name - never as a child of the media element, where a browser would treat it as fallback content and never show it",
           "section": "WIRE_FORMAT.md 3.6.6"
         }
       ],

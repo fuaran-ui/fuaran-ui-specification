@@ -356,6 +356,15 @@
     },
     {
       "cases": [
+        "Subtitles",
+        "Captions",
+        "Descriptions",
+        "Chapters"
+      ],
+      "name": "TrackKind"
+    },
+    {
+      "cases": [
         "HigherIsBetter",
         "LowerIsBetter"
       ],
@@ -2026,6 +2035,34 @@
               }
             ],
             "name": "Binding"
+          }
+        },
+        {
+          "name": "tracks",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "list",
+              "items": []
+            }
+          },
+          "type": {
+            "$type": "list",
+            "of": {
+              "$type": "record",
+              "name": "TrackEntry"
+            }
+          }
+        },
+        {
+          "name": "transcript",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
           }
         }
       ],
@@ -4314,6 +4351,69 @@
         }
       ],
       "name": "TabHeader"
+    },
+    {
+      "fields": [
+        {
+          "name": "default",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": false
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "kind",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "TrackKind"
+          }
+        },
+        {
+          "name": "label",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        },
+        {
+          "name": "src",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "str"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
+          "name": "srcLang",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "str"
+          }
+        }
+      ],
+      "name": "TrackEntry"
     },
     {
       "fields": [
