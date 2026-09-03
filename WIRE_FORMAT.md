@@ -378,7 +378,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
 | `Chart` | _Visualisation_ | `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
-| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
@@ -2338,6 +2338,115 @@ the leaf omission), `nodes/tree-expanded-1.json` (three levels, the expansion ke
 `reject/reject-tree-nested-item-missing-id.json` (`MISSING_FIELD`, the third one level DOWN, because
 a host whose child walker is looser than its root walker passes the other two).
 
+### 3.6.13 `DataGrid` — cross-container transfer (Phase 1123)
+
+`DataGridSpec.transferOutKey` and `.transferInKey` are the two sides of ONE shared State key, and
+between them they say exactly one thing: **these grids exchange rows.** A grid declaring
+`transferOutKey` K may RELEASE rows onto K; a grid declaring `transferInKey` K ACCEPTS rows arriving
+on it; a grid declaring both with one K does each. Nothing else is named — not the drag, not the drop,
+not the drag image, not the keyboard route, not the visible drop state.
+
+This is the first pair in the format whose subject is a RELATION BETWEEN TWO NODES rather than one
+node's own behaviour, and the affordance→op rule is extended for it in exactly one clause: where a
+gesture spans two nodes, the wire names the capability on BOTH ENDS as a shared key each declares its
+own side of, and the effect is one record written to that key. Every other node-local rule is unchanged.
+
+```json
+{"$type":"DataGrid",
+ "columns":[{"field":"card","kind":{"$type":"Text"},"label":"Card"}],
+ "rowKeyField":"card",
+ "source":{"$type":"State","key":"board-todo"},
+ "transferInKey":"board",
+ "transferOutKey":"board"}
+```
+
+**Both members are optional and emitted only when present (rule 4)**, so a grid declaring neither is
+byte-identical to every grid written before this revision. A present member of any type other than
+string is `WRONG_TYPE` and MUST NOT be coerced: the slot names a STATE KEY, so an ordinal or a boolean
+names no key, and a grid identified by position could not be paired with by any other grid.
+
+**TWO members and not one symmetric key**, because the one-way ends are ordinary: an archive column
+that accepts and never releases, a Done column that releases nothing back. A single key would make
+every declaration bidirectional and those documents inexpressible. Neither carries the `-StateKey`
+suffix the sibling behaviour fields do (`sortStateKey`, `pageStateKey`, `editStateKey`), and that is
+deliberate: that suffix marks a key a grid both writes AND READS to change its own presentation, and
+neither end reads this one for its own presentation.
+
+#### The transfer record
+
+A drop writes ONE object to the shared key. Its shape is fixed here, exactly as the sort descriptor's
+is, so two hosts cannot disagree about what a transfer said:
+
+```json
+{"itemId": "<row identity>", "from": "<source node id>", "to": "<target node id>", "index": 0}
+```
+
+All four members are ALWAYS present. `itemId` is the moved row's identity, projected through the
+`rowKeyField` contract the grid already carries. `from` and `to` are **NodeIds** — identity within the
+tree, never store addresses. `index` is the **0-based** position the row took in the receiving grid's
+full row set, and it is written even when it is `0`: a record that omitted it at the top of a list
+would be indistinguishable from one that failed to state a position at all.
+
+A host MUST NOT trust a value it finds at the key. A descriptor that is absent, not an object, or
+missing any member is not a transfer and MUST be ignored — the same posture `sortStateKey` and
+`pageStateKey` already take, where a malformed descriptor reads as the honest default rather than as
+an arbitrary action.
+
+**Row identity is `rowKeyField`, and no second identity vocabulary is minted.** The closure form
+`rowKey` crosses the wire as `"<closure>"` and carries no projection, so a decoded transfer end
+naming only a closure has nothing to put in `itemId`. That decodes successfully — a per-object codec
+judges no relation between siblings — and is refused pre-emit (`FUARAN130`), which is where a shape
+that decodes but cannot describe what it did belongs.
+
+**Render obligations (normative, both tiers).**
+
+1. **The record is written on EVERY transfer, whatever either end's source shape is.** It is the one
+   part of a transfer that is promised unconditionally, and it is what makes the capability reach the
+   case it exists for: the canonical board's columns are filtered views over one collection, which
+   have no writable slot at either end, so on those documents the record IS the whole outcome and the
+   application applies it.
+2. **A host that CAN apply a half MUST apply it.** Each end commits through the destination that end
+   already declares — a declared `editStateKey`, else the grid's own `source` when that source is a
+   direct `State` binding — so the source loses the row and the target gains it with no application
+   wiring at all. **No second write path is introduced**: a transfer is a write of each end's whole
+   rows value, exactly as a reorder and an edit are. An end with no writable destination is simply
+   not applied; the record still names what the reader asked for.
+3. **A grid never transfers to ITSELF.** A two-way column declares both ends of one key, so a drop on
+   the grid the drag began in satisfies the key on both sides — and that gesture is a REORDER, which
+   `reorderable` already owns. A host MUST route it there, and MUST NOT write a transfer record for it.
+4. **The gesture has a keyboard equivalent, and it is not optional.** A drag has no keyboard analogue
+   and none is invented; what a host MUST provide is a SECOND ROUTE to the same effect. The reference
+   tier lifts a row with `Control+X` on its row handle, places it with the receiving grid's own place
+   control, and positions it from there with `reorderable`'s arrow keys — two affordances that between
+   them reach every position the pointer reaches. A host MAY choose a different route; a host that
+   provides none has shipped a pointer-only capability.
+5. **The route is announced and advertised.** The chord is named on the handle (`aria-keyshortcuts`)
+   and every transition — lifted, placed, cancelled, and refused-because-nothing-is-lifted — is
+   announced through a live region. An undiscoverable shortcut is a fake affordance, and a lift with
+   no announcement is a mode change a screen-reader user cannot detect.
+6. **A static (no-script) host renders the grid EXACTLY as it renders one declaring neither member,
+   and that is the conforming answer.** A transfer is a gesture plus state writes, and a static
+   document has neither; emitting an inert handle or an inert place control would advertise a move the
+   page cannot perform. The declaration still rides the wire to a tier that can act on it.
+
+**A declared end whose counterpart is absent from the tree is a dead pairing** and is refused pre-emit
+(`FUARAN129`), from either side: an accepting grid nothing releases to is a drop zone no drag can
+reach, and a releasing grid nothing accepts from is a handle with nowhere to go. It cannot be a decoder
+rule — whether ANY OTHER grid names the key is a whole-tree question and a per-object codec sees one
+grid — which is the same split `pageSize`-without-`pageStateKey` already carries.
+
+Fixtures: `nodes/transfer-board.json` (the canonical corner — two two-way columns and a one-way
+`archive` that declares `transferInKey` ALONE, which is also what pins the omission polarity: the
+archive's bytes carry no `transferOutKey` key at all), and
+`reject/reject-wrongtype-grid-transfer-in-key.json` /
+`reject/reject-wrongtype-grid-transfer-out-key.json` (`WRONG_TYPE` at `$.kind.transferInKey` and
+`$.kind.transferOutKey`, vectored separately because they are separate decoder arms).
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the pre-emit rules and every render obligation above. Every other codec host in the §11.0 roster is
+**pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -2629,7 +2738,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->111<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->113<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2973,10 +3082,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->436<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->185<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->439<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->186<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->111<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->113<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
