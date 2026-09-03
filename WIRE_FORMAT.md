@@ -486,6 +486,11 @@ corpus can carry either token, and neither case costs any host a codec change.
 
 #### Print break control — subtree cohesion across a page boundary (Phase 1473)
 
+_(How a reader REACHES a paged rendering is a separate question with a separate answer: `Action.Print`,
+§3.6.14. The two are deliberately independent — these members hold whether the print was raised from a
+document's own control or from the browser's menu, and a page must be correct on paper with no action
+ever having fired.)_
+
 **Four booleans, all omitted at `false`, that say which subtree must stay together when the
 rendering is PAGED.** `BoxSpec` carries `keepTogether` and `breakBefore`; `DataGridSpec` carries
 `keepRowsTogether` and `repeatHeader`. A document that declares none of them is byte-identical to
@@ -930,7 +935,7 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 ### 3.3 Nested DU positions
 
-`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). Field names and presence are pinned by the corpus.
+`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
 
 `Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to the **row-feed** binding at a data-bearing node (`DataGrid` / `Chart` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source, in the same row shape §5 defines for a literal feed. See `nodes/grid-transform.json` for the canonical shape.
 
@@ -2449,6 +2454,71 @@ exempt — it owes the behaviour and has simply not made its answer visible.
 
 ---
 
+### 3.6.14 `Action.Print` — the payload-free action (Phase 1124)
+
+`Action.Print` says one thing and takes nothing to say it: **open the reader's own print dialogue.**
+
+```json
+{"$type":"Print"}
+```
+
+That is the complete encoding. It is the format's first **payload-free `Action` case**, and the
+emptiness is the specification rather than an omission in it. Printing has parameters — page size,
+margins, orientation, sheet range, copies, which printer — and every one of them belongs either to the
+host's page setup or to the dialogue the reader is looking at when the action fires. A document may
+therefore ask for the dialogue and may say nothing about what happens in it.
+
+**A member beside `$type` is `WRONG_TYPE` and MUST NOT be ignored**, at the path of the offending
+member. This is the one `Action` arm that is strict about unrecognised members, and the asymmetry is
+deliberate: everywhere else in this format an unknown member is one the reading host has not learned
+yet, and dropping it is the forward-compatible answer. Here there is nothing to learn. A host that
+accepted `{"$type":"Print","pageRange":"1-3"}` and printed everything would leave the emitter believing
+it had constrained a printing it had not constrained, and no error anywhere would say otherwise. Vector:
+`reject/reject-action-print-with-payload.json`.
+
+**Wire survivability: survivable, trivially** (§5.1) — there is no slot for a closure to hide in, so the
+decode of an encode is the value itself on every host.
+
+**It composes like any other action.** `Chain` carries it, and the corpus fixture
+(`nodes/button-print.json`) places it inside one deliberately: a bare `Print` exercises the case, where
+a `Print` beside a sibling exercises what a memberless object can actually break — an encoder that
+emits `{}` for a case with no fields, or a decoder that requires at least one member, fails differently
+in a list than alone.
+
+**What this case does NOT do, and what carries those obligations instead.** It does not describe the
+paged rendering: which subtrees stay whole, which start a fresh page, and whether a grid repeats its
+header are `BoxSpec.keepTogether` / `.breakBefore` / `DataGridSpec.keepRowsTogether` / `.repeatHeader`
+(the "Print break control" members, Phase 1473), and they apply whether the reader printed through this action or
+through the browser's own menu — which is the point: a printed page must be correct without any action
+having been raised at all. It does not select medium-conditional content either; a document showing one
+thing on screen and another on paper is a `Switch` over a host-supplied binding, not vocabulary here.
+And it names no target: `Print` prints the page, never a subtree of it, because a subtree is something
+the host already holds and can select for itself.
+
+**Host obligation.** A host performs `Action.Print` by asking its own platform to print the rendered
+document — on a browser host, `window.print()`. Three properties are normative:
+
+1. **It is user-visible and user-cancellable.** The obligation is to raise the platform's own dialogue,
+   never to print silently. A host with no interactive print path performs nothing.
+2. **Nothing is reported back.** The action yields no value, no callback and no event: a host MUST NOT
+   tell the tree whether the reader printed, cancelled, or what they chose. A server-driven host
+   therefore ships the effect one way and receives no response to it.
+3. **A host that cannot print performs nothing, and refuses nothing.** Printing is an act of the
+   machine the document is being READ on. A server rendering the document has no printer, but the
+   reader's browser does, so a server-driven host **lowers** the effect to its client rather than
+   treating it as unserviceable; a host with no display at all simply does nothing, exactly as it does
+   with any other affordance it cannot present.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the strict-member refusal and the render obligations above. Every other codec host in the §11.0 roster
+is **pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible. Note the failure mode a
+pending host presents here is unusually quiet: `{"$type":"Print"}` is the shape a lenient decoder is
+most likely to accept and then do nothing with, so the §11.2 vocabulary attestation is what makes an
+unimplemented case visible rather than the reject leg.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2687,6 +2757,7 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Action.Chain` | survivable | – |
 | `Action.CommitLocal` | survivable | – |
 | `Action.WriteToClipboard` | survivable | – |
+| `Action.Print` | survivable | – |
 | `Action.ReadFileBody` | partial | – |
 | `Action.Invoke` | survivable | – |
 
@@ -2738,7 +2809,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->113<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->114<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3082,10 +3153,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->439<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->186<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->441<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->187<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->113<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->114<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

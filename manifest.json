@@ -1176,6 +1176,14 @@
       "description": "Input/Button (Action.ReadFileBody base64)"
     },
     {
+      "id": "button-print",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/button-print.json",
+      "expectedFile": "nodes/button-print.json",
+      "description": "Input/Button (Phase 1124 — Action.Print: the payload-free action, inside a Chain)"
+    },
+    {
       "id": "button-setstate-valuefrom",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2772,6 +2780,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.accessibility.role",
       "description": "accessibility.role not a JSON string — the slot is open to any role NAME, not to any value (Phase 955)"
+    },
+    {
+      "id": "reject-action-print-with-payload",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-action-print-with-payload.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.onClick.pageRange",
+      "description": "Print carrying a member — the payload-free action takes none; page range, size, margins and copies are the host's page setup and the reader's dialogue, so a member here is refused rather than dropped (Phase 1124)"
     },
     {
       "id": "reject-binding-float-bool",
