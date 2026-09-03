@@ -263,6 +263,13 @@
     },
     {
       "cases": [
+        "Modal",
+        "Popover"
+      ],
+      "name": "ModalityKind"
+    },
+    {
+      "cases": [
         "None",
         "PulseDuringLoad",
         "FadeInOnMount",
@@ -2375,6 +2382,29 @@
             "$type": "union",
             "args": [],
             "name": "TextSource"
+          }
+        },
+        {
+          "name": "modality",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Modal"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ModalityKind"
+          }
+        },
+        {
+          "name": "anchor",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
           }
         }
       ],

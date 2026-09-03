@@ -278,7 +278,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 |---|---|---|---|
 | `Box` | _Layout_ | `children`, `heading?`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
 | `Disclosure` | _Layout_ | `children`, `defaultOpen`, `heading`, `onToggle?`, `open` |  |
-| `Modal` | _Layout_ | `children`, `dismissable`, `heading?`, `onDismiss?`, `open` |  |
+| `Modal` | _Layout_ | `anchor?`, `children`, `dismissable`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
 | `ScrollArea` | _Layout_ | `children`, `maxHeight?`, `maxWidth?`, `orientation` |  |
 | `SplitPanel` | _Layout_ | `children`, `weight` |  |
 | `Stepper` | _Layout_ | `activeStep`, `children`, `onSelect?` |  |
@@ -351,7 +351,7 @@ The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures
 - **`List`** (Display) – `{"$type":"List","items":[<TextSource>,…],"ordered":<bool>}`. See `nodes/list-1.json`.
 - **`Divider`** – **retired (Phase 459)** into a childless `Box` with `role:"Separator"` (see "The `Box` container" above). A bare `"$type":"Divider"` is rejected (`UNKNOWN_DU_CASE`); there is no `divider-1.json` fixture.
 - **`Toast`** (Display) – `{"$type":"Toast","dismissable"?:<bool>,"message":<TextSource>,"open":<Binding>,"tone"?:<ToneVariant>}`. 0.2.0: `dismissable` is omitted-when-**TRUE** (a toast is dismissable unless said otherwise – the one inverted default in §3.6's table). See `nodes/toast-1.json`.
-- **`Modal`** (Layout) – `{"$type":"Modal","children":[<Node>,…],"dismissable":<bool>,"heading"?:<TextSource>,"onDismiss"?:<Action>,"open":<Binding>}`. `onDismiss` is a **wire-survivable `Action`** (like `FormSpec.onSubmit` – encoded as the action value, not a `<closure>` sentinel), OPTIONAL since Phase 426: omitted, a dismissable modal falls to the write-back default (dismiss writes `false` to a writable `open` slot). `heading` omitted when `None`. See `nodes/modal-1.json`.
+- **`Modal`** (Layout) – `{"$type":"Modal","anchor"?:<string>,"children":[<Node>,…],"dismissable":<bool>,"heading"?:<TextSource>,"modality"?:"Modal"|"Popover","onDismiss"?:<Action>,"open":<Binding>}`. `onDismiss` is a **wire-survivable `Action`** (like `FormSpec.onSubmit` – encoded as the action value, not a `<closure>` sentinel), OPTIONAL since Phase 426: omitted, a dismissable modal falls to the write-back default (dismiss writes `false` to a writable `open` slot). `heading` omitted when `None`. `modality` selects WHICH overlay the node is and is **omitted at `"Modal"`** (Phase 1119, §3.6.11), so every document written before that release is byte-unchanged; `anchor` is a NodeId meaningful for `"Popover"` only. See `nodes/modal-1.json`, `nodes/popover-anchored-1.json` and `nodes/popover-open-1.json`.
 - **`ScrollArea`** (Layout) – `{"$type":"ScrollArea","children":[<Node>,…],"orientation":"Vertical"|"Horizontal"|"Both","maxHeight"?:<int>,"maxWidth"?:<int>}`. The pixel bounds omit when `None`. See `nodes/scroll-1.json`.
 - **`CodeBlock`** (Display, Phase 290) – `{"$type":"CodeBlock","code":<string>,"copyable":<bool>,"highlightLines":[<int>,…],"language":<string>,"lineNumbers":<bool>}`. All five always present (`highlightLines` is an int array, possibly empty). The parity-checked render is a **deterministic `<pre><code>`** (HTML-escaped, no markdown library) identical across all hosts + SSR; **syntax highlighting is a client-only post-hydration enhancement** that targets the `language-{x}` class – explicitly OUTSIDE the cross-host / SSR↔CSR byte-diff. See `nodes/code-1.json`.
 - **`Math`** (Display, Phase 293) – `{"$type":"Math","display":"Inline"|"Block","source":<string>}`. `source` is the LaTeX string. The parity-checked render is a **deterministic escaped-source fallback** in a known container; **KaTeX is a client-only post-hydration enhancement** (targets `.fuaran-math-source`), OUTSIDE the byte-diff – the no-JS / SSR reader sees the source, the JS reader sees rendered math. Inline `$…$` math in prose is a separate client-only pass over rendered markdown (soft-coordinated with the deterministic GFM markdown renderer), same pattern. **Mermaid is NOT a node** – a host registers it via the existing `Custom` escape (heavy JS-only library, non-deterministic SVG); promote to a first-class `Diagram` node only if demand warrants. See `nodes/math-1.json`.
@@ -425,7 +425,7 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
 
 **`Toast` vs `Action.Notify` – the decided split (Phase 289).** Both ship; they are complementary, not redundant. `Toast` is the **declarative, in-tree, SSR-rendered** notification surface – a real node bound to an `open` `Binding<bool>` that hydrates cleanly and participates in the overlay render-fidelity contract (§ below / `docs/SSR.md`). `Action.Notify` (a wire-survivable `Action` that carries `{channel, payload}` with no rendered node) remains the **imperative** trigger a host maps to ephemeral chrome. Reach for `Toast` when the notification is model-driven and must survive SSR + replay; reach for `Action.Notify` for fire-and-forget host chrome. Adding `Toast` did **not** change `Action.Notify`.
 
-**Overlay + overflow render-fidelity contract (Phase 289).** `Modal` / `Toast` / `ScrollArea` are render-fidelity-sensitive, so the renderers pin an explicit SSR↔CSR contract: overlays render **inline (no React portal)**, positioned + z-indexed purely by CSS, and a closed overlay stays in the DOM behind the native `[hidden]` attribute (never an absent node). The server and client therefore emit **byte-identical class + ARIA structure** (`role="dialog"`+`aria-modal` for Modal; `role="status"`+`aria-live="polite"` for Toast; `role="region"`+`tabindex="0"` for ScrollArea), so React hydration finds the DOM it expects with no mismatch. Focus management is an additive client-only enhancement that does not alter the hydrated DOM. The contract is executable in the SSR-parity corpus (Phase 142). Full narrative: `docs/SSR.md`.
+**Overlay + overflow render-fidelity contract (Phase 289).** `Modal` / `Toast` / `ScrollArea` are render-fidelity-sensitive, so the renderers pin an explicit SSR↔CSR contract: overlays render **inline (no React portal)**, positioned + z-indexed purely by CSS, and a closed overlay stays in the DOM behind the native `[hidden]` attribute (never an absent node). The server and client therefore emit **byte-identical class + ARIA structure** (`role="dialog"`+`aria-modal` for Modal; `role="dialog"` and **no** `aria-modal` for a `Popover`-modality Modal, per §3.6.11; `role="status"`+`aria-live="polite"` for Toast; `role="region"`+`tabindex="0"` for ScrollArea), so React hydration finds the DOM it expects with no mismatch. Focus management is an additive client-only enhancement that does not alter the hydrated DOM — and so, for the same reason and under the same rule, is a popover's anchored placement: it is applied imperatively to the mounted element rather than rendered as a `style` attribute, so the hydrated DOM is the one the static host emitted. The contract is executable in the SSR-parity corpus (Phase 142). Full narrative: `docs/SSR.md`.
 
 #### `DataGrid` static-table mode (`staticRows`, Phase 393)
 
@@ -932,6 +932,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `LinkProtection`: `"email"`
 - `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
 - `MathDisplay`: `"Inline"` / `"Block"`
+- `ModalityKind`: `"Modal"` / `"Popover"`
 - `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
 - `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
@@ -990,6 +991,7 @@ read-compat):
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `loop` | `bool` | `false` | `MediaSpec` |  |
+| `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
@@ -1920,6 +1922,93 @@ populated `accept`), `nodes/upload-paste-1.json` (`acceptPaste` with `dropTarget
 (`WRONG_TYPE` at `$.kind.dropTarget` and `$.kind.acceptPaste`; a string and a number refused rather
 than coerced, vectored separately because they are separate decoder arms).
 
+### 3.6.11 `Modal` — the modality, and the anchored `Popover` (Phase 1119)
+
+`ModalSpec.modality` names WHICH overlay the node is. The axis is whether the surface **blocks the
+page**, and it has exactly two answers, so the enum has exactly two cases:
+
+| `modality` | What it is |
+|---|---|
+| `"Modal"` (the default, **omitted** on the wire) | A **blocking task surface**. It sits over a scrim, it claims the rest of the page is inert, and the reader finishes it or abandons it before the page continues. |
+| `"Popover"` | A **transient anchored surface**. No scrim, no focus trap, no inertness claim; it belongs to the node named by `anchor`, and an ordinary interaction elsewhere dismisses it. |
+
+`anchor` is a **NodeId** — the id of the node the popover is positioned against. It is meaningful for
+`"Popover"` only.
+
+```json
+{"$type":"Modal",
+ "anchor":"swatch",
+ "children":[{"id":"picker","kind":{"$type":"Markdown","text":"Pick one"}}],
+ "dismissable":true,
+ "heading":"Choose a colour",
+ "modality":"Popover",
+ "open":{"$type":"State","key":"swatchOpen","defaultValue":false}}
+```
+
+**Nothing here names a pixel.** There is no placement token, no offset, no delay, no flip strategy,
+no keystroke and no event name. Where the surface is put, which way it flips when the viewport runs
+out, how far it sits off its anchor and which gestures close it are all the RENDERER's, under the
+affordance→op rule: a document says WHAT the surface is and WHICH node it belongs to, never how it
+is placed.
+
+**Normative rules.**
+
+1. **`modality` is omitted at `"Modal"`.** An emitter MUST omit the member for a blocking dialog, and
+   a decoder MUST restore `"Modal"` on absence. This is what makes every pre-1119 modal document
+   byte-unchanged and behaviour-unchanged.
+2. **A `modality` outside the pair is `UNKNOWN_DU_CASE`; a non-string `modality` is `WRONG_TYPE`.**
+   Neither is coerced and neither falls back. Absence already spells the safe answer, so a decoder
+   that recovered from an unreadable value would turn an intended popover into a page-blocking dialog
+   — the worst available outcome, and a silent one.
+3. **`aria-modal="true"` is emitted for `"Modal"` and for nothing else.** The attribute asserts that
+   the rest of the page is INERT; on a non-blocking surface that assertion is false, and a false
+   inertness claim is worse than none. It is **omitted entirely** rather than emitted as `"false"`:
+   `false` is already the ARIA default, so writing it adds no information and invites a reader to
+   think a claim was made and denied. **Both modalities carry `role="dialog"`** — what changes is the
+   claim, not the kind of thing the surface is. This obligation is the render-fidelity claim
+   `aria-modal-only-when-blocking`.
+4. **A `"Popover"` emits no scrim element**, and a host MUST NOT make the page behind it inert,
+   because it is not.
+5. **A `"Popover"` traps no focus.** A host MUST leave the reader free to `Tab` out. A transient
+   surface that captured the keyboard would be a keyboard trap (WCAG 2.1.2) in every case where the
+   reader did not want it.
+6. **Light dismiss.** Where a `"Popover"` is `dismissable`, a host that runs script MUST dismiss it
+   on `Escape` and on a pointer interaction outside both the surface and its anchor, through the same
+   path `onDismiss` / the `open` write-back default already takes — never a second dismiss route. The
+   ANCHOR is excluded deliberately: it is normally the control that opened the surface, and a dismiss
+   on its own pointer-down would race the open it is about to perform.
+7. **The static floor is the surface IN FLOW at the node's own document position.** A no-script host
+   cannot measure an anchor, so it cannot place a surface against one; what it emits is the popover
+   where the node sits, with no positioning of any kind, no scrim, and a closed one held behind
+   `[hidden]` exactly as a closed modal is. **An emitter that wants the static render to read
+   correctly places the popover node immediately after its anchor** — that is the whole of the
+   authoring contract, and it is why the floor is honest rather than a gap. A host MAY record the
+   declared anchor in a data attribute (the reference tier emits `data-fuaran-popover-anchor`) so the
+   declaration is visibly read rather than dropped; that marker is **not** coverage and no host may
+   treat it as such.
+8. **An `anchor` that names no node in the tree is a VALIDATOR concern, not a decode failure**, and
+   so is a `"Popover"` that declares none. The wire admits any string, because whether an id resolves
+   is a fact about the WHOLE tree and no per-node decoder can answer it; the reference validator
+   reports both as one Warning (FUARAN122), and an `anchor` on a `"Modal"` — a dead declaration
+   nothing reads — as another (FUARAN123). Refusing either at decode would make a well-formed
+   document unreadable in order to say something a validator says better.
+
+**Choosing between the three transient surfaces.** `Tooltip` (§3.6, the node-level trait),
+`Popover` and `Modal` are chosen at emission time and are easy to confuse, so the boundary is stated
+in one sentence: **a hint about something already on screen is the `Tooltip` trait; an anchored
+interactive surface, opened from something the reader pointed at, is a `Popover`; a blocking task
+that must be finished or abandoned before the page continues is a `Modal`.** The error directions
+are not symmetric — a `Modal` where a `Popover` was meant blocks the page and traps focus, which a
+reader can at least see is wrong; a `Popover` where a `Modal` was meant lets the reader wander off
+mid-task with nothing to stop them, and nothing reports it.
+
+Fixtures: `nodes/modal-1.json` (both members OMITTED — the pre-1119 document, byte-unchanged, and
+what pins the polarity), `nodes/popover-anchored-1.json` (the interactive shape — `modality` present,
+an `anchor`, a state-bound `open`), `nodes/popover-open-1.json` (the SSR floor — a statically-open
+popover, the executable form of rule 7), and `reject/reject-modal-modality-unknown.json` /
+`reject/reject-modal-modality-nonstring.json` (`UNKNOWN_DU_CASE` and `WRONG_TYPE` at
+`$.kind.modality`, vectored separately because they are separate decoder arms).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -2035,7 +2124,7 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `LayoutKind.Stepper` | partial | – |
 | `LayoutKind.SummaryList` | survivable | – |
 | `LayoutKind.Disclosure` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `LayoutKind.Modal` | survivable | – |
+| `LayoutKind.Modal` | survivable | – (both Phase 1119 members are plain wire data: `modality` a bare enum, `anchor` a string) |
 | `LayoutKind.ScrollArea` | survivable | – |
 
 **`DisplayKind`**
@@ -2211,7 +2300,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->94<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->96<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2533,10 +2622,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->405<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->172<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->409<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->174<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->94<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->96<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

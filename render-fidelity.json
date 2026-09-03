@@ -80,6 +80,10 @@
     {
       "id": "picker-always-present",
       "meaning": "a declared ingress gesture is additional: the file picker and its label are emitted whatever the document declares, so the keyboard-accessible route survives and a no-script host renders a working upload"
+    },
+    {
+      "id": "aria-modal-only-when-blocking",
+      "meaning": "the aria-modal inertness claim is emitted for the blocking modality alone; a non-blocking anchored surface carries the dialog role without it, because the page behind it is genuinely still available"
     }
   ],
   "kinds": [
@@ -612,19 +616,27 @@
     {
       "kind": "Modal",
       "sensitive": true,
-      "source": "the child tree, the `open` `Binding<bool>`, and the heading / dismissable declarations",
-      "fallback": "rendered INLINE at its tree position - no portal, ever. Position, centring, stacking and backdrop are CSS-owned (`position: fixed`, `z-index: var(--fuaran-z-modal)`), so both sides emit the same tree shape. A closed modal stays in the DOM behind the native `[hidden]` attribute rather than being omitted. ARIA is structural and literal: `role=\"dialog\"` + `aria-modal=\"true\"`. Dismiss and heading affordances are structurally present and inert server-side",
+      "source": "the child tree, the `open` `Binding<bool>`, the heading / dismissable declarations, and the modality with its anchor",
+      "fallback": "rendered INLINE at its tree position - no portal, ever, in either modality. A BLOCKING modal is CSS-positioned (`position: fixed`, `z-index: var(--fuaran-z-modal)`) over a backdrop, with `role=\"dialog\"` + `aria-modal=\"true\"`. A POPOVER carries the `fuaran-popover` family, `role=\"dialog\"` and NO `aria-modal`, no backdrop rule and no positioning at all in the stylesheet - the static floor is the surface IN FLOW at its own document position, with the declared anchor riding as a data attribute that records the id was read. A closed surface stays in the DOM behind the native `[hidden]` attribute rather than being omitted, in both modalities",
       "rich": {
         "class": "behavioural",
-        "enhancement": "focus trap, restore-focus and Esc-to-dismiss",
-        "seam": "attached on hydration; behaviour, not structure, so it cannot cause a hydration mismatch",
+        "enhancement": "the modal's focus trap, restore-focus and Esc-to-dismiss; the popover's anchored placement, edge flip and light dismiss",
+        "seam": "attached on hydration and applied imperatively to the mounted element; behaviour and inline geometry, not structure, so neither can cause a hydration mismatch",
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
       "fixtures": [
-        "nodes/modal-1.json"
+        "nodes/modal-1.json",
+        "nodes/popover-anchored-1.json",
+        "nodes/popover-open-1.json"
       ],
-      "obligations": [],
-      "contract": "Phase 289; WIRE_FORMAT.md 3.2; docs/SSR.md (overlay + overflow render-fidelity contract)"
+      "obligations": [
+        {
+          "id": "aria-modal-only-when-blocking",
+          "statement": "`aria-modal=\"true\"` is emitted for `modality: Modal` and never for `modality: Popover`; both carry `role=\"dialog\"`, and the popover carries no scrim element for the same reason - the page behind it is genuinely still there",
+          "section": "WIRE_FORMAT.md 3.6.11"
+        }
+      ],
+      "contract": "Phase 289; Phase 1119; WIRE_FORMAT.md 3.2 + 3.6.11; docs/SSR.md (overlay + overflow render-fidelity contract)"
     },
     {
       "kind": "Mount",
