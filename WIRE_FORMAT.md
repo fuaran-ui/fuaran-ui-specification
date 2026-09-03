@@ -378,7 +378,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
 | `Chart` | _Visualisation_ | `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
-| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
@@ -1213,6 +1213,7 @@ read-compat):
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
 | `expandable` | `bool` | `false` | `ImageSpec` |  |
+| `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -2519,6 +2520,87 @@ unimplemented case visible rather than the reject leg.
 
 ---
 
+### 3.6.15 `DataGrid` — the export affordance (Phase 1125)
+
+`DataGridSpec.exportable` is a `bool`, omitted at `false`, and it says exactly one thing: **this
+grid's rows are the reader's to take.** Nothing else is named — not the file format, not the file
+name, not the control, not the gesture that reaches it, and not which rows.
+
+```json
+{"id":"grid-exportable-1","kind":{"$type":"DataGrid","columns":[…],"exportable":true,"rowKeyField":"reference","source":{"$type":"Query","name":"settlements"}}}
+```
+
+It is the grid-behaviour rule (§3.6.9) reached by a node that writes no state. Every other member of
+that family — `sortStateKey`, `pageStateKey`, `editStateKey` — names a State key because the behaviour
+it declares WRITES something the grid then reads back, which is why a bare `sortable` / `pageable`
+boolean is refused there. An export writes nothing: it produces a file and returns nothing to the
+tree, so there is no key it could name, no descriptor whose shape this specification would have to
+fix, and no reader of that key to disappoint. The boolean is the whole declaration.
+
+**Host obligation.** A host that admits this member and can present a control performs three things.
+Each is normative, and the third is the one a host is most likely to get wrong in a way that looks
+right.
+
+1. **The control is the GRID's.** A host draws the export affordance as part of the grid, and a
+   conforming host does not require the document to supply a button. This is the same rule the pager
+   follows and for the same reason: the control that serialises the rows and the grid that holds them
+   must not be able to come apart.
+2. **What it exports is what the HOST HOLDS FOR THAT GRID, as the reader is seeing it** — the grid's
+   resolved rows in their current order, projected through the columns the document declared, in the
+   order it declared them. A host that has sorted the rows for the reader exports them sorted. A host
+   that has PAGED them exports the whole resolved set and not the page on screen.
+3. **A host that holds only part of the data says so, and exports only what it holds.** Where the row
+   source is host-paged — a `Query` whose `dependsOn` names the page key, §3.6.9 — the client holds one
+   page, and a control that offered *export* without qualification would promise a dataset it cannot
+   deliver. The obligation is to name the scope in the control's accessible name. **A full-dataset
+   export over a paged source is host chrome and is deliberately outside this format:** the tree cannot
+   substantiate data it does not hold, and a member asking a host to fetch every page would be asking
+   the document to describe a fetch rather than a rendering.
+
+**Cell text.** A cell is exported as the text the reader is looking at: the column's own value
+projection, rendered through the column's own declared `format`. This is stated normatively because
+the alternative is defensible and would produce different bytes — exporting the underlying number or
+timestamp would hand back a file matching neither what the reader sees nor what the source would
+serve, and a host that chose it would diverge from every other host with nothing in the corpus to
+catch it. The consequence is accepted rather than hidden: a currency-formatted column exports as text
+a spreadsheet will not sum.
+
+**No new delivery instruction.** Handing the file over uses whatever mechanism the host already has
+for a download — on a browser host, a url and a suggested name. Nothing is added to the
+client-effect vocabulary for this member.
+
+**Nothing is reported back.** The export yields no value, no callback and no event: a host MUST NOT
+tell the tree whether the reader kept the file. It is therefore, like `Action.Print`, an effect the
+tree cannot use to observe the reader.
+
+**A host that cannot export draws nothing.** A rendering with no scripting and no way to make a file
+— a static server rendering, an email projection — emits the grid exactly as it emits a grid that
+declares nothing, and specifically **does not** emit an inert control. An export button that cannot
+export is worse than an absent one: it reads as a broken page rather than a degraded one. The
+declaration still rides the wire to whatever tier can act on it.
+
+Pre-emit: a host's authoring tier SHOULD report an `exportable` grid that names no row source, and one
+that declares no columns (the columns are the file's fields, so with none the file has none). A grid
+whose source merely RESOLVES to no rows is NOT a defect — the export of an empty grid is a header
+record, which is a true statement about the data.
+
+Fixtures: `nodes/grid-exportable-1.json` (the canonical shape — one new member and nothing else, so a
+decoder that dropped it could not round-trip), and
+`reject/reject-wrongtype-grid-exportable.json` / `reject/reject-wrongtype-grid-exportable-number.json`
+(`WRONG_TYPE` at `$.kind.exportable`, two shapes because a decoder can refuse one non-boolean and
+accept another). Omission polarity is pinned by every other grid fixture in the corpus, whose bytes
+carry no `exportable` key at all.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the pre-emit rule and every render obligation above. Every other codec host in the §11.0 roster is
+**pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible. The failure mode a pending
+host presents here is a quiet one, as with `Action.Print`: a lenient decoder accepts the boolean and
+draws nothing, so a reader is silently denied their data and no leg goes red — the §11.2 attestations
+and this row, not the reject leg, are what make an unimplemented member visible.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2809,7 +2891,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->114<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->116<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3157,10 +3239,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->441<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->187<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->444<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->188<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->114<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->116<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

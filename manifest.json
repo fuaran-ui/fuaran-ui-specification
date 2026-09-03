@@ -1816,6 +1816,14 @@
       "description": "Visualisation/Grid (Phase 663/665 — editable State-sourced grid, typed rows on the wire)"
     },
     {
+      "id": "grid-exportable-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/grid-exportable-1.json",
+      "expectedFile": "nodes/grid-exportable-1.json",
+      "description": "Visualisation/Grid (Phase 1125 exportable, the only new member)"
+    },
+    {
       "id": "grid-field-named",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3662,6 +3670,24 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.defaultSort.column",
       "description": "bound-grid defaultSort column -1 — the same non-negative bound the staticRows spelling carries, same record, same message (Phase 861)"
+    },
+    {
+      "id": "reject-wrongtype-grid-exportable",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-wrongtype-grid-exportable.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.exportable",
+      "description": "DataGrid exportable is the STRING \"true\", not a boolean — the shape a stringly-typed emitter produces. Refused, never coerced: coerced to false it would silently withdraw a declared affordance, coerced to true it would grow one the document never asked for (Phase 1125)"
+    },
+    {
+      "id": "reject-wrongtype-grid-exportable-number",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-wrongtype-grid-exportable-number.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.exportable",
+      "description": "DataGrid exportable is the NUMBER 1 — the truthy-integer spelling, pinned separately because a decoder can reject one non-boolean shape and accept another (Phase 1125)"
     },
     {
       "id": "reject-wrongtype-grid-keep-rows-together",
