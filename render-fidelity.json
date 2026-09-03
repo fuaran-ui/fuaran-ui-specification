@@ -68,6 +68,14 @@
     {
       "id": "transcript-disclosure-named",
       "meaning": "a declared transcript renders as a disclosure beside the transport, carrying its own accessible name"
+    },
+    {
+      "id": "sandbox-always-exactly-declared",
+      "meaning": "the sandbox declaration is emitted on every instance, empty when nothing is granted, and carries exactly the declared relaxations - de-duplicated, in declaration order, and never a token the document did not name"
+    },
+    {
+      "id": "refused-embed-source-omitted",
+      "meaning": "a primary source the egress floor refuses omits the source attribute entirely rather than pointing the browsing context at the refusal URL, while still recording the refusal"
     }
   ],
   "kinds": [
@@ -540,6 +548,39 @@
         }
       ],
       "contract": "Phase 1076; WIRE_FORMAT.md 3.6.6; docs/SSR.md (media)"
+    },
+    {
+      "kind": "Embed",
+      "sensitive": true,
+      "source": "the src binding, the mandatory accessible title, an optional declared aspect ratio, and the closed list of sandbox relaxations - empty by default, which is total denial",
+      "fallback": "a real `<iframe class=\"fuaran-embed\">` a browser loads with no script. The `sandbox` attribute is ALWAYS emitted and is EMPTY when the document grants nothing, which is the maximally-restrictive value; `allow-scripts`, `allow-same-origin` and `allow-forms` appear only where declared, de-duplicated and in the vocabulary's declaration order so the markup is deterministic whatever order the document authored. Fullscreen is NOT a sandbox token - it is a permissions-policy directive riding an `allow` attribute emitted only when declared. A `title` carrying the resolved title is ALWAYS emitted: it is mandatory on the wire and a browsing context has no decorative case. `loading=\"lazy\"` and a conservative `referrerpolicy` are unconditional. The `src` passes the `embed` egress class - `https` only, no other scheme and no schemeless reference - and a refused one omits the attribute entirely rather than pointing the frame at the refusal URL, the refusal still recorded as a data attribute. A declared aspect ratio is a CLASS on the frame; no value from the tree ever reaches a style attribute",
+      "rich": {
+        "class": "none",
+        "meaning": "no client-only tier - the parity-checked fallback is the whole render"
+      },
+      "fixtures": [
+        "nodes/embed-1.json",
+        "nodes/embed-aspect-1.json",
+        "nodes/embed-permissions-1.json"
+      ],
+      "obligations": [
+        {
+          "id": "accessible-name-always",
+          "statement": "a `title` attribute carrying the resolved title is ALWAYS emitted - the title is mandatory on the wire and a browsing context has no decorative case",
+          "section": "WIRE_FORMAT.md 3.6.8"
+        },
+        {
+          "id": "sandbox-always-exactly-declared",
+          "statement": "`sandbox` is emitted on every embed and is EMPTY when no permission is declared; the tokens it carries are exactly the declared relaxations, de-duplicated and in declaration order, and `AllowFullscreen` rides `allow` rather than `sandbox`",
+          "section": "WIRE_FORMAT.md 3.6.8"
+        },
+        {
+          "id": "refused-embed-source-omitted",
+          "statement": "a `src` the `embed` egress class refuses omits the attribute entirely - an `<iframe>` at the refusal URL renders that page, where one with no `src` is an empty frame that fetches nothing - and the refusal is recorded as the egress-refusal data attribute",
+          "section": "WIRE_FORMAT.md 19.1"
+        }
+      ],
+      "contract": "Phase 1111; WIRE_FORMAT.md 3.6.8, 19.1; docs/SSR.md (embed)"
     },
     {
       "kind": "Metric",

@@ -14,6 +14,7 @@
     "DataGrid",
     "Disclosure",
     "Drawing",
+    "Embed",
     "ErrorBoundary",
     "Fact",
     "FileUpload",
@@ -1365,6 +1366,30 @@
       "description": "Display/Drawing (Phase 883 — tipped shapes, incl. hostile text, Bound tip and explicit empty)"
     },
     {
+      "id": "embed-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/embed-1.json",
+      "expectedFile": "nodes/embed-1.json",
+      "description": "Display/Embed (Phase 1111 — the minimum: no ratio, no permissions, total denial)"
+    },
+    {
+      "id": "embed-aspect-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/embed-aspect-1.json",
+      "expectedFile": "nodes/embed-aspect-1.json",
+      "description": "Display/Embed (Phase 1111 — a declared aspect ratio, sharing Image's enum)"
+    },
+    {
+      "id": "embed-permissions-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/embed-permissions-1.json",
+      "expectedFile": "nodes/embed-permissions-1.json",
+      "description": "Display/Embed (Phase 1111 — one permission, the one that rides `allow` not `sandbox`)"
+    },
+    {
       "id": "empty-state-card",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2624,6 +2649,33 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.fields[0].kind.value",
       "description": "DateRange literal pair with start after end — the ordered-pair rule (Phase 725)"
+    },
+    {
+      "id": "reject-embed-missing-title",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-embed-missing-title.json",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.title",
+      "description": "Embed with no `title` — refused. The accessible name is mandatory because a browsing context has no decorative case, and there is no value to default to that would not be a fabricated description of someone else's page"
+    },
+    {
+      "id": "reject-embed-permission-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-embed-permission-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.permissions[0]",
+      "description": "an Embed permission of `true` — refused rather than coerced. A host that read a bare boolean as a granted permission would have to invent which one it names, and every answer is a relaxation the document never spelled"
+    },
+    {
+      "id": "reject-embed-unknown-permission",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-embed-unknown-permission.json",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.permissions[0]",
+      "description": "EmbedPermission 'allow-top-navigation' — refused. The set is closed at four, and top-level navigation is excluded by design rather than reserved; the path carries the array index and no `.$type`, because the slot holds bare enum strings"
     },
     {
       "id": "reject-emptynodeid",

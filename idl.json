@@ -135,6 +135,15 @@
     },
     {
       "cases": [
+        "AllowScripts",
+        "AllowSameOrigin",
+        "AllowForms",
+        "AllowFullscreen"
+      ],
+      "name": "EmbedPermission"
+    },
+    {
+      "cases": [
         "Quiet",
         "Normal",
         "Loud"
@@ -1159,6 +1168,69 @@
         }
       ],
       "tag": "Drawing"
+    },
+    {
+      "category": "Display",
+      "fields": [
+        {
+          "name": "aspectRatio",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "enum",
+              "case": "Natural"
+            }
+          },
+          "type": {
+            "$type": "enum",
+            "name": "ImageAspect"
+          }
+        },
+        {
+          "name": "permissions",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "list",
+              "items": []
+            }
+          },
+          "type": {
+            "$type": "list",
+            "of": {
+              "$type": "enum",
+              "name": "EmbedPermission"
+            }
+          }
+        },
+        {
+          "name": "src",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [
+              {
+                "$type": "str"
+              }
+            ],
+            "name": "Binding"
+          }
+        },
+        {
+          "name": "title",
+          "optionality": {
+            "$type": "required"
+          },
+          "type": {
+            "$type": "union",
+            "args": [],
+            "name": "TextSource"
+          }
+        }
+      ],
+      "tag": "Embed"
     },
     {
       "category": "Meta",

@@ -233,6 +233,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Callout` | _Display_ | `body`, `dismissable?=false`, `heading?`, `icon?`, `tone?=Default` |  |
 | `CodeBlock` | _Display_ | `code`, `copyable`, `highlightLines`, `language`, `lineNumbers` | The parity-checked render is a deterministic `<pre><code>`; syntax highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
 | `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
+| `Embed` | _Display_ | `aspectRatio?=Natural`, `permissions?=[]`, `src`, `title` |  |
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
@@ -861,6 +862,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `DeterminismSource`: `"Deterministic"` / `"Clock"` / `"Random"` / `"Network"`
 - `DurationStyle`: `"Compact"` / `"Clock"` / `"Long"`
 - `DurationUnit`: `"Seconds"` / `"Minutes"` / `"Hours"`
+- `EmbedPermission`: `"AllowScripts"` / `"AllowSameOrigin"` / `"AllowForms"` / `"AllowFullscreen"`
 - `Emphasis`: `"Quiet"` / `"Normal"` / `"Loud"`
 - `FileReadEncoding` (inside `Action.ReadFileBody.encoding`): `"Text"` / `"Base64"` / `"DataUrl"`
 - `FontVoice`: `"Default"` / `"Display"` / `"Structural"`
@@ -914,7 +916,7 @@ read-compat):
 <!-- fuaran:spec-omit-defaults -->
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
-| `aspectRatio` | `ImageAspect` | `Natural` | `ImageSpec` |  |
+| `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
@@ -931,6 +933,7 @@ read-compat):
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
+| `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
@@ -1617,6 +1620,108 @@ column count refused rather than canonicalised).
 
 ---
 
+### 3.6.8 `Embed` — the sandboxed third-party embed (Phase 1111)
+
+`Embed` is a Display kind carrying a document URL, a mandatory accessible title, an optional declared
+aspect ratio, and a closed list of sandbox relaxations that is EMPTY by default:
+
+```json
+{"id":"embed-1","kind":{"$type":"Embed","src":{"$type":"Static","value":"https://player.example/embed/harbour"},"title":"Harbour restoration, part two"}}
+{"id":"embed-permissions-1","kind":{"$type":"Embed","permissions":["AllowFullscreen"],"src":{"$type":"Static","value":"https://player.example/embed/harbour"},"title":"Harbour restoration, part two"}}
+```
+
+**A KIND, not a `Mount` variant — and the vocabulary charter's row for it said otherwise until this
+phase.** `Mount` (§4o) composes a COOPERATING guest: a scope id, a declared message channel, a
+capability request list, a host-side loader that produced the guest tree. A third-party page has none
+of those and cannot acquire them, and widening `Mount` to admit an uncooperative third party would
+weaken every guarantee `Mount` currently makes — so the two contracts, bidirectional cooperation and
+default-deny isolation, take two kinds. It is equally not a `Media` variant: `Media` fetches an asset
+and DISPLAYS it, decoded by the user agent's own codec into no scripting context, where an embed
+fetches a document and lets it EXECUTE. That difference is why the source takes its own egress class
+(§19.1) rather than reusing `Media`'s.
+
+**`title` is REQUIRED, on `MediaSpec.label`'s argument one kind over.** A frame is a focus container a
+reader tabs INTO, so there is no decorative embed the way there is a decorative image; a frame with no
+accessible name is announced as "frame" and nothing else, telling a reader that something is embedded
+and nothing about what. A host emits the resolved title as the element's `title` attribute, always. A
+document omitting it is refused — `reject/reject-embed-missing-title.json`, `MISSING_FIELD` at
+`$.kind.title` — because an invented title is a claim about somebody else's document.
+
+**`permissions` is omitted at the EMPTY list, and empty means TOTAL DENIAL.** That polarity is the
+design rather than a consequence of the omit rule: the wire-cheapest document is also the most
+locked-down one, so the default a careless emitter produces is the safe one. `EmbedPermission` is a
+BARE enum (§3.5), closed at `AllowScripts` / `AllowSameOrigin` / `AllowForms` / `AllowFullscreen`, so
+an unrecognised token reports at the ELEMENT's own path with no `$type` suffix —
+`reject/reject-embed-unknown-permission.json`, `UNKNOWN_DU_CASE` at `$.kind.permissions[0]`. A decoder
+MUST NOT silently drop an unrecognised permission: that would turn a document asking for something
+this vocabulary has no name for into a document asking for LESS, which reads as success.
+
+**Two relaxations are excluded from the vocabulary rather than defaulted off, and are not reserved
+either.** A top-level-navigation relaxation would let a framed document navigate the page that framed
+it — the drive-by redirect — and a downloads relaxation would put a file-save prompt in a third
+party's hands; neither is admitted and neither is a name a later phase should take. Popups, modals,
+pointer lock, presentation and orientation lock have no recorded demand and ARE reserved as names a
+later addition would use, which is the whole reason this is an enum rather than a set of booleans: a
+fifth case is then a bare-string addition rather than a type replacement.
+
+**`aspectRatio` REUSES `ImageAspect`.** The cases are pure layout ratios with nothing image-specific
+in them, and the wire carries bare strings, so the type name reaches no document; minting a parallel
+enum with identical cases would create two closed sets that must be kept in step, which is the defect
+a separate type would be introducing rather than avoiding. It omits at `Natural` rather than being
+optional, for the reason every other omit-at-default slot does: an option over an enum that already
+contains `Natural` would give one fact two spellings.
+
+**RENDER OBLIGATIONS.** Four, none of which the bytes can carry, all of them normative:
+
+1. **The sandbox declaration is emitted ALWAYS, and EMPTY when nothing is granted.** Omitting the
+   attribute on a permissionless embed produces the same markup as an unsandboxed frame, so the
+   emission is unconditional rather than derived from the list being non-empty:
+
+   ```html
+   <iframe class="fuaran-embed" title="…" sandbox="" loading="lazy"
+           referrerpolicy="strict-origin-when-cross-origin" src="https://…"></iframe>
+   ```
+
+2. **The tokens are emitted in the vocabulary's DECLARATION order, de-duplicated.** The wire preserves
+   whatever order the document authored — the `tracks` rule (§3.6.6), not `srcSet`'s: a JSON array is
+   ordered data and this format does not re-sort a document's own list. The determinism the emitted
+   markup needs is established at RENDER time instead, so two documents naming the same set produce
+   byte-identical markup. `AllowFullscreen` is NOT a sandbox token — it is a permissions-policy
+   directive and rides `allow="fullscreen"`, emitted only where declared, because an empty `allow` is
+   not the same statement as an absent one.
+
+3. **`loading="lazy"` and a conservative `referrerpolicy` are unconditional.** There is deliberately no
+   slot for either. The referrer policy is `strict-origin-when-cross-origin` and deliberately NOT
+   `no-referrer`: several ubiquitous providers restrict playback by referring domain, so stripping the
+   header outright breaks a legitimate embed, while sending the origin alone leaks no path and no
+   query.
+
+4. **A refused source OMITS the source attribute entirely.** This is the one place a refusal does not
+   take §19 rule 6's substitute-`about:blank` route, and the reason is the element: an `<iframe>`
+   pointed at a refusal URL RENDERS that page, where one with no source is a well-defined empty
+   browsing context that fetches nothing. The refusal is still recorded, as the egress-refusal data
+   attribute, so "nothing was declared" and "this was refused" stay different facts.
+
+A declared `aspectRatio` is a CLASS on the frame (`fuaran-embed-aspect-sixteen-nine`, and the three
+siblings); no value from the tree reaches a style attribute, which is the `Image` presentation rule
+(§3.6.2) applied unchanged.
+
+Fixtures: `nodes/embed-1.json` (the minimum — both optional slots at their identity, so neither
+appears, and a host emitting `"permissions":[]` differs here and nowhere else),
+`nodes/embed-aspect-1.json` (the declared ratio, which is what pins the `ImageAspect` REUSE: a host
+that minted a parallel enum with the same case names round-trips its own emission perfectly and
+diverges from the schema, where the slot `$ref`s `ImageAspect`), `nodes/embed-permissions-1.json` (one
+permission, deliberately the one that does NOT ride the sandbox attribute, so a host that mapped the
+whole enum onto sandbox tokens passes every other fixture and fails its render obligation on this
+one), `reject/reject-embed-missing-title.json`, `reject/reject-embed-unknown-permission.json` (the
+HTML token `"allow-top-navigation"` an author reaches for from memory — refused, because it names a
+relaxation this vocabulary deliberately does not admit), and
+`reject/reject-embed-permission-nonstring.json` (`WRONG_TYPE` at `$.kind.permissions[0]` — a bare
+`true` refused rather than read as a present-and-enabled flag, since a host that coerced it would have
+to invent WHICH permission it names).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -1905,7 +2010,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->87<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->90<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2227,10 +2332,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->387<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->161<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->393<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->164<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->87<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->90<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -2989,6 +3094,44 @@ wrong span: it removes the wrong bytes, leaves a fragment of the construct it me
 in a byte-indexed host, can split a multi-byte character and emit invalid UTF-8. The vocabulary such
 a scan matches (element names, scheme names) is ASCII, so an ASCII-only fold loses no matches. A
 host that folds and rescans without reusing offsets is unaffected.
+
+### 19.1 The `embed` class — a stricter floor for a slot that EXECUTES (Phase 1111)
+
+`DisplayKind.Embed.src` does **not** ride the accept set above. Everything else §19 governs is
+fetch-and-display or navigate-on-a-click; an embed is fetch-and-**execute**, and the floor for it is
+correspondingly narrower. A rendering host MUST apply this rule instead of rules 2–5 for that slot:
+
+1. Normalise exactly as **rule 1** does, unchanged. That rule is what makes any positional or prefix
+   test see the string the browser's parser will see, and sharing it is deliberate.
+2. Determine the scheme exactly as **rule 2** does — same extraction, same ≤U+0020 strip, same
+   ASCII-lowercase.
+3. **Accept if and only if the scheme is `https`.** Reject everything else.
+4. On rejection the host MUST emit the element with **no source attribute at all**. It MUST NOT
+   substitute `about:blank`, and MUST NOT emit the original value.
+
+**Two of the exclusions are things §19 accepts, and both are deliberate.** `http` is refused because a
+document delivered over a channel any intermediary can rewrite is an intermediary's script running in
+a frame this page created — a risk that does not arise when the same channel delivers an image. And a
+**schemeless** reference is refused, which is the sharper departure: a relative reference names a
+same-origin document, and a same-origin frame is exactly the shape where a document granted both
+`AllowSameOrigin` and `AllowScripts` can reach its own frame ELEMENT and remove the sandbox attribute
+from it. A host that wants to compose its own content has `Mount`; this kind is for the uncooperative
+third party.
+
+**The class admits no schemeless reference, so it needs no rule-5 analogue** — and that is a property
+worth stating rather than an omission. Rule 5 exists because the schemeless branch would otherwise
+admit a protocol-relative reference, and its two historic evasions were both positional. A class that
+accepts exactly one scheme performs no positional test and cannot inherit that surface.
+
+**Deployment-policy scoping is separate and also distinct.** Where a host applies a destination
+policy, an embed's destination is checked under its own class — named `embed`, never `media`. A
+composition that declared an origin for image egress has said nothing about which DOCUMENTS it is
+willing to run, and a class that conflated the two would let the first declaration answer the second
+question.
+
+As everywhere else in §19, this is a RENDER-time obligation and not a wire constraint: a document
+naming an `http` or relative embed source is a **valid wire document**, a decoder MUST NOT reject it,
+and a host that only decodes, re-encodes or transforms trees carries the value through unchanged.
 
 ---
 
