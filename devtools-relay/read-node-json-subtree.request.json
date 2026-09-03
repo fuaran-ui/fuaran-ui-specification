@@ -1,0 +1,9 @@
+{
+  "$relay": "relay@1.3",
+  "dir": "request",
+  "id": "c-32",
+  "type": "read.nodeJson",
+  "payload": {
+    "nodeId": "root"
+  }
+}

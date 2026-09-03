@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "profile": "relay@1.0",
+  "profile": "relay@1.3",
   "spec": "../DEVTOOLS_RELAY.md",
-  "description": "Fuaran DevTools relay conformance corpus (relay@1.0). Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. See ../DEVTOOLS_RELAY.md section 12.",
+  "description": "Fuaran DevTools relay conformance corpus. Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. The profile above is the HIGHEST minor these fixtures reach, not a claim that every minor below it is covered: a minor's fixtures land when a SECOND host serves that minor's addition, and minors do not reach their second host in order (section 12.1 keeps the waiting list). The relay@1.0 fixtures stay at relay@1.0 deliberately — answering them unchanged is the only evidence in this corpus that profile selection kept every minor bump backward-compatible. See ../DEVTOOLS_RELAY.md section 12.",
   "fixtures": [
     {
       "id": "hello-read-only",
@@ -17,6 +17,13 @@
       "requestFile": "hello-apply-capable.request.json",
       "responseFile": "hello-apply-capable.response.json",
       "description": "Detection handshake against a host that additionally offers apply + subscribe."
+    },
+    {
+      "id": "hello-node-json",
+      "kind": "relay-exchange",
+      "requestFile": "hello-node-json.request.json",
+      "responseFile": "hello-node-json.response.json",
+      "description": "Detection handshake at relay@1.3: the session profile is the highest the client accepts and the peer can serve, and read.nodeJson is advertised at it. The companion to the two relay@1.0 handshakes, which keep their 1.0 envelopes and must NOT name this capability — a capability introduced after the session profile is absent from that session by DEVTOOLS_RELAY 6.3. The pair is the backward-compatibility evidence."
     },
     {
       "id": "read-node-state",
@@ -66,6 +73,20 @@
       "requestFile": "read-find-nodes-empty.request.json",
       "responseFile": "read-find-nodes-empty.response.json",
       "description": "An unmatched kind yields an empty array, never a refusal — \"which nodes have this kind\" has the honest answer \"none\" (DEVTOOLS_RELAY 7.5)."
+    },
+    {
+      "id": "read-node-json",
+      "kind": "relay-exchange",
+      "requestFile": "read-node-json.request.json",
+      "responseFile": "read-node-json.response.json",
+      "description": "A node's own canonical wire JSON, embedded as an object (DEVTOOLS_RELAY 7.7). The node carries a collection-valued field and a closure sentinel, so one fixture exercises both motivating cases: deriving an indexed path (Columns[0].Label) needs the collection's current length, which no other read reports; and a value the wire format cannot carry is served as its sentinel string verbatim rather than refused, because an encoding WITH sentinels is the canonical encoding (rule 2). That same rule is why the payload is for reading and path derivation, never for round-tripping back as a node copy."
+    },
+    {
+      "id": "read-node-json-subtree",
+      "kind": "relay-exchange",
+      "requestFile": "read-node-json-subtree.request.json",
+      "responseFile": "read-node-json-subtree.response.json",
+      "description": "Whole-subtree fidelity (DEVTOOLS_RELAY 7.7 rule 3): a parent's encoding carries its descendants, with no depth limit and no elided variant. The rule needs its own fixture because an elided encoding is WELL-FORMED wire JSON for a different node, so a runner checking only well-formedness would pass exactly what the rule forbids. A runner should assert that every child the peer itself reports for this node appears inside the encoding it returned; the node kinds and child sets differ legitimately between hosts, so that is the host-agnostic form of the check."
     },
     {
       "id": "apply-accepted",
@@ -179,6 +200,14 @@
       "responseFile": "refusal-slot-not-declared.response.json",
       "expectedClass": "SLOT_NOT_DECLARED",
       "description": "The named slot is not a binding slot on that node kind. Distinct from the noOverride STATUS, which means the slot exists and holds nothing (DEVTOOLS_RELAY 7.3)."
+    },
+    {
+      "id": "refusal-encode-failed",
+      "kind": "relay-refusal",
+      "requestFile": "refusal-encode-failed.request.json",
+      "responseFile": "refusal-encode-failed.response.json",
+      "expectedClass": "ENCODE_FAILED",
+      "description": "The node exists and the host cannot produce its canonical wire encoding (DEVTOOLS_RELAY 7.7, 9.3). Distinct from NODE_NOT_FOUND, which would be a lie about a node that is plainly there and would send the client to look somewhere else — the one remedy that cannot help. No shipped host can raise this from its own surface: sentinels make the canonical encoder total over live trees. So a runner answers this fixture from a host whose SURFACE is made to return the encode-failed outcome, which tests the peer's mapping from that outcome onto the class — the part a host with a wider local vocabulary than the wire's would depend on, and the technique refusal-decode-failed and refusal-validator-reject already use."
     }
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.3",
+  "dir": "response",
+  "id": "c-33",
+  "type": "refusal",
+  "payload": {
+    "class": "ENCODE_FAILED",
+    "requestType": "read.nodeJson",
+    "message": "Node 'metric-1' has no canonical wire encoding on this host.",
+    "detail": {
+      "nodeId": "metric-1"
+    }
+  }
+}

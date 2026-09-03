@@ -1,0 +1,28 @@
+{
+  "$relay": "relay@1.3",
+  "dir": "response",
+  "id": "c-31",
+  "type": "read.nodeJson.ok",
+  "payload": {
+    "node": {
+      "id": "grid-1",
+      "kind": {
+        "$type": "DataGrid",
+        "columns": [
+          {
+            "kind": {
+              "$type": "Text"
+            },
+            "label": "Channel",
+            "value": "<closure>"
+          }
+        ],
+        "source": {
+          "$type": "Query",
+          "name": "channels"
+        }
+      }
+    },
+    "treeRevision": "r-41"
+  }
+}

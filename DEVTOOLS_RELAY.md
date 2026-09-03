@@ -1,4 +1,4 @@
-# Fuaran DevTools relay contract (`relay@1.2`)
+# Fuaran DevTools relay contract (`relay@1.3`)
 
 The **page ↔ extension relay**: a `postMessage` envelope that carries a Fuaran host's already-shipped
 in-page introspection surface across the page/extension boundary, so a browser extension (or any
@@ -22,7 +22,7 @@ browser tab:
 - the **client peer** — code running in an extension content script (or any other same-page script)
   that wants to read or edit that tree.
 
-The protocol carries six reads, one gated mutation, a change subscription, and a detection
+The protocol carries seven reads, one gated mutation, a change subscription, and a detection
 handshake. Every message is a JSON-compatible object passed through the browser's structured-clone
 algorithm.
 
@@ -41,8 +41,12 @@ Three further exclusions, stated so implementers do not over-build:
   implementation's own concern, outside this contract. A relay message that has left the tab is no
   longer governed by §3's origin rules.
 - **Not a hashed or canonically-ordered artefact.** Relay envelopes are transport. They are never
-  hashed, never appended to an op stream, and carry no byte-parity obligation. The one exception is
-  the `TreeOp` payload of an `apply` request, which **is** canonical wire JSON — see §8.2.
+  hashed, never appended to an op stream, and carry no byte-parity obligation. There are two
+  exceptions, one per direction, and both are canonical wire JSON carried BY the relay rather than
+  defined by it: the `TreeOp` payload of an `apply` request travelling in (§8.2), and the `node`
+  payload of a `read.nodeJson` response travelling out (§7.7). Both are the wire format's artefacts;
+  neither acquires a byte-parity obligation from being carried here, because the channel is
+  structured-clone and member order is not observable across it.
 - **Not an authorisation mechanism.** The relay *reports* a host's decision (§9). It never makes one,
   and it grants nothing a host has not already opted into offering.
 
@@ -56,8 +60,9 @@ not an extension of it. It borrows three things and nothing else:
 | Profile-id grammar `<name>@<major>.<minor>` + the Current/Behind/Foreign negotiation table | §15.1, §15.2 | Relay version negotiation (§4) |
 | The `DecodeError` envelope — `Code` / `Path` / `Message` / `ExpectedShape` | §6 | The `DECODE_FAILED` refusal's `detail` (§9.3) |
 | Canonical `TreeOp` JSON | §2, §3 | The `apply` request's `op` payload (§8.2) |
+| Canonical `Node` JSON | §2, §3 | The `read.nodeJson` response's `node` payload (§7.7) |
 
-The relay profile is `relay@1.2`. It versions **independently** of the wire profile `core@1.0`: a
+The relay profile is `relay@1.3`. It versions **independently** of the wire profile `core@1.0`: a
 host may advance its wire profile without advancing its relay profile, and the reverse. The two
 profile names are distinct namespaces, so a peer that confuses them negotiates `Foreign` and refuses
 — which is the correct outcome.
@@ -146,7 +151,7 @@ Every message — request, response, and event alike — is exactly this object:
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "request",
   "id": "c-1",
   "type": "read.nodeState",
@@ -196,6 +201,7 @@ The full closed set of request types:
 | `read.tree` | `read.tree` | `read.tree.ok` |
 | `read.findNodes` | `read.findNodes` | `read.findNodes.ok` |
 | `read.affordances` *(since `relay@1.1`)* | `read.affordances` | `read.affordances.ok` |
+| `read.nodeJson` *(since `relay@1.3`)* | `read.nodeJson` | `read.nodeJson.ok` |
 | `apply` | `apply` | `apply.ok` |
 | `subscribe` | `subscribe` | `subscribe.ok` |
 | `unsubscribe` | `subscribe` | `unsubscribe.ok` |
@@ -213,7 +219,7 @@ The one event type is `changed` (§8.4).
 ### 5.1 Grammar
 
 `<name>@<major>.<minor>`, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §15.1 defines it. The relay
-namespace is `relay`; the profile defined by this document is **`relay@1.2`**.
+namespace is `relay`; the profile defined by this document is **`relay@1.3`**.
 
 A peer's profile id is the **highest** profile it can serve. Within one major, a peer is a superset
 of every earlier minor of that major, so a peer MUST be able to serve any minor at or below its own —
@@ -278,14 +284,14 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "request",
   "id": "c-1",
   "type": "hello",
   "payload": {
     "client": "fuaran-devtools",
     "clientVersion": "1.0.0",
-    "accepts": ["relay@1.2", "relay@1.1", "relay@1.0"]
+    "accepts": ["relay@1.3", "relay@1.2", "relay@1.1", "relay@1.0"]
   }
 }
 ```
@@ -300,7 +306,7 @@ the page peer may install its listener after the client's first probe.
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "response",
   "id": "c-1",
   "type": "hello.ok",
@@ -308,8 +314,8 @@ the page peer may install its listener after the client's first probe.
     "host": "fuaran-ts",
     "hostVersion": "0.6.0",
     "surfaceVersion": "0.1.0",
-    "profile": "relay@1.2",
-    "capabilities": ["read.nodeState", "read.bindingValue", "read.renderedDom", "read.tree", "read.findNodes", "read.affordances"],
+    "profile": "relay@1.3",
+    "capabilities": ["read.nodeState", "read.bindingValue", "read.renderedDom", "read.tree", "read.findNodes", "read.affordances", "read.nodeJson"],
     "treeRevision": "r-41"
   }
 }
@@ -367,8 +373,9 @@ Consequently:
 
 ## 7. Read entry points
 
-All six are non-mutating. Each takes the payload below and returns `<type>.ok` with the stated
-payload, or `refusal`. §7.1–§7.5 are `relay@1.0`; §7.6 is the `relay@1.1` addition.
+All seven are non-mutating. Each takes the payload below and returns `<type>.ok` with the stated
+payload, or `refusal`. §7.1–§7.5 are `relay@1.0`; §7.6 is the `relay@1.1` addition and §7.7 the
+`relay@1.3` one.
 
 ### 7.1 `read.nodeState`
 
@@ -617,6 +624,80 @@ Consequently:
 present but not a string. A *valid* request naming a module the host does not publish is an `.ok`
 with an empty `modules` array, per §7.6.2 rule 1.
 
+### 7.7 `read.nodeJson` *(since `relay@1.3`)*
+
+The reads above report a node's **kind**, its bound binding **slots**, its **child ids**, its
+**geometry**, one slot's **resolved value**, and what the page **declares** it understands. None of
+them reports what a node's properties *hold*. This one does, by handing back the node's own
+canonical wire encoding.
+
+That distinction is not a detail. A client that cannot read a property's current value can only
+**set** it, and set-only editing is unsafe in three specific ways that this one entry point closes
+together: a field editor shows a blank where it should show the current text, so "empty" and
+"unknown" become indistinguishable; a style edit through `UpdateStyle` — which replaces a node's
+whole style block — silently discards every token the client did not know was there; and an indexed
+path into a collection-valued field (`Columns[0].Label`) cannot be derived at all, because nothing
+else reports the collection's length. Read-modify-write needs the read.
+
+**Request payload:** `{ "nodeId": "<string>" }`
+
+**Response payload:**
+
+```json
+{
+  "node": {
+    "id": "grid-1",
+    "kind": {
+      "$type": "DataGrid",
+      "columns": [ { "kind": { "$type": "Text" }, "label": "Channel", "value": "<closure>" } ],
+      "rowKey": "<closure>",
+      "source": { "$type": "Static", "value": "<opaque>" }
+    }
+  },
+  "treeRevision": "r-41"
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `node` | object | The node's own wire-format JSON — the host's canonical encoding of this node per [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §2/§3, embedded as a JSON object. The node's **full subtree**, exactly as the wire format defines a `Node`. |
+| `treeRevision` | string | The revision the encoding was taken at (§5.4). A client deriving an edit from this read compares it against the revision at commit time; read-modify-write staleness detection is why it is carried here rather than left to a separate `hello`. |
+
+Three rules govern it.
+
+**1. The host's own encoder, and no second projection.** The `node` object is produced by the host's
+canonical wire encoder — the same encoder whose output the wire-format corpus pins. This mirrors
+§8.2's posture in the opposite direction: it is embedded as a **structured object**, because
+`postMessage` is a structured-clone channel and not a text one; member order is therefore not
+observable, carries no byte-parity obligation, and a client MUST NOT depend on it. A page peer MUST
+NOT compute a bespoke projection for this read — §1.2's "a relay over the host's existing surface,
+not a second introspection protocol" applies here as much as anywhere, and a second encoder is
+exactly the thing it forbids.
+
+**2. Sentinels are part of the honest answer, and forbid round-tripping.** A live tree routinely
+holds values the wire format cannot carry — host closures, opaque runtime payloads — and the
+canonical encoding renders those as the sentinel strings `"<closure>"` and `"<opaque>"`
+(`WIRE_FORMAT.md` §2). The response carries them **verbatim**, and a host MUST NOT refuse the read
+because a node contains one: an encoding with sentinels *is* the canonical encoding of that node,
+and withholding it would withhold the very answer the client asked for.
+
+The consequence is a client-side prohibition, and it is worth stating as a MUST rather than leaving
+to inference. This payload is for **reading and path derivation, not for round-tripping**. A client
+MUST NOT construct a `ReplaceNode` — or an `InsertChild` of a copy — from a `node` payload
+containing a sentinel: the sentinel would decode as the literal string it looks like, not as the
+closure it stands for, and the resulting node would render an affordance that fires and does
+nothing. Derive **targeted** ops (`UpdateProp`, `UpdateStyle`) instead; those name the one member
+they change and leave every unrepresentable value where it is.
+
+**3. The whole subtree, never elided.** There is no depth limit and no children-elided variant, and
+their absence is deliberate rather than an omission awaiting a later minor. A node with its children
+removed is *itself valid wire JSON* — it simply describes a different node — so an elided form would
+hand a client a well-formed-but-wrong tree, which is the same silent-discard class rule 2 guards
+against, arriving by a different door. A client that wants structure without payload already has
+`read.tree` (§7.2), whose payload-size precedent this read matches.
+
+**Refusals:** `NODE_NOT_FOUND`, `ENCODE_FAILED`.
+
 ---
 
 ## 8. `apply` — capability-gated mutation
@@ -636,7 +717,7 @@ A host that stops at gate 1 or 2 is fully conformant (§6.4).
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "request",
   "id": "c-7",
   "type": "apply",
@@ -769,7 +850,7 @@ subscription, so a client has a known baseline before the first event arrives.
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "event",
   "id": "c-9",
   "type": "changed",
@@ -806,7 +887,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 
 ```json
 {
-  "$relay": "relay@1.2",
+  "$relay": "relay@1.3",
   "dir": "response",
   "id": "c-7",
   "type": "refusal",
@@ -836,18 +917,33 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 | Class | Raised when | `detail` |
 |---|---|---|
 | `NOT_OPTED_IN` | The host has not opted into relay exposure. Applies to **any** request type including `hello`. | — |
-| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.2"] }` |
+| `FOREIGN_PROFILE` | Profile negotiation returned `Foreign` (§5.2), or a `hello` whose `accepts` contains no profile this peer speaks. | `{ "received": "<profile>", "supported": ["relay@1.3"] }` |
 | `UNKNOWN_MESSAGE` | The `type` is not in the §4.2 closed set for this peer's profile. | `{ "received": "<token>" }` |
 | `MALFORMED_MESSAGE` | The envelope or payload is structurally invalid — a missing required payload field, a wrong JSON type, an empty `accepts` or `events`. | `{ "path": "<payload.field>" }` |
 | `CAPABILITY_ABSENT` | The `type` is recognised but its capability was not advertised (§6.4). | `{ "capability": "<name>" }` |
 | `NODE_NOT_FOUND` | No node with the requested id (or, for `read.renderedDom`, no rendered element). | `{ "nodeId": "<id>", "reason": "not-rendered" }` — `reason` optional |
 | `SLOT_NOT_DECLARED` | The named slot is not a binding slot on that node's kind. Distinct from the `noOverride` **status** (§7.3). | `{ "nodeId": "<id>", "slot": "<name>", "kind": "<kind>" }` |
+| `ENCODE_FAILED` *(since `relay@1.3`)* | The node exists but the host cannot produce its canonical wire encoding (§7.7). | `{ "nodeId": "<id>" }` |
 | `DECODE_FAILED` | The `apply` op is not decodable as a `TreeOp`. | The wire format's `DecodeError` verbatim: `{ "Code", "Path", "Message", "ExpectedShape"? }` (§6 of `WIRE_FORMAT.md`) |
 | `VALIDATOR_REJECT` | The op decoded but the host's validator / apply engine rejected it. | `{ "code": "<host diagnostic code>" }` — optional |
 | `POLICY_DENIED` | The host's policy layer refused the operation. | — (see §11.5: `detail` SHOULD stay empty here) |
 
 `NOT_OPTED_IN`, `VALIDATOR_REJECT`, and `POLICY_DENIED` are the three mandated `apply` classes of
 §8.4. The others are protocol- and lookup-level refusals that apply across request types.
+
+**On `ENCODE_FAILED` specifically.** A host whose local tree vocabulary is no wider than the wire's
+can never raise it: sentinels (§7.7 rule 2) make such an encoder total over live trees, and a `Custom`
+node is itself a wire kind. The class exists for the host that is *not* in that position — one whose
+in-memory model can hold a node the wire format has no form for — and it exists because the
+alternative is worse than an extra class. Without it, that host's only available refusal is
+`NODE_NOT_FOUND`, which is a lie about a node that is plainly there, and one whose only remedy —
+look somewhere else — is the one thing that cannot help. A closed refusal set that forces an
+implementation to misreport is not a stricter contract, it is a less truthful one.
+
+Sentinel-bearing nodes are emphatically **not** this class: §7.7 rule 2 requires them to be served,
+and a host that refuses them here has misread the rule. `ENCODE_FAILED` mirrors `DECODE_FAILED` in
+name and role — one per direction, each saying that this host could not put the wire format's
+representation and its own into correspondence.
 
 ---
 
@@ -1040,25 +1136,39 @@ structure and refusal classification. They carry no canonical-ordering obligatio
 generated by the wire-format emitter.
 
 **The family's own profile.** `devtools-relay/manifest.json` carries a `profile` field naming the
-profile its fixtures are written at, and **that is not necessarily this document's profile**. Every
-host runs the whole family, so a fixture pinning an exchange a host cannot yet have is a failing
-gate rather than a finding — and a corpus that goes red the moment a specification adds anything is
-one that gets bypassed. So a fixture for a request type introduced by a minor bump lands when a
-**second** host serves it, and the manifest's `profile` advances with the fixtures, not with the
-document.
+**highest** profile its fixtures are written at, and **that is not necessarily this document's
+profile**. Every host runs the whole family, so a fixture pinning an exchange a host cannot yet have
+is a failing gate rather than a finding — and a corpus that goes red the moment a specification adds
+anything is one that gets bypassed. So a fixture for a request type introduced by a minor bump lands
+when a **second** host serves it, and the manifest's `profile` advances with the fixtures, not with
+the document.
 
-The corpus manifest is at `relay@1.0` while this document is at `relay@1.2`, and two additions are
-waiting on a second implementation for the same reason: `read.affordances` (§7.6, added at 1.1) and
-`attribution.actorClass` (§8.2.1, added at 1.2) are each specified and served by one host. Existing
-fixtures remain the gate meanwhile, and they are a real one for a 1.2 peer — answering an unchanged
-`relay@1.0` corpus, handshakes included, is precisely the evidence that §6.3's profile selection kept
-both bumps backward-compatible.
+**Coverage is therefore not contiguous, and the manifest's `profile` does not imply that it is.** The
+family advances to a minor when *that* minor's addition reaches a second host, and minors do not
+reach their second host in order. A family at `relay@1.3` may hold no fixture for a `relay@1.1`
+addition still served by one host — so the honest reading of `profile` is "the newest minor these
+fixtures reach", never "every minor up to this one is covered". §12.3 states the coverage obligation
+in those terms; the list of what is waiting is kept here, because a number cannot carry it.
+
+**Waiting on a second implementation, at `relay@1.3`:** `read.affordances` (§7.6, added at 1.1) is
+specified and served by one host. `attribution.actorClass` (§8.2.1, added at 1.2) is an optional
+field a host reads for nothing, so a fixture for it would pin a client's behaviour rather than a
+host's; it lands with the second client that emits it.
+
+**And the `relay@1.0` fixtures stay at `relay@1.0`, deliberately.** They are not stale envelopes
+awaiting a refresh. Answering an unchanged `relay@1.0` corpus, handshakes included, is precisely the
+evidence that §6.3's profile selection kept every minor bump backward-compatible — a property no
+fixture written at the current profile can test, since such a fixture negotiates the current profile
+by construction. Rewriting them to the newest minor would delete the only evidence in the corpus
+that the compatibility promise is kept. A minor's own handshake gets its own fixture instead, at its
+own profile, and the two sit side by side: one pins that a 1.0 session is still served and is NOT
+told about later entry points, the other that a current session is.
 
 Two things a runner should note while the corpus trails the document, because both have already
 caught a real implementation defect:
 
 - **`$relay` on a response is the RESPONDING PEER's own profile id (§4), not the fixture's.** A
-  fixture written at `relay@1.0` and answered by a `relay@1.2` peer carries two different profile ids
+  fixture written at `relay@1.0` and answered by a `relay@1.3` peer carries two different profile ids
   by construction, and both are correct. A runner comparing that field against the fixture is
   asserting the fixture author's version rather than the implementation's conformance — and will fail
   every peer that ever advances a minor, which is the opposite of what a backward-compatibility corpus
@@ -1108,9 +1218,18 @@ numbers, resolved binding `value`s, and `message` strings are environment-specif
 differ. Fixture payloads use representative values for these; a runner asserting byte-equality on them
 is testing the fixture author's choices, not the implementation.
 
-Every message type **in the manifest's own profile** has at least one fixture, and every refusal class
-in §9.3 has one. A type introduced by a later minor than the manifest's is covered when the family
-advances to that minor (§12.1).
+Every message type the family has **reached** has at least one fixture, and every refusal class in
+§9.3 has one. "Reached" is the operative word, and it is not the same as "defined at or below the
+manifest's profile": a minor's fixtures land when a second host serves that minor's addition, and
+minors do not reach their second host in order (§12.1). A runner should read §12.1's waiting list
+rather than deriving an obligation from the profile number — a check that demanded a fixture per
+intervening minor would turn a conformant host's gate red over an entry point it never claimed.
+
+A refusal class whose raising condition no shipped host can reach is still covered, and covered
+honestly: its fixture is answered by a host whose **surface** is made to return that outcome, which
+tests the peer's mapping from a surface outcome onto a refusal class. That mapping is the part a
+future host in the position the class was written for would actually depend on, and stubbing the
+surface for it is the technique the `DECODE_FAILED` and `VALIDATOR_REJECT` fixtures already use.
 
 ---
 
