@@ -871,13 +871,13 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 |---|---|
 | `fuaran` (F#) | **adopted** – substitution + empty-selection prune in the shared Transform frame, on both the .NET and Fable pipelines |
 | `fuaran-ts` | **adopted** – the same two rules in the renderer's binding resolver, mirrored from the same specification rather than ported from the F# source |
-| `fuaran-py` | pending |
-| `fuaran-go` | pending |
-| `fuaran-rs` | pending |
-| `fuaran-swift` | pending – a render projection consumes an already-resolved tree, so it owes this only where it drives a pipeline itself |
-| `fuaran-kt` | pending – as above |
+| `fuaran-py` | **adopted** – substitution + the empty-selection prune in the compute-layer host resolver, carried through the server-HTML renderer and the reactive loop; mirrored from this specification rather than ported from another host's source |
+| `fuaran-go` | **adopted** – substitution + the empty-selection prune in the static-emission path, resolved at render time; the reactivity edge is not this host's (it holds no UI session state) |
+| `fuaran-rs` | **adopted** – the same two rules in the shared Transform frame seam, on both the server and `wasm32`-client paths (one evaluator, certified on both targets by execution against the same fixture) |
+| `fuaran-swift` | **inherited** – a decode-only render projection over the `fuaran-rs` core, which resolves the pipeline and hands back rows; it drives none itself, so it has nothing of its own to adopt. Were it ever to drive one, the obligation would be its own |
+| `fuaran-kt` | **inherited** – as above |
 
-A pending host is **unchanged, not broken**: a tree carrying no list param behaves exactly as before, and a tree carrying one reports an unbound param loudly. What such a host cannot say is that it has adopted.
+A pending host is **unchanged, not broken**: a tree carrying no list param behaves exactly as before, and a tree carrying one reports an unbound param loudly. What such a host cannot say is that it has adopted. An **inherited** host makes a claim about the host it inherits from: it obtains resolved rows from that host and drives no pipeline of its own, so its conformance is that host's. Were it ever to drive one, the obligation would become its own.
 
 **`Binding.Query` dependency edge (Phase 421).** The Query binding gains an OPTIONAL `dependsOn` field: `"dependsOn":["status","date-range"]`, a string array naming the **filters** that scope this host-computed consumer. **Omitted when empty**; the degenerate canonical `Query` is `{"$type":"Query","name":…}` (0.2.0 – the `accessor` sentinel is off the wire, §4). The tree owns the dependency *edge* (so the AI can author it, the validator sees it, the op-stream replays it – restoring symmetry with `Binding.Selection`); the host accessor closure still owns *how* it filters – **no predicate language enters the tree** (that is `Transform.params`, Phase 424, for declarative data). On a filter-store change, a renderer re-resolves every `Query` whose `dependsOn` names the changed filter. Note the paired **decoded-accessor fix**: a decoded `Query` accessor is now an identity projection (F# `unbox`, TS `(raw) => raw`), so a host-populated `queryResults.<name>` value flows through decoded trees (previously it was discarded). See `nodes/query-dependson.json`.
 
