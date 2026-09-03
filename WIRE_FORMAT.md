@@ -971,6 +971,7 @@ read-compat):
 <!-- fuaran:spec-omit-defaults -->
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
+| `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
@@ -1777,6 +1778,78 @@ to invent WHICH permission it names).
 
 ---
 
+### 3.6.9 `Combobox` — the typeahead / autocomplete field (Phase 1113)
+
+`FormFieldKind.Combobox` is the searchable form of `Choice`. **The line a host and an emitter both
+have to hold is one sentence:** a BOUNDED KNOWN set the reader scans is `Choice`; a LARGE, SEARCHABLE
+or ASYNCHRONOUS set — or one that admits a value not on the list — is `Combobox`. The failure this
+distinction exists to prevent is not an invalid document but a valid one: a `Choice` over two hundred
+options parses, validates and renders on every host, and is unusable.
+
+```json
+{"$type":"Combobox",
+ "allowFreeText":true,
+ "onChange":"<closure>",
+ "options":{"$type":"Static","value":[{"label":"France","value":"fra"}]},
+ "value":{"$type":"Static","value":"fra"}}
+```
+
+**Members.** `options` is a `Binding<SelectOption list>` and is the case's only REQUIRED member — a
+combobox with no option source is not a control. `value` is a `Binding<string>` whose absent `Static`
+payload is "no selection", and `onChange` carries `string option`: **both are `Choice`'s, deliberately
+and normatively.** The constrained combobox IS a searchable select, so a document that migrates
+between the two changes its `$type` and nothing else, and a host that implemented a different value
+contract here would break exactly that migration. With free text admitted, an empty entry is genuinely
+no value, so it is `null`/absent rather than `""` — one fact, one spelling.
+
+**`allowFreeText` omits at `false`, and the polarity is load-bearing.** The SHORTEST combobox document
+is the CONSTRAINED one: an emitter that says nothing gets the shape a `Select` would have had, and
+admitting values outside the option set is the thing it has to ask for. A host MUST read an absent
+`allowFreeText` as `false`; a present member of any type other than boolean is `WRONG_TYPE` and MUST
+NOT be coerced — the slot decides whether off-list values are admitted, and a lenient truthiness read
+would widen the field on `"no"` and `"false"` alike.
+
+**An asynchronous suggestion source needs no vocabulary of its own.** A `Binding.Query` in the
+ordinary `options` slot IS the async feed, resolved by the same machinery every other query-bound slot
+uses; `dependsOn` gives it the dependency edge. Nothing in this case names a request, a debounce or a
+minimum query length.
+
+**Render obligations (normative, both tiers).**
+
+1. **Nothing on the wire names a keystroke.** Arrow / Enter / Escape / Home / End, the popup, the
+   highlight and the option-to-value mapping are the RENDERER's affordance under the affordance→op
+   rule. A host MUST NOT expect a document to configure them and MUST NOT add wire vocabulary for
+   them.
+2. **A client-tier host implements the WAI-ARIA combobox pattern**: `role="combobox"` on the text
+   input with `aria-expanded`, `aria-controls` naming the listbox, `aria-autocomplete="list"`, and
+   `aria-activedescendant` naming the ACTIVE option (absent when none is). **Focus stays on the
+   input** — the listbox and its options are not focus stops, which is what lets a reader hear the
+   highlighted option while still typing.
+3. **A static (no-script) host MUST still produce a working control.** The floor is a native
+   `<input type="text" list="…">` bound to a `<datalist>` of the resolved options; that pair is a
+   combobox to the user agent, which supplies the popup, the filtering, the keyboard interaction and
+   the accessibility semantics itself. A static host **MUST NOT** emit hand-written
+   `role="combobox"` / `aria-expanded` on that input: a static `aria-expanded="false"` that can never
+   become `true` replaces the user agent's correct semantics with a claim inert markup cannot keep.
+4. **`allowFreeText = false` is not enforceable by any static host, and MUST NOT be claimed as if it
+   were.** A `<datalist>` is a suggestion list; HTML has no native membership constraint for one. A
+   client tier restoring the committed value on an unmatched entry is an AFFORDANCE. Per §22's
+   standing posture, client validation is not a trust boundary: **a host that accepts submissions
+   MUST re-check membership server-side** for a combobox that declared `allowFreeText = false` over a
+   resolvable option set, exactly as it re-checks every other declared constraint.
+
+Fixtures: `nodes/form-combobox-static.json` (a static option source with `allowFreeText` OMITTED —
+which is what pins the default's polarity: a host reading absence as "free text admitted" round-trips
+these bytes perfectly and is wrong about what the document permits),
+`nodes/form-combobox-query.json` (the `Query`-bound suggestion source, declarative — no `onChange` —
+and with the `value` slot omitted so the field auto-binds `State("city")` exactly as a `Choice`
+would), `nodes/form-combobox-freetext.json` (`allowFreeText` true, carrying a value that matches NO
+option, which is the state a constrained combobox can never be in), and
+`reject/reject-combobox-allowfreetext-nonbool.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.allowFreeText` — a string refused rather than coerced).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -1807,7 +1880,7 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 
 | Slot(s) | Payload type | Typed wire form | Empty / `None` form |
 |---|---|---|---|
-| `FormFieldKind.Choice` / `SegmentedChoice` `.options` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
+| `FormFieldKind.Choice` / `SegmentedChoice` / `Combobox` `.options` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
 | the same specs' `.value` | `string option` | the plain string | `null` |
 | `SelectSpec.values` (multi-select, Phase 291) | `string list` | array of strings | `[]` |
 | `SparklineSpec.source` | `float seq` | array of numbers (rule 5 layout) | `[]` |
@@ -1939,6 +2012,7 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.SegmentedChoice` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
 
 _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
 
@@ -2065,7 +2139,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->91<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->92<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2387,10 +2461,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->397<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->167<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->401<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->170<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->91<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->92<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

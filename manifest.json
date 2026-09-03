@@ -50,6 +50,7 @@
   "formFieldKinds": [
     "Checkbox",
     "Choice",
+    "Combobox",
     "Date",
     "DateRange",
     "Number",
@@ -1454,6 +1455,30 @@
       "description": "Input/Form (all fields)"
     },
     {
+      "id": "form-combobox-freetext",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-combobox-freetext.json",
+      "expectedFile": "nodes/form-combobox-freetext.json",
+      "description": "Input/Form (Phase 1113 — Combobox: allowFreeText, value outside the option set)"
+    },
+    {
+      "id": "form-combobox-query",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-combobox-query.json",
+      "expectedFile": "nodes/form-combobox-query.json",
+      "description": "Input/Form (Phase 1113 — Combobox: Query-bound option source, declarative, auto-bound value)"
+    },
+    {
+      "id": "form-combobox-static",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-combobox-static.json",
+      "expectedFile": "nodes/form-combobox-static.json",
+      "description": "Input/Form (Phase 1113 — Combobox: static options, allowFreeText omitted)"
+    },
+    {
       "id": "form-date",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2664,6 +2689,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.layout.cols",
       "description": "Masonry cols 0 — refused: a column count names how many columns the children fill, so a non-positive one describes a layout no renderer can realise. Refused rather than canonicalised to `Auto`, unlike a column-less `Grid`: that leniency works because `Auto` already means the browser's own choice, and masonry has no such case for the rewrite to land on"
+    },
+    {
+      "id": "reject-combobox-allowfreetext-nonbool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-combobox-allowfreetext-nonbool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].kind.allowFreeText",
+      "description": "a Combobox `allowFreeText` of `\"yes\"` — refused rather than coerced. The slot decides whether values OUTSIDE the option set are admitted, so a lenient truthiness read is a constraint silently relaxed by a string: `\"yes\"`, `\"no\"` and `\"false\"` are all non-empty, and a host that coerced them would widen the field on two of the three. It also omits at `false`, so absence already spells the safe answer and a wrong-typed present value can only mean the emitter meant something it did not say"
     },
     {
       "id": "reject-daterange-unordered",

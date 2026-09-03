@@ -6462,6 +6462,73 @@
             }
           ],
           "tag": "DateRange"
+        },
+        {
+          "fields": [
+            {
+              "name": "allowFreeText",
+              "optionality": {
+                "$type": "omitDefault",
+                "default": {
+                  "$type": "bool",
+                  "value": false
+                }
+              },
+              "type": {
+                "$type": "bool"
+              }
+            },
+            {
+              "name": "onChange",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "string option -> Action<'Msg>",
+                  "placeholder": "(fun (_: string option) -> Action.Chain [])",
+                  "typescript": "(v: string | null) => Action"
+                },
+                "wire": "<closure>"
+              }
+            },
+            {
+              "name": "options",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "list",
+                    "of": {
+                      "$type": "record",
+                      "name": "SelectOption"
+                    }
+                  }
+                ],
+                "name": "Binding"
+              }
+            },
+            {
+              "name": "value",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "str"
+                  }
+                ],
+                "name": "Binding"
+              }
+            }
+          ],
+          "tag": "Combobox"
         }
       ],
       "name": "FormFieldKind",
