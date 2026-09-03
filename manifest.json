@@ -2350,6 +2350,30 @@
       "description": "Display/Toast (Success tone, open)"
     },
     {
+      "id": "tooltip-button-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tooltip-button-1.json",
+      "expectedFile": "nodes/tooltip-button-1.json",
+      "description": "Tooltip (Phase 1112 — the trait on a forwarding interactive kind; the description rides the button)"
+    },
+    {
+      "id": "tooltip-icon-button-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tooltip-icon-button-1.json",
+      "expectedFile": "nodes/tooltip-icon-button-1.json",
+      "description": "Tooltip (Phase 1112 — the icon-only button: accessibility.label NAMES, tooltip DESCRIBES, describedBy merges)"
+    },
+    {
+      "id": "tooltip-metric-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tooltip-metric-1.json",
+      "expectedFile": "nodes/tooltip-metric-1.json",
+      "description": "Tooltip (Phase 1112 — the trait on a display kind, I18n hint; description and focus stop on the wrapper)"
+    },
+    {
       "id": "upload-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3144,6 +3168,15 @@
       "expectedErrorCode": "UNKNOWN_DU_CASE",
       "expectedPath": "$.kind.columns[0].kind.map.Delayed",
       "description": "TonedPill tone-map value outside ToneVariant — the message names the seven legal tones (Phase 750)"
+    },
+    {
+      "id": "reject-tooltip-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tooltip-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.tooltip",
+      "description": "a node `tooltip` of `42` — refused rather than stringified. A bare STRING at this slot is the canonical encoding of a literal hint (TextSource's transparent case), so a number is one lenient `toString` away from minting hint text out of a JSON type — which no downstream check could ever catch"
     },
     {
       "id": "reject-unknown-binding",

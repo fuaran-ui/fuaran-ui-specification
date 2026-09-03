@@ -3102,6 +3102,17 @@
         "$type": "record",
         "name": "SemanticStyle"
       }
+    },
+    {
+      "name": "tooltip",
+      "optionality": {
+        "$type": "optional"
+      },
+      "type": {
+        "$type": "union",
+        "args": [],
+        "name": "TextSource"
+      }
     }
   ],
   "ops": [

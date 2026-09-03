@@ -133,14 +133,15 @@ Every DU position on the wire is a JSON object carrying a `"$type"` string + tha
 
 ### 3.1 Node envelope
 
-A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, and `accessibility` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
+A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, `accessibility` and `tooltip` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
 
 ```json
 { "id": "<non-empty string>",
   "kind": <NodeKind>,
   "state": <StateBehaviour>,         // optional — omitted when empty
   "style": <SemanticStyle>,          // optional — omitted when all-default
-  "accessibility": <Accessibility>   // optional — omitted when None
+  "accessibility": <Accessibility>,  // optional — omitted when None
+  "tooltip": <TextSource>            // optional — omitted when None
 }
 ```
 
@@ -164,6 +165,60 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   > `lenient/lenient-shape-a11y-label-bare-scalar`; per §16 the profile is decode-only and does
   > not change the negotiated wire version (§15) — no optional field is added, so §15.4's
   > additive-minor question does not arise.
+
+- `tooltip` (`TextSource`) is a supplementary **hint** about the node — the text a reader is shown on hover or focus, and which assistive technology receives as the node's description. Omitted entirely when absent. It takes every `TextSource` arm, and note that the CANONICAL encoding of a literal hint is a BARE STRING (`"tooltip": "Updated nightly."`) rather than an object: `Literal` is `TextSource`'s transparent case wherever it appears, and `Bound` / `I18n` are the arms that carry a `$type` envelope. The `{"$type":"Literal","text":…}` spelling is decode-accepted and normalises to the bare form on re-encode, exactly as at every other `TextSource` slot.
+
+#### The tooltip trait (Phase 1112)
+
+**It is a node-level TRAIT, not a field of any kind.** A hint is uniform across kinds — nothing about
+"a short supplementary description of this thing" varies with whether the thing is a button or a
+metric — so it sits on the envelope beside `accessibility`, and a per-kind spelling of it is not this
+trait. In particular `ButtonSpec` carries a legacy host-only `tooltip` slot (§10.1) which is **never
+emitted and never decoded**: a `tooltip` inside a `kind` object is an unknown key, tolerated and
+ignored under rule 2, and is not a second spelling.
+
+**It is a DESCRIPTION, never a NAME.** `accessibility.label` names the element; the tooltip
+supplements a name that already exists. A host MUST project it as `aria-describedby` and MUST NOT
+project it as `aria-label` — an icon-only control needs both slots, saying different things, and a
+host that conflated them would leave such a control with two competing names and no description.
+
+**The gesture is not on the wire.** Hover, focus, long-press, touch reveal, placement and delay are
+the renderer's own affordance: nothing here names any of them, no event enters the vocabulary, and a
+document says WHAT the hint is and never HOW it appears.
+
+**Normative render obligations.** A conformant rendering host, given a node whose `tooltip` resolves
+to non-empty text:
+
+1. MUST emit the hint as a rendered element carrying `role="tooltip"` and a stable id, and MUST
+   reference that id from `aria-describedby` on the node.
+2. MUST place `aria-describedby` on **the element that takes keyboard focus**, and MUST ensure such
+   an element exists — giving the node's wrapper a focus stop where the node's own body is not one.
+   A description on an element the keyboard never reaches is announced on no interaction at all, and
+   a description on a control while a different element is the focus stop is the same failure with
+   the parts swapped.
+3. MUST render the hint so that moving the pointer onto the hint itself does not dismiss it
+   (**hoverable**), and so that it does not disappear on a timer (**persistent**) — WCAG 1.4.13.
+   Emitting the hint as a descendant of the hover target satisfies both structurally.
+4. MUST merge, not replace, an `accessibility.describedBy` already present: `aria-describedby` is an
+   id list, and the document has declared two descriptions.
+5. MUST emit nothing at all — no hint element, no `aria-describedby`, no focus stop — when the hint
+   resolves to empty or whitespace. Advertising a description that is not there is worse than
+   silence.
+6. SHOULD bound the hint's size so that its own text is never clipped and it never exceeds the
+   viewport's usable width.
+
+**The pure-SSR degradation is stated here rather than left to hosts.** Obligations 1–5 are all
+satisfiable with no script at all, and a server-rendered page therefore carries the hint, its
+description, and a CSS-driven hover/focus reveal. **Dismissal — WCAG 1.4.13's third half — is not
+achievable without script and is NOT required of a pure-SSR host**: a host with a client tier MUST
+provide it (Escape, without moving pointer or focus); a host without one degrades to a rendered,
+adjacent, always-described hint. Collision-aware repositioning at a viewport edge requires
+measurement, is likewise a client-tier concern, and is **not** claimed by any conformance leg.
+
+**Not byte-compared.** These are render obligations, not wire shape: the corpus pins that the slot
+round-trips, and the emitted markup is fixed by each host's own render tests. Nothing in
+`manifest.json` measures them — stated plainly, because §11.2 vocabulary attestation enumerates
+CASES and so covers no field (§11).
 
 #### Near-miss slot names are refused, not ignored (Phase 959)
 
@@ -2010,7 +2065,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->90<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->91<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2332,10 +2387,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->393<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->164<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->397<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->167<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->90<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->91<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
