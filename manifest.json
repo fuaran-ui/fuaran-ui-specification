@@ -2400,6 +2400,14 @@
       "description": "Switch (view state → details/summary cases + info default)"
     },
     {
+      "id": "switch-carousel-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/switch-carousel-1.json",
+      "expectedFile": "nodes/switch-carousel-1.json",
+      "description": "Meta/Switch (Phase 1122 — an auto-advancing carousel: `autoAdvanceMs` over an index key)"
+    },
+    {
       "id": "switch-on-selection",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3377,6 +3385,33 @@
       "expectedErrorCode": "UNKNOWN_DU_CASE",
       "expectedPath": "$.style.direction",
       "description": "style.direction outside the closed set — the message names auto | ltr | rtl, and the near miss is the upper-case spelling (Phase 1472)"
+    },
+    {
+      "id": "reject-switch-autoadvance-fractional",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-switch-autoadvance-fractional.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.autoAdvanceMs",
+      "description": "Switch autoAdvanceMs is fractional — the slot is an integer count of milliseconds, and a decoder truncating where another rounded would leave two hosts disagreeing about a document neither refused (Phase 1122)"
+    },
+    {
+      "id": "reject-switch-autoadvance-negative",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-switch-autoadvance-negative.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.autoAdvanceMs",
+      "description": "Switch autoAdvanceMs is negative — an interval names how long to wait, so a negative one describes a schedule no renderer can realise (Phase 1122)"
+    },
+    {
+      "id": "reject-switch-autoadvance-zero",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-switch-autoadvance-zero.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.autoAdvanceMs",
+      "description": "Switch autoAdvanceMs is 0 — refused, never canonicalised to absence. An absent key is already the only spelling of \"does not advance\", so accepting a zero would make two shapes mean one thing and hide the emitter's misreading of the slot (Phase 1122)"
     },
     {
       "id": "reject-tonedpill-unknown-tone",

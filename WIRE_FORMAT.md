@@ -385,7 +385,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `FragmentDecl` | _Meta_ | `body`, `effect?`, `holes?`, `name` | NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion. |
 | `FragmentRef` | _Meta_ | `args?`, `name` | An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time. |
 | `Mount` | _Meta_ | `capabilities`, `channel`, `inputs?`, `onBubble?`, `scopeId` | An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document. |
-| `Switch` | _Meta_ | `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
+| `Switch` | _Meta_ | `autoAdvanceMs?`, `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
 <!-- /fuaran:spec-kinds -->
 
 Every `kind.$type` is globally unique. The former `Grid` collision (a Layout grid and a Visualisation data-grid both once named `Grid`) is fully resolved: the CSS-grid container is now a **`Box`** with `layout: {"$type":"Grid",…}` (Phase 390 – see below), and the data-bound grid is **`DataGrid`** (payload `GridSpec`). This global uniqueness is what lets the wire be flat – a single discriminator unambiguously selects both the primitive and its category.
@@ -410,6 +410,79 @@ The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`)
 The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direction,wrap},role:"Group"}`; `gridLayout` → `{layout:{$type:Grid,cols},role:"Group"}`; `dashboard` → `{layout:{$type:Auto},role:"Dashboard"}`; `card` → `{layout:{$type:Flex,Vertical,false},heading,role:"Card"}`. See `nodes/stack-1.json`, `nodes/glayout-1.json`, `nodes/dash-empty.json`, `nodes/card-1.json`.
 
 **Retired container tags are rejected, as are `Spacer` / `Divider`.** The four superseded container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and the superseded `Table` tag are **hard-retired (Phase 673)**: a bare `"$type":"Stack"` is a decode error, not an upgrade. They briefly decode-upgraded to `Box` / `DataGrid` for permalink and op-stream compatibility; that seam was removed once measurement showed nothing depended on it (no persisted artefact carried the tags, and across 6,561 eval runs no model emitted one without being taught it). This restores §1.1's stated 0.2.0 posture — *retired vocabulary is a hard decode error, not a deprecation* — which the upgrade seam had quietly contradicted. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
+
+#### Timed advance — the carousel behaviour on `Switch` (Phase 1122)
+
+**One optional integer on `SwitchSpec`, omitted at absence, that says this switch is meant to MOVE
+ON ITS OWN and how often.** A document that does not declare it is byte-identical to what it was
+before this member existed, and behaves identically on every host.
+
+```json
+{"$type":"Switch","autoAdvanceMs":5000,"cases":[…],"default":{…},"stateKey":"slide"}
+```
+
+| Member | Says |
+|---|---|
+| `autoAdvanceMs` | advance to the next case every this-many milliseconds |
+
+**It declares the one fact a host cannot recover from the tree.** Every other half of a carousel is
+already composable and was before this phase: the stage is a `Box`, the panels are the `cases`, the
+position is the bound key, and the arrows and dots are ordinary controls writing that key. Nothing
+in any arrangement of those says a timer exists. It is the `sortStateKey` shape — a behaviour the
+host performs, keyed by something only the document can name.
+
+**A duration, never a flag.** "Advances" with no interval is not renderable: a host would have to
+invent a period, and two hosts inventing different ones is exactly the divergence this corpus
+exists to prevent.
+
+**Non-positive is REFUSED, not canonicalised** (`reject/reject-switch-autoadvance-zero.json`,
+`…-negative.json`, `…-fractional.json`). `0` is what an emitter reaches for to mean "off", and the
+language already HAS a spelling for off — an absent key. Rewriting a zero to absence would make two
+document shapes mean one thing and tell the emitter nothing about its misreading; decoding it to a
+live zero-millisecond timer would be a re-render loop. This is the `Masonry.cols` ruling
+(§3.3) at a second slot, and the code is the same: `WRONG_TYPE`, a number outside the slot's value
+space, with a bound rather than a legal set to name back. A FRACTIONAL value is refused for a
+different reason worth stating separately: the slot is an integer count, and a decoder truncating
+where another rounded would leave two hosts disagreeing about a document neither refused.
+
+**What advances, and what a conformant client owes the reader.** The advance writes the switch's
+OWN selector key, so it is meaningful only where that selector is the compact `stateKey` (or the
+`State` form of `on`). A switch selecting on a `Selection` / `Filter` / `Query` binding is driven by
+another node, has no key of its own to move, and the declaration is inert there; the reference
+host's pre-emit validator reports that shape as **FUARAN128 (Warning)**, alongside a switch carrying
+fewer than two cases.
+
+Where it IS live, a client tier that honours the interval **MUST** also, per WCAG 2.2.2
+(Pause, Stop, Hide):
+
+  1. **pause** the advance while the reader hovers the stage, holds a touch on it, or holds focus
+     anywhere inside it — and resume when they let go;
+  2. **stop it permanently** for the life of the mount as soon as the reader interacts with the
+     stage at all. There is deliberately no resume path and no timeout back to running: a carousel
+     that restarts itself drags the reader off whatever they chose to look at;
+  3. **never start it** when the reader's environment reports `prefers-reduced-motion: reduce`. This
+     obligation is stated here rather than left to a stylesheet because a stylesheet can suppress a
+     TRANSITION and cannot suppress an ADVANCE — the content would still change under the reader,
+     silently, which is the harm the preference is about.
+
+**These are recorded normatively rather than left per-host**, and none of them is a wire member. No
+gesture, threshold, event name, pause policy or resume rule appears in the vocabulary: a document
+says WHAT the switch does and never HOW the reader takes it over. Swipe and the arrow keys are the
+same affordance in two input modalities and are likewise renderer-owned.
+
+**The static floor is the bound case, rendered once, with no timer.** A no-script host resolves the
+selector from seeded state, renders the matching case (else the `default`), and stops. That is the
+conforming answer rather than a gap: advancing means writing a state key on an interval, and a
+static document has neither. Nothing about the emitted markup differs from a switch with no
+interval, which is also what keeps hydration mismatch-free.
+
+**The two transition tokens are NOT here, and that is the ruling rather than an omission.**
+`Motion.CrossFade` and `Motion.SlideBetween` (Phase 1122) name what a renderer does when a `Switch`
+replaces the child standing in its stage. They join the `Motion` vocabulary (§9's host-only
+enumeration, listed in the enum table above) and therefore **never reach the wire at all**: motion
+is consumer-authored, not AI-authored, so a between-children transition is a look the host chooses
+and not a fact the document carries. The consequence for this section is exact — no fixture in this
+corpus can carry either token, and neither case costs any host a codec change.
 
 #### Print break control — subtree cohesion across a page boundary (Phase 1473)
 
@@ -1078,7 +1151,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
 - `MathDisplay`: `"Inline"` / `"Block"`
 - `ModalityKind`: `"Modal"` / `"Popover"`
-- `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"`
+- `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"` / `"CrossFade"` / `"SlideBetween"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
 - `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
 - `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
@@ -2556,7 +2629,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->111<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2747,6 +2820,28 @@ component identity, echoes no prop value, and invents no description — and eac
 suite. Taking the obligation is not taking §25: these rows stay `pending` deliberately, and a reader
 should not infer a card reader from an `adopted` row in the table above.
 
+**Timed-advance adoption (`SwitchSpec.autoAdvanceMs`, Phase 1122).** A FOURTH bar, and narrower than
+the three above because it is a single optional field rather than a family: a host adopts by decoding
+the member (refusing a non-positive or fractional value, per §3), and — where it is a client tier that
+drives interaction — by honouring the three WCAG 2.2.2 obligations recorded normatively with the
+field. A codec-only or headless host owes the decode leg alone; the timer is not something a headless
+emitter can run.
+
+| Host | Timed-advance adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** – decode + refusal, the client-tier advance/pause/stop state machine, the reduced-motion floor, swipe + arrow keys, and the static SSR floor |
+| `fuaran-ts` | pending |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending – headless, so the decode leg only |
+| `fuaran-rs` | pending – decode leg, plus the interaction obligations in its WASM-client role |
+| `fuaran-swift` | pending – a render projection owes the interaction obligations for what it renders, and owes no codec leg |
+| `fuaran-kt` | pending – as above |
+
+**A pending host is unchanged, not broken**, on this section's standing reading: the member is
+optional, so a host that has not adopted it decodes every pre-1122 document exactly as before and
+meets a document that carries the key with an `UNKNOWN` field it ignores or refuses per its own
+policy. What it cannot say is that it advances.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -2878,10 +2973,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->432<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->184<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->436<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->185<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->111<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
