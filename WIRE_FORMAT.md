@@ -1198,6 +1198,7 @@ read-compat):
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
+| `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
@@ -2671,6 +2672,138 @@ mis-handle. That is the loud failure mode, and it is the one to prefer.
 
 ---
 
+### 3.6.17 `Rating` and `Color` — the score and the swatch (Phase 1130)
+
+Two `FormFieldKind` cases, specified together because their one shared property is the one a host is
+most likely to get wrong: **each carries a rule that is checked in more than one place, and neither
+rule is a coercion anywhere.**
+
+```json
+{"$type":"Rating","allowHalf":true,"max":5,"onChange":"<closure>","value":{"$type":"Static","value":3.5}}
+{"$type":"Color","value":{"$type":"Static","value":"#FFAA00"}}
+```
+
+#### `Rating`
+
+**The line an emitter has to hold is one sentence:** a SUBJECTIVE SCORE on a small ordinal scale is
+`Rating`; a NUMERIC QUANTITY the reader types or drags is `RangedNumber`. The test is who the number
+belongs to — a rating is a judgement a person GIVES, a ranged number is a measurement they REPORT.
+Both carry a floating-point value and a ceiling, which is exactly why the sentence is written down
+rather than left to be inferred from the shapes.
+
+**Members.** `max` is an `int` and is the case's only REQUIRED member: it is the scale, it is what the
+control announces as `aria-valuemax`, and a rating with no declared ceiling is not a scale. **A `max`
+of less than 1 is `WRONG_TYPE` and MUST be refused, not clamped** — a scale with no positions has
+nothing to draw, nothing to announce and no keystroke that could change anything, so the document
+names a control that cannot exist. `value` is a `Binding<float>` whose absent form is the ordinary
+auto-bind; `onChange` carries `float`.
+
+**The value is a float even where nothing can type a fraction, and this is normative rather than
+incidental.** The commonest rating a reader sees is an AVERAGE — 4.3 of 5 over three hundred reviews,
+arriving through a `Query` binding — and an integer slot could not carry it. A host **MUST** render a
+fractional value as a partial position rather than rounding it: rounding would show the reader a
+figure the document did not state.
+
+**`allowHalf` omits at `false`, and the polarity is load-bearing.** The SHORTEST rating document is
+the WHOLE-STAR one; halves are what an emitter has to ask for. A host MUST read an absent `allowHalf`
+as `false`; a present member of any other type is `WRONG_TYPE` and MUST NOT be coerced.
+
+**`allowHalf` governs ENTRY, never DISPLAY.** It is the granularity of a keystroke and of a pointer
+commit; it says nothing about what a bound value may be. A host **MUST NOT** quantise a resolved
+value to the granularity — a 4.3 average on a whole-star control is a correct document, and a host
+that snapped it to 4 would be answering a question the author did not ask.
+
+**It is a bool and not a `step`, deliberately.** A `step` slot would admit `0.3`, which is a valid
+document naming an interaction no rating control has ever had, so the decoder would owe a refusal
+enumerating exactly `{1, 0.5}` — at which point the float is a boolean wearing a wider type. It would
+also give `Rating` and `RangedNumber` a third member in common, widening the very confusion pair the
+sentence above exists to keep apart.
+
+**Where the VALUE's bounds are checked, and where they are not.** The scale is refused at decode; a
+value outside `0 .. max` is **not**, and the asymmetry is the design. A bound value is invisible to a
+decoder, and a rule enforced only on literals would be two rules wearing one name. A host therefore
+owes the value rule at the two places the value becomes visible: an authoring-time check over a
+`Static` literal (the reference host's `FUARAN132`, a warning — the render path clamps, so the
+document still renders), and a **server-side re-check on submission**, which is the only one that is a
+trust boundary.
+
+**Render obligations (normative, both tiers).**
+1. **Nothing on the wire names a keystroke or a role.** Arrow / Home / End, the glyph, the partial
+   fill and the announcement are the RENDERER's affordance under the affordance→op rule.
+2. **An adjustable rating is `role="slider"`, not `role="radiogroup"`.** It carries
+   `aria-valuemin="0"`, `aria-valuemax` from `max`, `aria-valuenow`, and an `aria-valuetext` giving
+   the whole reading ("3.5 out of 5") — `aria-valuetext` being the only ARIA member that can announce
+   a fraction at all. It is ONE tab stop; Arrow Right/Up and Left/Down move by the granularity and
+   STOP at both ends (they MUST NOT wrap: a slider's ends are ends, and wrapping turns "one more
+   star" into "none"), Home is 0 and End is `max`. A radiogroup is wrong for three reasons and they
+   are worth stating: a rating is a magnitude and not a set of named options; a radiogroup cannot
+   announce a fraction; and with `allowHalf` it would need `2·max` radios for one continuous quantity.
+3. **A rating nothing can write is `role="img"`, carrying the whole reading as its accessible name,
+   and takes no focus.** That is the bound-average display case. A slider a reader can focus and can
+   never move is a fake affordance, and the honest markup for a picture of a score is a picture.
+4. **A static (no-script) host that renders an ADJUSTABLE rating MUST still produce a working
+   control**, and the floor is native radios — one per enterable position, grouped by the field's
+   name. Zero-JS, a `role="slider"` element can be neither adjusted nor submitted; radios are
+   keyboard-adjustable and submit with the form, and the user agent supplies the group semantics
+   itself. A static host **MUST NOT** emit hand-written `role="slider"` / `aria-valuenow` on that
+   markup, for §3.6.9's reason: a static value that can never change replaces the user agent's correct
+   semantics with a claim inert markup cannot keep. The floor and the hydrated control differ because
+   what each medium can HONOUR differs; a display-only rating has no interaction to floor, so both
+   tiers emit the identical `role="img"` star row.
+5. **A static host's radio floor may check nothing when the current value is a fraction that lands on
+   no enterable position.** That is a recorded limit rather than a defect: the floor shows the
+   positions a reader can choose, not the average.
+
+#### `Color`
+
+`FormFieldKind.Color` is the platform's own colour picker. Note what it is NOT: it is a CONTROL, and
+not a `rule.format` — a `format` constrains the text a reader types into a text box, where this case
+is a swatch that opens the operating system's colour picker, which no `format` on a `Text` field can
+produce. The two do not overlap, and admitting this case leaves any decision about a `color` rule
+format exactly where it was.
+
+**Members.** Both optional: `value` is a `Binding<string>` and `onChange` carries `string`. The case
+has no required member, so `{"$type":"Color"}` is a complete, auto-bound colour field.
+
+**The value is `#rrggbb` and nothing else.** Six hexadecimal digits after a `#`, either case. That is
+the one form a native colour input can hold or return, so it is the wire form too rather than a wider
+colour syntax the control would silently narrow. **A `Static` literal outside that shape is
+`WRONG_TYPE` and MUST be refused, not coerced**: `#fff`, `rebeccapurple`, `rgb(0 0 0)` and an alpha
+channel are all documents naming a colour this control could never carry, and a host that narrowed one
+would show a colour the document did not choose.
+
+**Only the `Static` case is judged at decode, and the split is recorded rather than hidden.** A
+`State` / `Query` / `Selection` binding carries its text from outside the document, where a decoder
+cannot see it. A host owes the same rule at the two other places the value becomes visible: an
+authoring-time check over a literal (the reference host's `FUARAN133`, an **error** — a tree carrying
+a non-hex literal encodes to a document no conformant host will read back), and a **server-side
+re-check on submission**. One rule, checked wherever the value becomes visible; a coercion at none of
+the three.
+
+**Case is PRESERVED, never normalised.** `#FFAA00` is a hex colour and round-trips byte-identically;
+a codec that lower-cased it would fail the round-trip this corpus exists to pin. Browsers normalise at
+the DOM, which is their business and not the wire's.
+
+**Render obligations (normative, both tiers).** A host renders the platform's native colour input;
+there is no ARIA to hand-write and no keyboard model to invent, because the element carries both. A
+value that resolves to something the element cannot hold **MUST** fall back to the unset default
+rather than being passed through — a native colour input substitutes its own default silently, so
+handing it a bad literal would show a colour the document did not choose while the tree still said
+otherwise.
+
+#### Corpus
+
+`nodes/form-rating.json` (whole stars, `allowHalf` omitted, a static value on a position),
+`nodes/form-rating-halves.json` (`allowHalf` entry beside a ten-scale average whose value slot is
+omitted entirely — the auto-bind), `nodes/form-color.json` (UPPER-CASE hex, preserved not normalised),
+`nodes/filters-rating-colour.json` (both controls as declarative filter chips — a chip carries the
+same control as a field since the 0.2.0 unification, and a corpus covering only the field route would
+leave half the vocabulary unpinned), `reject/reject-rating-max-zero.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.max`) and `reject/reject-color-value-not-hex.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.value`).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2834,6 +2967,8 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
+| `FormFieldKind.Rating` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `max` and `allowHalf` are DATA and survive intact; the erasure here is the handler alone |
+| `FormFieldKind.Color` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 
 _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
 
@@ -2961,7 +3096,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->117<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->119<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3309,10 +3444,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->447<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->189<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->453<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->193<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->117<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->119<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

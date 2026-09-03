@@ -51,12 +51,14 @@
   "formFieldKinds": [
     "Checkbox",
     "Choice",
+    "Color",
     "Combobox",
     "Date",
     "DateRange",
     "Number",
     "Range",
     "RangedNumber",
+    "Rating",
     "SegmentedChoice",
     "Text",
     "TextArea",
@@ -1480,6 +1482,14 @@
       "description": "Input/Filters (declarative — omitted onChange + typed range bounds)"
     },
     {
+      "id": "filters-rating-colour",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/filters-rating-colour.json",
+      "expectedFile": "nodes/filters-rating-colour.json",
+      "description": "Input/Filters (Phase 1130 — Rating + Color chips, declarative and auto-bound)"
+    },
+    {
       "id": "filters-segmented",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -1494,6 +1504,14 @@
       "inputFile": "nodes/form-1.json",
       "expectedFile": "nodes/form-1.json",
       "description": "Input/Form (all fields)"
+    },
+    {
+      "id": "form-color",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-color.json",
+      "expectedFile": "nodes/form-color.json",
+      "description": "Input/Form (Phase 1130 — Color: upper-case hex, preserved not normalised)"
     },
     {
       "id": "form-combobox-freetext",
@@ -1582,6 +1600,22 @@
       "inputFile": "nodes/form-ranged.json",
       "expectedFile": "nodes/form-ranged.json",
       "description": "Input/Form (RangedNumber — all/min-only/no bounds)"
+    },
+    {
+      "id": "form-rating",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-rating.json",
+      "expectedFile": "nodes/form-rating.json",
+      "description": "Input/Form (Phase 1130 — Rating: whole stars, allowHalf omitted, static value)"
+    },
+    {
+      "id": "form-rating-halves",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-rating-halves.json",
+      "expectedFile": "nodes/form-rating-halves.json",
+      "description": "Input/Form (Phase 1130 — Rating: allowHalf entry + a bound average on a ten-scale, value auto-bound)"
     },
     {
       "id": "form-segmented",
@@ -2869,6 +2903,15 @@
       "description": "Masonry cols 0 — refused: a column count names how many columns the children fill, so a non-positive one describes a layout no renderer can realise. Refused rather than canonicalised to `Auto`, unlike a column-less `Grid`: that leniency works because `Auto` already means the browser's own choice, and masonry has no such case for the rewrite to land on"
     },
     {
+      "id": "reject-color-value-not-hex",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-color-value-not-hex.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].kind.value",
+      "description": "a Color `value` of `\"rebeccapurple\"` — refused rather than coerced. `#rrggbb` is the one shape a native colour input can hold, so a literal outside it names a colour this control could never carry, and a host that narrowed it would show a colour the document did not choose. Only the STATIC case is judged, because it is the only text a decoder has: a bound value is re-checked by the pre-emit validator for an author and by the server-side submission floor for a client, which is one rule checked wherever the value becomes visible"
+    },
+    {
       "id": "reject-combobox-allowfreetext-nonbool",
       "kind": "reject",
       "decoder": "node",
@@ -3407,6 +3450,15 @@
       "expectedErrorCode": "UNKNOWN_DU_CASE",
       "expectedPath": "$.style.direction",
       "description": "UpdateStyle style.direction outside the closed set — the op arm's twin of the node vector above (Phase 1472)"
+    },
+    {
+      "id": "reject-rating-max-zero",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-rating-max-zero.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].kind.max",
+      "description": "a Rating `max` of `0` — refused rather than clamped. This is not a control with a bad number in it: a scale with no positions has nothing to draw, no `aria-valuemax` to announce and no keystroke that could change anything, so the document names a control that cannot exist. Note the asymmetry this vector pins: the SCALE is refused here and the VALUE is not, because a bound value is invisible to a decoder and a rule enforced only on literals would be two rules wearing one name"
     },
     {
       "id": "reject-setstate-value-and-valuefrom",
