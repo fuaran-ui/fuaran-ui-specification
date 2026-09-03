@@ -1,0 +1,1 @@
+{"id":"sparkline-normal","kind":{"$type":"Drawing","shapes":[{"$type":"Polyline","points":[{"x":0,"y":29},{"x":25,"y":19.67},{"x":50,"y":10.33},{"x":75,"y":19.67},{"x":100,"y":1}],"style":{"stroke":{"$type":"Static","value":"currentColor"},"strokeWidth":{"$type":"Static","value":1.5}}}],"style":{},"viewBox":{"height":30,"minX":0,"minY":0,"width":100}}}

@@ -1,0 +1,1 @@
+{"id":"sparkline-single-point","kind":{"$type":"Drawing","shapes":[{"$type":"Polyline","points":[{"x":50,"y":29}],"style":{"stroke":{"$type":"Static","value":"currentColor"},"strokeWidth":{"$type":"Static","value":1.5}}}],"style":{},"viewBox":{"height":30,"minX":0,"minY":0,"width":100}}}
