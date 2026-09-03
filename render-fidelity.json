@@ -805,6 +805,31 @@
       ],
       "obligations": [],
       "contract": "Phase 289; WIRE_FORMAT.md 3.2 (Toast vs Action.Notify); docs/SSR.md"
+    },
+    {
+      "kind": "Tree",
+      "sensitive": true,
+      "source": "the recursive TreeItem rows, and the names of the two State slots the reader's expansion and selection live in - never the state itself, and never a per-row expanded flag",
+      "fallback": "nested `<ul role=\"tree\">` / `<li role=\"treeitem\">` / `<ul role=\"group\">`, every row carrying a stated `aria-label`, `aria-level`, `aria-setsize` and `aria-posinset`; `aria-expanded` on rows that HAVE children and on no others, reflecting the statically-resolvable expanded state; `aria-selected` only where a selection key is named; and EXACTLY ONE row at `tabindex=\"0\"` with every other at `-1` - the widget is one tab stop, computed from state alone so the server and the client's first frame agree. No script at any point",
+      "rich": {
+        "class": "behavioural",
+        "enhancement": "the six key bindings - Down/Up move between visible rows, Right opens a closed parent and then moves into it, Left closes an open row and otherwise moves to its parent, Home/End reach the first and last visible row - plus the expansion and selection writes",
+        "seam": "the server rendering is COMPLETE and navigable by assistive technology; what hydration adds is movement, not legibility",
+        "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
+      },
+      "fixtures": [
+        "nodes/tree-1.json",
+        "nodes/tree-expanded-1.json",
+        "nodes/tree-selection-1.json"
+      ],
+      "obligations": [
+        {
+          "id": "accessible-name-always",
+          "statement": "every row carries a stated `aria-label` equal to its visible label - a treeitem OWNS its child group, so a name computed from contents would read the whole branch out as the row's own name",
+          "section": "WIRE_FORMAT.md 3.6.12"
+        }
+      ],
+      "contract": "Phase 1120; WIRE_FORMAT.md 3.6.12, 21.5; docs/SSR.md (the Tree server floor)"
     }
   ]
 }

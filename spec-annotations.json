@@ -14,7 +14,8 @@
       "Mount": "An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document.",
       "Switch": "The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code.",
       "FragmentRef": "An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time.",
-      "FragmentDecl": "NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion."
+      "FragmentDecl": "NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion.",
+      "Tree": "Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5."
     },
     "enums": {
       "DateStyle": "inside `Format.Date.dateStyle`",

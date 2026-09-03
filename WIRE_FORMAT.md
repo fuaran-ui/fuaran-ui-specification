@@ -371,6 +371,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Skeleton` | _Display_ | `rows` |  |
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
+| `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
 | `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
@@ -1122,6 +1123,7 @@ read-compat):
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
+| `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
@@ -2161,6 +2163,110 @@ popover, the executable form of rule 7), and `reject/reject-modal-modality-unkno
 
 ---
 
+### 3.6.12 `Tree` — recursive disclosure with tree semantics (Phase 1120)
+
+`Tree` is a Display kind carrying a hierarchy of ROWS and, optionally, the names of the two State
+slots through which a reader opens rows and selects one. Its rows are `TreeItem` records — not
+`Node`s — and `TreeItem.children` is a list of the same record, which makes this the format's first
+**self-referential** shape.
+
+```json
+{"id":"tree-1","kind":{"$type":"Tree","items":[{"children":[{"id":"cocoa","label":"Cocoa"},{"id":"yarn","label":"Yarn"}],"id":"goods","label":"Goods"},{"id":"ledger","label":"Ledger"}]}}
+{"id":"tree-expanded-1","kind":{"$type":"Tree","expandedStateKey":"openRows","items":[{"children":[{"children":[{"id":"manifest","label":"Manifest"}],"id":"1823","label":"1823"}],"icon":"folder","id":"archive","label":"Archive"}]}}
+```
+
+**`TreeItem`.** `id` and `label` are required; `children` omits at the EMPTY LIST and `icon` when
+absent. A leaf therefore carries two keys and nothing else, which is most of a real hierarchy — a
+host emitting `"children":[]` on a leaf produces different bytes for most of a file listing.
+
+`id` is required because it is what the two State slots NAME. `label` is a `TextSource` because it
+is content — authored, translated, bindable.
+
+**The two State slots, and what they hold.** This kind carries no `expandable` and no `selectable`
+boolean, and none is coming: a behaviour the reader drives is declared as a named State key that the
+host both writes and reads, and a flag with no key behind it is a decorative control writing state
+nothing reads. The slot shapes are fixed HERE, because a host reading them must not have to guess:
+
+| Slot | The State value it names | Absent means |
+|---|---|---|
+| `expandedStateKey` | a JSON **array of row ids** — the rows currently open | the tree renders FULLY EXPANDED and does not toggle |
+| `selectionStateKey` | a bare **row-id string** — the selected row | the tree does not select, and emits no `aria-selected` |
+
+An array rather than a map of booleans, because the question a host asks is set membership and a set
+has one spelling where a map has two for "closed". A value of any other shape reads as *empty* /
+*none* rather than as an error: this is a host's own state slot, not a wire document, so there is
+nothing here to refuse, and refusing would blank a tree over a value the reader never authored.
+
+**A tree naming no `expandedStateKey` renders fully expanded**, which is the same reading that lets
+a grid honour a declared initial order while offering no interactive sorting: an initial
+presentation without a reader-driven affordance is a legitimate shape, and it is the only reading
+under which such a tree shows its content at all.
+
+**Row ids MUST be unique within one tree — and that is an EMIT-side obligation, not a decode
+refusal.** It is §8.1's position for `NodeId`, and it transfers for §8.1's own reason: duplicate
+detection is a whole-tree property, a decoder streaming a document is not required to carry the id
+set, and there is no error code for it. A repeat makes both State slots ambiguous — expanding one
+row opens two, and a restored selection lands on whichever the host reached first — so the
+obligation sits with the emitter and with the whole-tree gates that see a document entire. The
+reference host reports it as `FUARAN126` at pre-emit validation. A decoder MAY refuse a duplicate
+where its shape makes detection free; a decoder that accepts one is still conformant.
+
+**Item nesting is bounded on its OWN axis** (§21.5): a whole hierarchy lives inside one node, so it
+consumes no node depth at all, and at roughly two JSON levels per row it is nowhere near the
+syntactic bound either. The `MaxDepth` figure applies to item nesting counted separately, on the
+`TreeOp.Batch` precedent. Fixtures: `nodes/limit-tree-item-depth-at-max.json` and
+`reject/reject-limit-tree-item-depth.json`.
+
+#### Render obligations (normative; none of them expressible in bytes)
+
+A conformant rendering host MUST:
+
+1. **Emit the ARIA tree pattern.** A container with `role="tree"`, rows with `role="treeitem"`, and
+   a nested `role="group"` for each open row's children. Every row carries `aria-level`,
+   `aria-setsize` and `aria-posinset`.
+2. **Emit `aria-expanded` on rows that HAVE children, and on no others.** On a leaf the attribute
+   asserts a collapsed subtree that does not exist, and assistive technology announces such a row as
+   closed — a reader told there is more when there is not.
+3. **Emit `aria-selected` only where `selectionStateKey` is named.** A tree that never selects must
+   not declare a selectable widget with nothing selected.
+4. **Give the widget ONE tab stop.** Exactly one visible row carries `tabindex="0"` and every other
+   carries `tabindex="-1"`; the arrow keys move focus WITHIN the widget. This is the obligation the
+   kind exists for — a composition of independently focusable containers is N tab stops, and no
+   arrangement of them produces one. The focusable row is the selected row when it is visible, else
+   the first visible row, so a server rendering and a client's first frame agree.
+5. **State the accessible name rather than leaving it to be computed.** A `treeitem` owns its child
+   group, so a name computed from contents reads the whole branch out as the row's own name. The
+   stated name MUST be the row's own visible label.
+6. **Bind all six keys on an interactive host**: `Down`/`Up` move to the next/previous visible row;
+   `Right` on a CLOSED parent opens it and stays put, and on an open parent moves to its first
+   child; `Left` on an open row closes it and otherwise moves to its parent; `Home`/`End` move to
+   the first/last visible row. The two-press `Right` is deliberate — the reader sees what they
+   revealed before being moved into it.
+7. **Reach the whole hierarchy without script.** A server rendering emits the same elements, the
+   same ARIA and the same roving tabindex, with `aria-expanded` reflecting the statically-resolvable
+   expanded state. Movement is the interactive host's addition over that identical DOM, never a
+   precondition for the document being readable.
+8. **Derive nothing else from a row.** A host MUST NOT infer expandability from anything but the
+   presence of children, and MUST NOT keep a per-row expansion state of its own beside the named
+   key — a shadow copy is free to disagree with the slot every other row is drawn from.
+
+**Host adoption.** The reference host (`fuaran`) emits, decodes and renders the kind and enforces
+the item-depth bound; every other codec host in the §11.0 roster is **pending** until its own
+change-set lands, on the §11 step-5 terms. A pending host is not exempt, and the failure mode here
+is louder than for a field addition: a document carrying no `Tree` is unaffected, but one that
+carries a `Tree` meets `WRONG_NODE_KIND` on a pending host — refused outright rather than silently
+degraded, which is the correct behaviour for an unknown KIND and is why a kind's adoption cost is
+the one §11.2 vocabulary attestation exists to make visible.
+
+Fixtures: `nodes/tree-1.json` (two levels, no State key — static and fully expanded, and what pins
+the leaf omission), `nodes/tree-expanded-1.json` (three levels, the expansion key named, one `icon`),
+`nodes/tree-selection-1.json` (the selection key AND the handler sentinel, both declared), and
+`reject/reject-tree-item-missing-label.json` / `reject/reject-tree-item-missing-id.json` /
+`reject/reject-tree-nested-item-missing-id.json` (`MISSING_FIELD`, the third one level DOWN, because
+a host whose child walker is looser than its root walker passes the other two).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2450,7 +2556,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->104<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2772,10 +2878,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->424<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->180<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->432<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->184<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->104<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -3827,6 +3933,19 @@ syntactic bound looks like adequate cover for it (two JSON levels per Batch leve
 about 127) — it is not. On the reference host, 2.6 KB of 100 nested Batches killed the process with
 every other bound already in place. Enumerate every recursive entry point, including the ones whose
 recursion is over ops rather than nodes.
+
+**And the note earned its keep: `TreeItem` (Phase 1120) is a THIRD axis, arriving the same way.** A
+`Tree`'s rows nest inside ONE node, so the node bound cannot see them at all however deep they go,
+and at roughly two JSON levels per row the syntactic bound is not reached either — the same two
+false comforts, at a new slot. A conformant host MUST bound item nesting **on its own axis**, counted
+from the root row list, and MUST refuse a breach with `LIMIT_EXCEEDED` on the way down.
+
+**The FIGURE is `max node depth`, reused rather than a sixth limit minted.** These frames cost what
+the node decoder's frames cost, so a second number would be two figures for one per-frame budget and
+every host would have to carry both. That is the same choice the op axis made, for the same reason.
+The rule generalises past both: *any* self-referential record this format grows is bounded by that
+figure on its own axis, and a new one is a conformance obligation on the day it lands rather than a
+limit row added later.
 
 **The four remaining hosts have since adopted them.** What follows is the record of what each was
 found doing beforehand — kept rather than deleted, because the four failed in four different ways and

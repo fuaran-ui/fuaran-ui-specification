@@ -45,7 +45,8 @@
     "SummaryList",
     "Switch",
     "Tabs",
-    "Toast"
+    "Toast",
+    "Tree"
   ],
   "formFieldKinds": [
     "Checkbox",
@@ -1967,6 +1968,14 @@
       "description": "§21 max node depth — a tree at EXACTLY the limit (24 levels). Rule 1: every conformant host MUST decode this; refusing it is non-conformance, not conservatism"
     },
     {
+      "id": "limit-tree-item-depth-at-max",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/limit-tree-item-depth-at-max.json",
+      "expectedFile": "nodes/limit-tree-item-depth-at-max.json",
+      "description": "§21.5 the tree-item axis — a tree nesting rows at EXACTLY the limit (24 levels) inside ONE node. Rule 1: every conformant host MUST decode this. Its past-the-bound twin is `reject-limit-tree-item-depth`"
+    },
+    {
       "id": "link-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2463,6 +2472,30 @@
       "description": "Tooltip (Phase 1112 — the trait on a display kind, I18n hint; description and focus stop on the wrapper)"
     },
     {
+      "id": "tree-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tree-1.json",
+      "expectedFile": "nodes/tree-1.json",
+      "description": "Display/Tree (Phase 1120 — two levels, no State key: static and fully expanded)"
+    },
+    {
+      "id": "tree-expanded-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tree-expanded-1.json",
+      "expectedFile": "nodes/tree-expanded-1.json",
+      "description": "Display/Tree (Phase 1120 — three levels, the expansion key named; the key IS the affordance)"
+    },
+    {
+      "id": "tree-selection-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/tree-selection-1.json",
+      "expectedFile": "nodes/tree-selection-1.json",
+      "description": "Display/Tree (Phase 1120 — the selection key AND the handler, both declared)"
+    },
+    {
       "id": "upload-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2950,6 +2983,15 @@
       "description": "§21.5 the op axis — 25 nested TreeOp.Batch. Counted separately from the node axis; the syntactic bound only LOOKS like cover for it"
     },
     {
+      "id": "reject-limit-tree-item-depth",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-limit-tree-item-depth.json",
+      "expectedErrorCode": "LIMIT_EXCEEDED",
+      "expectedPath": "$.kind.items[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0].children[0]",
+      "description": "§21.5 the tree-item axis — 25 nested TreeItem rows inside ONE node. Counted separately from the node axis, which cannot see it at all (the whole hierarchy is one node) and from the syntactic bound, which at ~50 levels is nowhere near reached. The `TreeOp.Batch` lesson on a third axis"
+    },
+    {
       "id": "reject-media-autoplay-nonbool",
       "kind": "reject",
       "decoder": "node",
@@ -3353,6 +3395,33 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.tooltip",
       "description": "a node `tooltip` of `42` — refused rather than stringified. A bare STRING at this slot is the canonical encoding of a literal hint (TextSource's transparent case), so a number is one lenient `toString` away from minting hint text out of a JSON type — which no downstream check could ever catch"
+    },
+    {
+      "id": "reject-tree-item-missing-id",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tree-item-missing-id.json",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.items[0].id",
+      "description": "a Tree row with no `id` — refused. Both State keys address rows BY id, so an id-less row can never be expanded, selected or restored; a synthesised positional id would move the reader's open branches the moment a sibling was inserted"
+    },
+    {
+      "id": "reject-tree-item-missing-label",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tree-item-missing-label.json",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.items[0].label",
+      "description": "a Tree row with no `label` — refused. A row's label is the only thing a reader walking the hierarchy has, and there is no value to default to that would not be an invented description of somebody's content"
+    },
+    {
+      "id": "reject-tree-nested-item-missing-id",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tree-nested-item-missing-id.json",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.items[0].children[0].id",
+      "description": "a NESTED Tree row with no `id` — refused, and the path names the row inside the hierarchy. A host whose child walker is looser than its root walker accepts this while passing every top-level case"
     },
     {
       "id": "reject-unknown-binding",
