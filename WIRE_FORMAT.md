@@ -305,7 +305,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `disabled?`, `label`, `multiple`, `onSelect?` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
@@ -971,6 +971,7 @@ read-compat):
 <!-- fuaran:spec-omit-defaults -->
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
+| `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
@@ -979,6 +980,7 @@ read-compat):
 | `default` | `bool` | `false` | `TrackEntry` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
 | `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
+| `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
@@ -1850,6 +1852,76 @@ option, which is the state a constrained combobox can never be in), and
 
 ---
 
+### 3.6.10 `FileUpload` — drop target and paste ingestion (Phase 1115)
+
+`FileUploadSpec.dropTarget` and `.acceptPaste` name two additional INGRESS ROUTES onto a control that
+already has one. **Neither names a gesture.** Under the affordance→op rule the wire names a capability
+on the node that hosts the gesture and consumes its effect; the drag-over, the drop, the paste, the
+visible drop state and the drag image are the RENDERER's, and nothing here names an event, a MIME
+negotiation or a keystroke.
+
+```json
+{"$type":"FileUpload",
+ "accept":[".csv","text/csv"],
+ "dropTarget":true,
+ "label":"Drop a spreadsheet",
+ "multiple":true,
+ "onSelect":"<closure>"}
+```
+
+**Both members omit at `false`, and the polarity is load-bearing.** The SHORTEST upload document is
+the plain picker — which is exactly what every document written before this revision says — and each
+route is something an emitter has to ask for. A host MUST read an absent member as `false`; a present
+member of any type other than boolean is `WRONG_TYPE` and MUST NOT be coerced. The slot decides
+whether a whole ingress route exists, absence already spells the safe answer, and a lenient truthiness
+read would open a drop target on `"no"` and `"false"` alike.
+
+**The two routes resolve through the EXISTING selection path.** A dropped or pasted file is the same
+selection a picked one is: it reaches `onSelect` with the same `FileSelection` shape, and no new
+handler slot, no new `Action` case and no new server-driven event name is introduced. `accept`
+filtering applies to all three routes identically — the user agent applies it to the picker before the
+reader chooses, and a host applies it itself on the two routes the picker is not on. `multiple` bounds
+all three: a control that did not declare it takes ONE file however the file arrived.
+
+**Render obligations (normative, both tiers).**
+
+1. **A declared route is ADDITIONAL, never a replacement.** The `<input type="file">` and its label are
+   emitted whatever the document declares. A host that replaced the picker with a drop zone would ship
+   a pointer-only control — there is no keyboard equivalent of a drag, and none is invented here
+   because the picker already is one.
+2. **A client-tier host writes ingested files into the control's own file input** and lets that input's
+   ordinary `change` fire, rather than calling the selection handler directly. This is what makes the
+   three routes one path: the user agent renders the accepted filenames in its own file-input chrome,
+   so a reader sees a dropped file exactly as they see a picked one; and any host mechanism that reads
+   the selection off the element — a server-driven tier performing a file-body read, for instance —
+   sees an ingested file with no changes of its own.
+3. **A file `accept` refuses is not silently swallowed.** On the picker the user agent filters before
+   the reader commits, so a refused file never appears; on these routes the reader has already
+   committed the gesture, so a host MUST surface the refusal in the control — the reference tier emits
+   a `role="status"` line naming how many files were turned away. A host MUST also consume the gesture
+   even when every file was refused, so the browser's own default action (navigating to the dropped
+   file) does not fire.
+4. **A paste is consumed only when it CARRIES FILES.** A text paste keeps its default action, so an
+   editable descendant is unaffected.
+5. **A static (no-script) host renders the PLAIN PICKER, and that is the conforming answer.** Both
+   routes require an event listener, and no CSS observes a drag, so there is no inert markup that could
+   honour them; emitting a drop zone a no-script host cannot wire would be an invitation the document
+   cannot honour. The floor is therefore the control every host already rendered — a fully working
+   upload — and a static host MAY record each declared route in a data attribute (the reference tier
+   emits `data-fuaran-upload-drop` / `data-fuaran-upload-paste`) so the declaration is visibly read
+   rather than dropped. That marker is **not** coverage and no host may treat it as such.
+
+Fixtures: `nodes/upload-1.json` (both members OMITTED — the plain picker, and what pins the polarity:
+a host reading either absence as "route admitted" round-trips these bytes perfectly and is wrong about
+what the document permits), `nodes/upload-drop-1.json` (`dropTarget` with `acceptPaste` omitted, over a
+populated `accept`), `nodes/upload-paste-1.json` (`acceptPaste` with `dropTarget` omitted, over
+`image/*` — the wildcard-MIME arm of the filter), and
+`reject/reject-upload-droptarget-nonbool.json` / `reject/reject-upload-acceptpaste-nonbool.json`
+(`WRONG_TYPE` at `$.kind.dropTarget` and `$.kind.acceptPaste`; a string and a number refused rather
+than coerced, vectored separately because they are separate decoder arms).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2139,7 +2211,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->92<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->94<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2461,10 +2533,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->401<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->170<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->405<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->172<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->92<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->94<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

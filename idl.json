@@ -1395,6 +1395,32 @@
             ],
             "name": "Binding"
           }
+        },
+        {
+          "name": "acceptPaste",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": false
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "dropTarget",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": false
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
         }
       ],
       "tag": "FileUpload"

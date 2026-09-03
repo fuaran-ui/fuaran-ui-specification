@@ -76,6 +76,10 @@
     {
       "id": "refused-embed-source-omitted",
       "meaning": "a primary source the egress floor refuses omits the source attribute entirely rather than pointing the browsing context at the refusal URL, while still recording the refusal"
+    },
+    {
+      "id": "picker-always-present",
+      "meaning": "a declared ingress gesture is additional: the file picker and its label are emitted whatever the document declares, so the keyboard-accessible route survives and a no-script host renders a working upload"
     }
   ],
   "kinds": [
@@ -262,17 +266,27 @@
     {
       "kind": "FileUpload",
       "sensitive": false,
-      "source": "the accept / multiple declarations and the label",
-      "fallback": "the file control with its classes and `disabled` state, carrying no event handlers",
+      "source": "the accept / multiple declarations, the label, and the two Phase 1115 ingress declarations (`dropTarget` / `acceptPaste`)",
+      "fallback": "the file control with its classes and `disabled` state, carrying no event handlers. The ingress declarations degrade to the PLAIN PICKER: a drop needs a `drop` listener and a paste needs a `paste` one, and no CSS observes a drag, so a static host emits the control it always emitted and marks each declared gesture with a `data-fuaran-upload-drop` / `data-fuaran-upload-paste` attribute recording that the declaration was read - the marker is NOT coverage and nothing in this tier acts on it",
       "rich": {
         "class": "behavioural",
-        "enhancement": "selection handling is wired on hydration",
+        "enhancement": "selection handling is wired on hydration, and a client tier honouring `dropTarget` / `acceptPaste` writes dropped or pasted files into the control's OWN input so the same selection path and the same `Accept` filter run whatever route the file arrived by",
         "seam": "the control is inert server-side (Phase 143); the `onSelect` payload is non-scalar and needs host wiring",
         "meaning": "attached on hydration; adds behaviour, never DOM - it cannot cause a hydration mismatch, so it stays inside the parity contract"
       },
-      "fixtures": [],
-      "obligations": [],
-      "contract": "docs/SSR.md (Input - rendered inert)"
+      "fixtures": [
+        "nodes/upload-1.json",
+        "nodes/upload-drop-1.json",
+        "nodes/upload-paste-1.json"
+      ],
+      "obligations": [
+        {
+          "id": "picker-always-present",
+          "statement": "the `<input type=\"file\">` and its label are emitted whatever gestures the document declares - a drop zone is an ADDITIONAL route and never a replacement, which is what keeps the keyboard-accessible route intact and what makes the no-script floor a working upload rather than an inert box",
+          "section": "WIRE_FORMAT.md 3.6.10"
+        }
+      ],
+      "contract": "Phase 1115; WIRE_FORMAT.md 3.6.10; docs/SSR.md (Input - rendered inert)"
     },
     {
       "kind": "Filters",

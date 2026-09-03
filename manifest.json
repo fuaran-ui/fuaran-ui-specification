@@ -2407,6 +2407,22 @@
       "description": "Input/FileUpload"
     },
     {
+      "id": "upload-drop-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/upload-drop-1.json",
+      "expectedFile": "nodes/upload-drop-1.json",
+      "description": "Input/FileUpload (Phase 1115 — drop target; acceptPaste OMITTED)"
+    },
+    {
+      "id": "upload-paste-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/upload-paste-1.json",
+      "expectedFile": "nodes/upload-paste-1.json",
+      "description": "Input/FileUpload (Phase 1115 — paste ingestion, image/* filtered; dropTarget OMITTED)"
+    },
+    {
       "id": "op-batch",
       "kind": "op-round-trip",
       "decoder": "op",
@@ -3310,6 +3326,24 @@
       "expectedErrorCode": "UNKNOWN_DU_CASE",
       "expectedPath": "$.kind.trendPolarity",
       "description": "TrendPolarity value 'Neutral' — RESERVED, not admitted (§3.6.1 clause 5); refused exactly like a name nobody has proposed, so a later admission is an ADDITION rather than a re-meaning of shipped bytes"
+    },
+    {
+      "id": "reject-upload-acceptpaste-nonbool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-upload-acceptpaste-nonbool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.acceptPaste",
+      "description": "a FileUpload `acceptPaste` of `1` — the second gesture slot, refused on the same reasoning and vectored separately because it is a separate decoder arm. A number is the shape a truthiness coercion is likeliest to admit, which is why this vector carries one where its `dropTarget` twin carries a string"
+    },
+    {
+      "id": "reject-upload-droptarget-nonbool",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-upload-droptarget-nonbool.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.dropTarget",
+      "description": "a FileUpload `dropTarget` of `\"true\"` — refused rather than coerced. The slot decides whether a whole INGRESS ROUTE exists, and it omits at `false`, so absence already spells the plain picker: a present wrong-typed value can only mean the emitter meant something it did not say. A lenient truthiness read would open a drop target on `\"no\"` and `\"false\"` alike, and the reader would find out by dropping a file into a control that never listened for it"
     },
     {
       "id": "reject-wrongnodekind-sparkler",
