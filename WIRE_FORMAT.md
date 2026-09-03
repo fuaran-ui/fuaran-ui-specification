@@ -343,7 +343,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 <!-- fuaran:spec-kinds -->
 | `kind.$type` | Recovered category | Fields (hoisted under `$type`) | Notes |
 |---|---|---|---|
-| `Box` | _Layout_ | `children`, `heading?`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
+| `Box` | _Layout_ | `breakBefore?=false`, `children`, `heading?`, `keepTogether?=false`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
 | `Disclosure` | _Layout_ | `children`, `defaultOpen`, `heading`, `onToggle?`, `open` |  |
 | `Modal` | _Layout_ | `anchor?`, `children`, `dismissable`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
 | `ScrollArea` | _Layout_ | `children`, `maxHeight?`, `maxWidth?`, `orientation` |  |
@@ -377,7 +377,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
 | `Chart` | _Visualisation_ | `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
-| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
@@ -393,10 +393,10 @@ A primitive's spec fields are emitted **directly under `$type`**, with no `spec`
 
 #### The `Box` container (Phase 390 / 459)
 
-The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`) are unified into a single **`Box`** kind, whose **`layout`** names how children arrange and whose **`role`** names what the container means (driving the HTML element, ARIA landmark, and `fuaran-*` chrome). `BoxSpec` carries `children` (required), `layout` (required), `role` (required), and an optional `heading` (emitted only when `Some` – the `Card` heading):
+The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`) are unified into a single **`Box`** kind, whose **`layout`** names how children arrange and whose **`role`** names what the container means (driving the HTML element, ARIA landmark, and `fuaran-*` chrome). `BoxSpec` carries `children` (required), `layout` (required), `role` (required), and an optional `heading` (emitted only when `Some` – the `Card` heading), plus the two Phase 1473 print-break booleans `keepTogether` / `breakBefore`, each omitted at `false` (see "Print break control" below):
 
 ```json
-{"$type":"Box","children":[…],"heading":<TextSource?>,"layout":{…},"role":"Group"|"Card"|"Dashboard"|"Separator"}
+{"$type":"Box","breakBefore":<bool?>,"children":[…],"heading":<TextSource?>,"keepTogether":<bool?>,"layout":{…},"role":"Group"|"Card"|"Dashboard"|"Separator"}
 ```
 
 `layout` is a discriminated object:
@@ -409,6 +409,83 @@ The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`)
 The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direction,wrap},role:"Group"}`; `gridLayout` → `{layout:{$type:Grid,cols},role:"Group"}`; `dashboard` → `{layout:{$type:Auto},role:"Dashboard"}`; `card` → `{layout:{$type:Flex,Vertical,false},heading,role:"Card"}`. See `nodes/stack-1.json`, `nodes/glayout-1.json`, `nodes/dash-empty.json`, `nodes/card-1.json`.
 
 **Retired container tags are rejected, as are `Spacer` / `Divider`.** The four superseded container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and the superseded `Table` tag are **hard-retired (Phase 673)**: a bare `"$type":"Stack"` is a decode error, not an upgrade. They briefly decode-upgraded to `Box` / `DataGrid` for permalink and op-stream compatibility; that seam was removed once measurement showed nothing depended on it (no persisted artefact carried the tags, and across 6,561 eval runs no model emitted one without being taught it). This restores §1.1's stated 0.2.0 posture — *retired vocabulary is a hard decode error, not a deprecation* — which the upgrade seam had quietly contradicted. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
+
+#### Print break control — subtree cohesion across a page boundary (Phase 1473)
+
+**Four booleans, all omitted at `false`, that say which subtree must stay together when the
+rendering is PAGED.** `BoxSpec` carries `keepTogether` and `breakBefore`; `DataGridSpec` carries
+`keepRowsTogether` and `repeatHeader`. A document that declares none of them is byte-identical to
+what it was before this vocabulary existed.
+
+```json
+{"$type":"Box","children":[…],"heading":"Totals","keepTogether":true,"layout":{…},"role":"Card"}
+{"$type":"DataGrid","columns":[…],"repeatHeader":true,"rowKeyField":"line","source":{…}}
+```
+
+| Member | On | Says |
+|---|---|---|
+| `keepTogether` | `BoxSpec` | this container and its whole subtree stay on one page |
+| `breakBefore` | `BoxSpec` | this container starts at the top of a fresh page |
+| `keepRowsTogether` | `DataGridSpec` | no row of this grid is split across a page boundary |
+| `repeatHeader` | `DataGridSpec` | the column headers repeat at the top of every page the grid continues onto |
+
+**Each declares the one fact a host cannot recover from a rendering.** A formatter laying out pages
+sees boxes; nothing in the rendering carries back that the three lines of a totals block are ONE
+THING that reads wrong when halved, and nothing outside a grid knows where a row ends or which row
+group is the header. It is the `sortStateKey` shape — a behaviour the host performs, keyed by
+something only the document can name.
+
+**No medium vocabulary is here, and none is implied.** Nothing names a page size, a margin, a sheet
+number, a running header or footer, or the medium itself: the paged medium is host chrome, and a
+host that has no printer at all is unaffected because every one of these is a conditional statement
+about a paged rendering that may never happen. Nor is there any screen-only / print-only member —
+medium-conditional content is a `Switch` over a host-supplied binding, and a medium is exactly the
+kind of fact a host supplies.
+
+**Where each member lives is a decision, not a convenience, and a host should not expect the
+missing twins.** There is no `keepTogether` on `SplitPanel`, `Disclosure`, `Tabs`, `SummaryList` or
+`ScrollArea`, and none on `DataGrid`: a container that must stay whole is reachable by wrapping it
+in a `Box`, so those members would say something already sayable. There is likewise **no
+break-AFTER member anywhere** — a break after this container is a break before the next one — and
+no `breakBefore` on `DataGrid`, for the same wrapper reason. What survives on `DataGrid` is
+precisely what no arrangement of existing kinds reaches.
+
+**Omit-at-`false`, and ABSENT is the only spelling of "not declared".** For a declaration of this
+shape "not stated" and "explicitly off" are the same state, so there is no third value and an
+encoder MUST omit a member at `false`. **A present member of the wrong JSON kind MUST be REFUSED,
+never coerced** (`WRONG_TYPE`): a document that meant `true` and wrote `"true"` would otherwise
+render with its declaration silently dropped, which is exactly the split-block the member exists to
+prevent. The refusals are pinned on both decoder arms the vocabulary reaches — `BoxSpec`'s and
+`DataGridSpec`'s — because they are separate branches in every host and a vector on one proves
+nothing about the other.
+
+**Normative render obligations.** A conformant rendering host, given a node declaring one of these:
+
+1. MUST scope the resulting behaviour to the **paged medium**, so a continuous (screen) rendering is
+   unchanged. On an HTML surface this is a `@media print` block; on another surface, its equivalent.
+   A host MUST NOT apply a repeated header group, or any other of these, to a continuous rendering.
+2. MUST realise `keepTogether` as an instruction that this element's box is not fragmented
+   (`break-inside: avoid`), and `breakBefore` as one that a page boundary precedes it
+   (`break-before: page`).
+3. MUST realise `keepRowsTogether` as the same non-fragmentation instruction applied to the grid's
+   ROWS, not to the grid as a whole, and `repeatHeader` by projecting the grid's header row group as
+   a repeating one (`display: table-header-group`, or the surface's equivalent).
+4. MUST satisfy 1–3 **without script**. Every one of them is a formatter instruction, so a
+   server-rendered page with no hydration carries the same paged behaviour as a fully interactive
+   one. This is stated normatively rather than left implied because the obligation is otherwise easy
+   to read as a behavioural tier a static host may defer, and there is no such tier here.
+5. MUST NOT derive any other behaviour from them: not a page size, not a margin, not a running
+   header, not a pagination affordance the reader can operate, and not a change to a screen
+   rendering.
+
+A host whose receiving surface has no paged medium at all satisfies 1–5 vacuously and MUST simply
+carry the declarations through decode unchanged.
+
+**Host adoption.** The reference host (`fuaran`) emits, decodes and renders all four members; every
+other codec host in the §11.0 roster is **pending** until its own change-set lands, on the §11
+step-5 terms. A pending host is not exempt: a document that declares none of these is unaffected,
+but one that declares any decodes on a pending host with the member dropped, which is silently the
+pre-1473 paged rendering.
 
 #### Vocabulary-completion primitives (Phases 287–293)
 
@@ -1044,6 +1121,7 @@ read-compat):
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
+| `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
@@ -1058,12 +1136,15 @@ read-compat):
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
+| `keepRowsTogether` | `bool` | `false` | `DataGridSpec` |  |
+| `keepTogether` | `bool` | `false` | `BoxSpec` |  |
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
+| `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
@@ -2369,7 +2450,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->100<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->104<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2691,10 +2772,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->416<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->176<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->424<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->180<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->100<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->104<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

@@ -103,8 +103,8 @@
     {
       "kind": "Box",
       "sensitive": false,
-      "source": "the child list + layout spec",
-      "fallback": "the full structural container, classes identical on both sides; the layout mode's declared fill direction realised per WIRE_FORMAT §3.6.7 (row-fill for `Grid`, column-fill for `Masonry`)",
+      "source": "the child list + layout spec, and the two Phase 1473 print-break declarations",
+      "fallback": "the full structural container, classes identical on both sides; the layout mode's declared fill direction realised per WIRE_FORMAT §3.6.7 (row-fill for `Grid`, column-fill for `Masonry`); a declared `keepTogether` / `breakBefore` carried as the `fuaran-break-inside-avoid` / `fuaran-break-before-page` class, whose paged rules live in the reference stylesheet's `@media print` block - no script on either tier, and a screen rendering unchanged",
       "rich": {
         "class": "none",
         "meaning": "no client-only tier - the parity-checked fallback is the whole render"
@@ -201,8 +201,8 @@
     {
       "kind": "DataGrid",
       "sensitive": true,
-      "source": "the column declarations, the row-source binding, and the declared sort / page / edit intent",
-      "fallback": "in static read-only mode the full semantic `<table class=\"fuaran-table\">` (byte-identical to the retired `Table`, with the declared sort surfaced as `data-fuaran-sort-*`); for a client-library grid a deterministic `fuaran-grid-ssr-placeholder` carrying `data-fuaran-row-count` - never a blank",
+      "source": "the column declarations, the row-source binding, the declared sort / page / edit intent, and the two Phase 1473 print-break declarations",
+      "fallback": "in static read-only mode the full semantic `<table class=\"fuaran-table\">` (byte-identical to the retired `Table`, with the declared sort surfaced as `data-fuaran-sort-*`); for a client-library grid a deterministic `fuaran-grid-ssr-placeholder` carrying `data-fuaran-row-count` - never a blank. A declared `keepRowsTogether` / `repeatHeader` is carried as the `fuaran-grid-rows-together` / `fuaran-grid-repeat-header` class on BOTH legs - on the static table the reference stylesheet's `@media print` rules then reach its rows and its header row group with no script at all, and on the placeholder the class records that the declaration was read and survives to the hydrated grid",
       "rich": {
         "class": "clientOnly",
         "technique": "the client grid library draws into the placeholder",
