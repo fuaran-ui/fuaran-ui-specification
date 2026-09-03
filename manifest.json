@@ -2319,6 +2319,22 @@
       "description": "Layout/Stepper"
     },
     {
+      "id": "style-direction-isolated-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/style-direction-isolated-1.json",
+      "expectedFile": "nodes/style-direction-isolated-1.json",
+      "description": "Layout/Box (Phase 1472 an Ltr value isolated inside Rtl prose)"
+    },
+    {
+      "id": "style-direction-ltr-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/style-direction-ltr-1.json",
+      "expectedFile": "nodes/style-direction-ltr-1.json",
+      "description": "Display/Markdown (Phase 1472 Direction=Ltr, the only style member)"
+    },
+    {
       "id": "style-role-voice-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2613,6 +2629,14 @@
       "inputFile": "ops/op-updatestyle (phase 147 role=eyebrow + voice=structural).json",
       "expectedFile": "ops/op-updatestyle (phase 147 role=eyebrow + voice=structural).json",
       "description": "UpdateStyle (Phase 147 Role=Eyebrow + Voice=Structural)"
+    },
+    {
+      "id": "op-updatestyle (phase 1472 direction=ltr, the only style member)",
+      "kind": "op-round-trip",
+      "decoder": "op",
+      "inputFile": "ops/op-updatestyle (phase 1472 direction=ltr, the only style member).json",
+      "expectedFile": "ops/op-updatestyle (phase 1472 direction=ltr, the only style member).json",
+      "description": "UpdateStyle (Phase 1472 Direction=Ltr, the only style member)"
     },
     {
       "id": "reject-a11y-hidden-nonbool",
@@ -3236,6 +3260,24 @@
       "description": "UpdateProp missing path"
     },
     {
+      "id": "reject-op-updatestyle-direction-nonstring",
+      "kind": "reject",
+      "decoder": "op",
+      "inputFile": "reject/reject-op-updatestyle-direction-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.style.direction",
+      "description": "UpdateStyle style.direction not a JSON string (Phase 1472)"
+    },
+    {
+      "id": "reject-op-updatestyle-direction-unknown",
+      "kind": "reject",
+      "decoder": "op",
+      "inputFile": "reject/reject-op-updatestyle-direction-unknown.json",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.style.direction",
+      "description": "UpdateStyle style.direction outside the closed set — the op arm's twin of the node vector above (Phase 1472)"
+    },
+    {
       "id": "reject-setstate-value-and-valuefrom",
       "kind": "reject",
       "decoder": "node",
@@ -3243,6 +3285,24 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.onClick.valueFrom",
       "description": "SetState carrying BOTH 'value' and 'valueFrom' — exactly one is allowed; the didactic names both fields and how each is used (Phase 818)"
+    },
+    {
+      "id": "reject-style-direction-nonstring",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-style-direction-nonstring.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.style.direction",
+      "description": "style.direction not a JSON string (Phase 1472)"
+    },
+    {
+      "id": "reject-style-direction-unknown",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-style-direction-unknown.json",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.style.direction",
+      "description": "style.direction outside the closed set — the message names auto | ltr | rtl, and the near miss is the upper-case spelling (Phase 1472)"
     },
     {
       "id": "reject-tonedpill-unknown-tone",

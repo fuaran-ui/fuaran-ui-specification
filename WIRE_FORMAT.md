@@ -146,7 +146,7 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
 ```
 
 - `state` (`StateBehaviour`) is an object with optional keys `onLoading` (Node), `onEmpty` (Node), `onError` (always the `"<closure>"` sentinel when present – the `ErrorPayload -> Node` callback is unobservable). **Omitted entirely from the node when all three are `None`** (the common case); a decoder restores the empty `StateBehaviour` on absence.
-- `style` (`SemanticStyle`) is `{ "emphasis": <Emphasis>, "tone": <ToneVariant>, "weight": <StyleWeight> }`, each a bare enum string (§3.5), plus the Phase 147 `role`/`voice`. **Omitted entirely when all fields are the default** (`emphasis` = `"Normal"`, `tone` = `"Default"`, `weight` = `"Standard"`, `role`/`voice` default); a decoder restores the default on absence. Each of `emphasis`/`tone`/`weight` is **individually** omitted-when-default on both boundaries (§3.6, Phase 460), matching `role`/`voice`: an absent field restores its identity default on decode, and the encoder omits a field at its identity default even when the object is emitted for the other fields.
+- `style` (`SemanticStyle`) is `{ "emphasis": <Emphasis>, "tone": <ToneVariant>, "weight": <StyleWeight> }`, each a bare enum string (§3.5), plus the Phase 147 `role`/`voice`. **Omitted entirely when all fields are the default** (`emphasis` = `"Normal"`, `tone` = `"Default"`, `weight` = `"Standard"`, `role`/`voice` default); a decoder restores the default on absence. Each of `emphasis`/`tone`/`weight` is **individually** omitted-when-default on both boundaries (§3.6, Phase 460), matching `role`/`voice`: an absent field restores its identity default on decode, and the encoder omits a field at its identity default even when the object is emitted for the other fields. The Phase 1472 `direction` (`TextDirection`, default `"auto"`) joins them on exactly those terms and is documented below — it is the one member of this record that is not presentational.
 - `accessibility` carries optional keys `label` (`Binding<string>`), `labelledBy` (NodeId string), `describedBy` (NodeId string), `role` (ARIA role string), `liveRegion` (`"polite"`/`"assertive"`/`"off"`), `hidden` (`Binding<bool>`). Omitted entirely when `None`.
 
   > **Ruling (2026-08-25): the trait's `Binding` slots are ordinary `Binding` slots, and the §3.6
@@ -167,6 +167,73 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   > additive-minor question does not arise.
 
 - `tooltip` (`TextSource`) is a supplementary **hint** about the node — the text a reader is shown on hover or focus, and which assistive technology receives as the node's description. Omitted entirely when absent. It takes every `TextSource` arm, and note that the CANONICAL encoding of a literal hint is a BARE STRING (`"tooltip": "Updated nightly."`) rather than an object: `Literal` is `TextSource`'s transparent case wherever it appears, and `Bound` / `I18n` are the arms that carry a `$type` envelope. The `{"$type":"Literal","text":…}` spelling is decode-accepted and normalises to the bare form on re-encode, exactly as at every other `TextSource` slot.
+
+#### The declared direction (Phase 1472)
+
+**It is a `SemanticStyle` member, and it is the only one that is not presentational.** `emphasis`,
+`role`, `tone`, `voice` and `weight` are all statements a host may ignore and still render a document
+that says the same thing. `direction` is a **correctness** statement: a value declared `"ltr"` inside
+right-to-left prose is reordered by the Unicode bidirectional algorithm unless the run is isolated,
+and the reader then reads its digits back in the wrong order (WCAG 1.3.2, Meaningful Sequence). A
+host that drops it renders a document that says something else.
+
+```json
+{ "id": "reference",
+  "kind": { "$type": "Badge", "label": "RR123456789IL", "variant": "Neutral" },
+  "style": { "direction": "ltr" } }
+```
+
+**The vocabulary is closed and lower-case** — `"auto"` | `"ltr"` | `"rtl"` — spelled in the
+values the isolation is ultimately expressed in, on the `liveRegion` posture. `"auto"` is the
+identity and is omitted at it (§3.6), so a document that declares nothing is byte-identical to
+what it was before this member existed. **An unrecognised token MUST be REFUSED, never coerced to
+the default**: a document that meant `"rtl"` and misspelled it would otherwise render as reordered
+digits with nothing said anywhere, which is the failure this member exists to prevent. The refusals
+are pinned on both arms the member reaches — the node envelope's `style` and `UpdateStyle`'s —
+because they are separate decoder paths in every host and a vector on one proves nothing about the
+other.
+
+**What it declares is ONE VALUE's own base direction, and nothing else.** Nothing here names the
+document's direction, the reader's locale, or which side the layout runs from. **Layout mirroring is
+host chrome and has no vocabulary in this format, deliberately**: a mirrored tree and an unmirrored
+one are identical in every respect a consumer can observe, and the reader's locale is a fact the host
+holds and the emitter does not. A direction declared at a document root would be a per-emitter guess
+at a per-reader fact.
+
+**Why a document can say this and a host cannot.** A host is handed a string. It cannot know that
+`RR123456789IL` is an opaque identifier rather than more prose, and the bidirectional algorithm's
+own inference — first strong character wins — is exactly what gets such a value wrong. Only the
+tree knows which of its values are identifiers.
+
+**Normative render obligations.** A conformant rendering host, given a node whose `style.direction`
+is `"ltr"` or `"rtl"`:
+
+1. MUST emit the declared direction on the element that carries the node's run — as HTML `dir`, or
+   the receiving surface's equivalent — so the run resolves in the declared direction rather than
+   from its own characters.
+2. MUST **isolate** the run from the surrounding bidirectional context (`unicode-bidi: isolate`, a
+   `<bdi>` element, or the surface's equivalent). Direction without isolation is half the contract
+   and leaves the neighbouring text reordered around the value.
+3. MUST let the declaration WIN over any direction the host would otherwise infer for that node. The
+   inference exists for values whose direction is unknown; the declaration exists for the values the
+   inference gets wrong.
+4. MUST treat `"auto"` as the absence of a declaration — identical in every respect to a node that
+   omits the member.
+5. MUST NOT derive any other behaviour from it: not a layout side, not a locale, not a text
+   alignment, and not a direction for the node's descendants beyond whatever the receiving surface's
+   own inheritance already does.
+
+**The pure-SSR degradation is stated here rather than left to hosts, and there is nothing to
+degrade.** Obligations 1–5 are satisfiable with markup and stylesheet alone — no script
+participates in any of them — so a server-rendered page with no hydration carries the same
+isolation as a fully interactive one. This is stated normatively because a reader who has met the
+tooltip trait next door, where one obligation genuinely needs script, would otherwise be right to
+wonder which half of this one survives without it. Both halves do.
+
+**Host adoption.** The reference host (`fuaran`) emits and decodes the member; every other codec host
+in the §11.0 roster is **pending** until its own change-set lands, on the §11 step-5 terms. A
+pending host is not exempt: an undeclared direction is unaffected, but a document that declares one
+decodes on a pending host with the member dropped, which is silently the pre-1472 rendering.
 
 #### The tooltip trait (Phase 1112)
 
@@ -941,6 +1008,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `StyleRole`: `"None"` / `"Eyebrow"` / `"Data"` / `"Lede"` / `"Caption"`
 - `StyleWeight`: `"Compact"` / `"Standard"` / `"Spacious"`
 - `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
+- `TextDirection`: `"auto"` / `"ltr"` / `"rtl"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
@@ -979,6 +1047,7 @@ read-compat):
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
+| `direction` | `TextDirection` | `Auto` | `SemanticStyle` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
 | `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
 | `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
@@ -2300,7 +2369,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->96<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->100<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2622,10 +2691,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->409<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->174<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->22<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->96<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=total -->416<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->176<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->100<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
