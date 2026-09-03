@@ -3046,11 +3046,15 @@ called out because a list of families that quietly over- or under-counts is the 
 exists to end.
 
 1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
-   declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/Fuaran-Core/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
-   regenerating (`dotnet run --project tests/Fuaran.Core.Tests -- --regen-snapshots`) and syncing
-   (`fuaran-dotnet` [`scripts/sync-generated-layer.ps1`](../fuaran-dotnet/scripts/sync-generated-layer.ps1))
-   emits the generated `Fuaran.UI.Generated` module — the **type, canonical encoder, structural
-   decoder and `mk` constructor** for the case, never hand-edited. There is no hand-written node
+   declared as data in `fuaran-dotnet` itself ([`src/Fuaran.UI.Idl/Vocabulary.fs`](../fuaran-dotnet/src/Fuaran.UI.Idl/Vocabulary.fs)
+   for the declarations, [`Support.fs`](../fuaran-dotnet/src/Fuaran.UI.Idl/Support.fs) for doc comments, verbatim
+   splices, decode refinements and host projections); one command in that repo —
+   `FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Idl.Tests` — rewrites `src/Fuaran.UI.Idl/idl.json`,
+   `support.json` and the generated `Fuaran.UI.Generated` module together, in process, through the packaged
+   IDL engine. The generated module is the **type, canonical encoder, structural decoder and `mk` constructor**
+   for the case, never hand-edited, and the five files are committed together — a partial commit is a
+   vocabulary describing something the tree does not contain. (The earlier flow — a declaration in the
+   engine's own test fixture plus a sync script — is retired; a session following it would edit the wrong repo.) There is no hand-written node
    encoder to update: the F# op codec ([`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs))
    splices the generated encoder and adding a kind does not touch it. _(A `TreeOp` case is the
    exception — the op envelope codec itself is hand-maintained there.)_
@@ -3236,14 +3240,15 @@ Consequences for a consumer:
 - **`hostSurface` keys are not wire spec.** Function-typed slots (`fn`) and host-codec slots (`hosted`) carry the host-language declarations the F# and TypeScript tiers generate from. Nothing in them is observable on the wire – the accompanying `wire` key states the fixed wire form (`"<closure>"`, or arbitrary JSON) – and a host building a codec from this artefact must ignore them.
 
 - **Shape.** A single JSON object: `version` (the *encoding* version, bumped when this artefact's shape changes, never when the vocabulary does), `description`, then `kinds`, `unions`, `enums`, `records`, `defaults` and `nodeFields` (the node envelope, §3.1). Object keys are Ordinal-sorted throughout, per §2 rule 1. **Ordering is a contract, so the artefact is diffable:** the top-level collections are sorted by identity (kinds by tag; unions, enums and records by name; defaults by kind then field), so reordering a vocabulary declaration produces no diff and an addition lands as one clean insert – while *within* an entry the declared order is preserved verbatim, because union-case fields and type parameters are positional and a reorder there is a real change.
-- **Generated, not hand-authored** – and **not** by the `--emit-corpus` command that writes the fixtures and `schema.json` (§12). The encoder ([`Fuaran.Core.Idl.Artifact`](../../Fuaran-Core/src/Fuaran.Core.Idl/Idl.fs)) and the vocabulary it renders both live in the `Fuaran-Core` sibling, so the artefact is emitted from there:
+- **Generated, not hand-authored** – and **not** by the `--emit-corpus` command that writes the fixtures and `schema.json` (§12). The encoder is the packaged IDL engine (`Fuaran.Core.Idl.Artifact`); the vocabulary it renders lives in `fuaran-dotnet` (`src/Fuaran.UI.Idl/`), and the same regeneration command that rewrites the generated module rewrites that repo's committed `idl.json`. **This corpus's copy is carried over by hand from that file, byte for byte, in the same change-set as the vocabulary edit** — the fixture emitter does not write it, so a session that regenerates and forgets the copy leaves this corpus describing the previous vocabulary while the projection check beside it (which reads *this* copy) stays green.
 
   ```
-  cd Fuaran-Core
-  dotnet run --project tests/Fuaran.Core.Tests -- --emit-idl ../Fuaran-UI/wire-format-fixtures
+  cd fuaran-dotnet
+  FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Idl.Tests
+  cp src/Fuaran.UI.Idl/idl.json ../wire-format-fixtures/idl.json
   ```
 
-- **Conformance.** A stale-artefact guard on the `Fuaran-Core` side asserts byte-equality between the committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
+- **Conformance.** A stale-artefact guard in `fuaran-dotnet` asserts byte-equality between that repo's committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
 - **Scope.** The IDL models the **node** vocabulary. `TreeOp`s (§3.4) are outside it, as are decode-side policy surfaces a structural model cannot state: the §16 lenient-accept profile, the reject semantics of §6, and the §15/§17/§18 envelopes. For those, this prose spec and the corpus remain the only sources.
 
 ### Render-fidelity manifest artefact (`render-fidelity.json`)
