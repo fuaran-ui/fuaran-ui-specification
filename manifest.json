@@ -544,6 +544,14 @@
       "description": "0.2.2 — 'Normal' coerces to false, which is the omitted-when-false canonical form"
     },
     {
+      "id": "lenient-1126-clipboard-literal-envelope",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-1126-clipboard-literal-envelope.json",
+      "expectedFile": "lenient/lenient-1126-clipboard-literal-envelope.expected.json",
+      "description": "Phase 1126 — the clipboard payload is a TextSource, so §16's transparent-Literal rule reaches it: the explicit {\"$type\":\"Literal\",\"text\":…} envelope normalises to the bare string, which is also the pre-1126 spelling and still the canonical one"
+    },
+    {
       "id": "lenient-460-alias-emphasis-muted",
       "kind": "lenient-accept",
       "decoder": "node",
@@ -1142,6 +1150,14 @@
       "inputFile": "nodes/btn-1.json",
       "expectedFile": "nodes/btn-1.json",
       "description": "Input/Button"
+    },
+    {
+      "id": "btn-copy-bound",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/btn-copy-bound.json",
+      "expectedFile": "nodes/btn-copy-bound.json",
+      "description": "Phase 1126 — Input/Button whose Action.WriteToClipboard carries a BOUND payload (a TextSource, not a bare string), resolved at dispatch time"
     },
     {
       "id": "btn-copy-link",
@@ -3652,6 +3668,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.keepTogether",
       "description": "Box keepTogether is the STRING \"true\", not a boolean — the container arm of the print-break pair. Refused, never coerced: absence is the only spelling of \"not declared\" (Phase 1473)"
+    },
+    {
+      "id": "reject-wrongtype-clipboard-payload",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-wrongtype-clipboard-payload.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.onClick.text",
+      "description": "Action.WriteToClipboard's payload is a TextSource, so it is a string (the Literal shorthand) or a $type-tagged object — never a number. The refusal matters more here than at an ordinary text slot: the slot WIDENED in 1126 from a bare string, and a host that read the widening as \"anything goes\" would put a JSON literal on the reader's clipboard rather than refusing the document (Phase 1126)"
     },
     {
       "id": "reject-wrongtype-discriminator",

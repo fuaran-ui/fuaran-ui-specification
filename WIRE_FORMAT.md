@@ -2601,6 +2601,76 @@ and this row, not the reject leg, are what make an unimplemented member visible.
 
 ---
 
+### 3.6.16 `Action.WriteToClipboard` — the payload is a `TextSource` (Phase 1126)
+
+`Action.WriteToClipboard`'s `text` member is a **`TextSource`**, not a bare string. The reader may
+therefore be given a value the tree computed — a figure in the grid in front of them, a link the
+session holds — and not only a literal the author typed at authoring time.
+
+```json
+{"$type":"WriteToClipboard","text":"https://example.com/share/abc123"}
+{"$type":"WriteToClipboard","text":{"$type":"Bound","binding":{"$type":"State","key":"shareUrl"}}}
+```
+
+**Both of those are canonical, and the first one is not a legacy spelling.** `TextSource.Literal`'s
+canonical form is the bare JSON string (§3.6's first 0.2.0 exception), so every document written
+before this member widened carries bytes the encoder still emits and the decoder still reads — the
+widening is source-breaking for a host's own construction sites and **wire-neutral**. What is new is
+the second shape. The explicit `{"$type":"Literal","text":…}` envelope normalises down to the bare
+string here exactly as it does at every other text slot (§16;
+`lenient/lenient-1126-clipboard-literal-envelope.json`).
+
+**A `text` that is neither a string nor a `$type`-tagged `TextSource` is `WRONG_TYPE`** at
+`$.…​.text`, and a host MUST NOT coerce it. Vector:
+`reject/reject-wrongtype-clipboard-payload.json`. The refusal carries more weight at this slot than
+at an ordinary label: a host that read the widening as "this member is now open" would put a JSON
+literal on the reader's clipboard, and a clipboard is a channel the reader later pastes somewhere
+with authority.
+
+**Host obligation — resolution happens at DISPATCH time.** A bound payload is resolved when the
+reader raises the action, through the same binding resolution the host renders text slots with, so
+what is copied is what the reader was looking at. Resolving at decode time would freeze the value at
+the moment the document arrived, which for the shapes this widening exists for is the wrong value.
+An unresolvable binding resolves to the empty string, as it does at every text slot; a missing i18n
+key resolves the same way it does in a label. A host that cannot resolve at all in a given path
+(a zero-JS resume interpreter holding no binding sources, say) MUST NOT write the declaration
+itself — it either hydrates first or performs nothing.
+
+**A server-driven host resolves BEFORE it lowers.** The client shim that performs the write holds no
+resolver, no store and no catalogue, so the effect that crosses to it carries resolved text. This is
+the division `Action.Navigate` already draws: the server decides what crosses, the shim performs it.
+
+**Wire survivability: survivable** (§5.1) — a `TextSource` is data in all three arms.
+
+**There is deliberately NO clipboard READ, and this is a decline rather than an omission.** A tree
+that could read the clipboard without a paste gesture is a keylogger-adjacent capability: the
+clipboard routinely holds a password, a one-time code or an address the reader copied for somewhere
+else entirely, and a document that samples it at will has taken that without asking. Paste is
+user-initiated by construction — the reader chooses the moment and the target — and that gesture,
+not a vocabulary member, is the consent. Structured paste into an editable grid (below) is inside
+that boundary for exactly this reason: it happens because the reader pasted.
+
+**Structured paste into an editable grid is a HOST AFFORDANCE and reaches no member.** A grid that
+declares `editable` and an edit destination (`editStateKey`, or a directly-`State`-sourced feed) has
+already said that its cells are the reader's to change; whether they change one by typing or twenty
+by pasting a tab- or comma-separated block is a property of that affordance, not a second capability
+to declare. A host offering it MUST write through the same destination a typed edit uses, and MUST
+NOT grow the grid: a block taller or wider than the space below and right of the anchor loses its
+surplus, because the format has no row-insert and no column-add, and a `Query`-sourced grid's rows
+are the host's to begin with. A host that offers nothing here is conformant — the grid still edits
+cell by cell.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the dispatch-time resolution, the server-driven lowering and the paste affordance. Every other codec
+host in the §11.0 roster is **pending** until its own change-set lands, on the §11 step-5 terms. A
+pending host is not thereby exempt. Note what a pending host owes and what it does not: the
+**legacy-accept obligation is already discharged by construction** — a host that decoded the bare
+string before this phase decodes it still, because those bytes did not change — so what is pending is
+the BOUND payload, which a host typing this member as `string` will refuse outright rather than
+mis-handle. That is the loud failure mode, and it is the one to prefer.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2891,7 +2961,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->116<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->117<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3239,11 +3309,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->444<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->188<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->447<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->189<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->116<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->117<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
