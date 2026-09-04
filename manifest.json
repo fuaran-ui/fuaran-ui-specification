@@ -2586,6 +2586,22 @@
       "description": "Input/FileUpload"
     },
     {
+      "id": "upload-capture-camera-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/upload-capture-camera-1.json",
+      "expectedFile": "nodes/upload-capture-camera-1.json",
+      "description": "Input/FileUpload (Phase 1116 — camera capture, image/* filtered)"
+    },
+    {
+      "id": "upload-capture-microphone-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/upload-capture-microphone-1.json",
+      "expectedFile": "nodes/upload-capture-microphone-1.json",
+      "description": "Input/FileUpload (Phase 1116 — microphone capture, audio/* filtered)"
+    },
+    {
       "id": "upload-drop-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3567,6 +3583,15 @@
       "expectedErrorCode": "UNKNOWN_DU_CASE",
       "expectedPath": "$.kind.value.$type",
       "description": "Binding $type 'Bogus'"
+    },
+    {
+      "id": "reject-unknown-capture-source",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-unknown-capture-source.json",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.capture",
+      "description": "a FileUpload `capture` of `\"Screen\"` — outside the closed pair `Camera | Microphone`. The HTML capture attribute cannot ask for a display at all, and a screen capture is a standing grant reaching every window the reader has open rather than a third device behind the same picker permission, so it is refused exactly like a name nobody has proposed: a later admission would be an ADDITION, never a re-meaning of shipped bytes"
     },
     {
       "id": "reject-unknown-drawing-curve-command",

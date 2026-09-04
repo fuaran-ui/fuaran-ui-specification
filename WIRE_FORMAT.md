@@ -373,7 +373,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
@@ -1129,6 +1129,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `BadgeVariant`: `"Neutral"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `BoxRole`: `"Dashboard"` / `"Card"` / `"Group"` / `"Separator"`
 - `ButtonVariant`: `"Primary"` / `"Secondary"` / `"Tertiary"` / `"Destructive"`
+- `CaptureSource`: `"Camera"` / `"Microphone"`
 - `ChannelDirection`: `"OutOnly"` / `"TwoWay"`
 - `ChartDataLabels`: `"Off"` / `"Ends"`
 - `ChartKind`: `"Line"` / `"Bar"` / `"Area"` / `"Pie"` / `"Scatter"` / `"Heatmap"`
@@ -2802,6 +2803,80 @@ leave half the vocabulary unpinned), `reject/reject-rating-max-zero.json` (`WRON
 `$.kind.fields[0].kind.max`) and `reject/reject-color-value-not-hex.json` (`WRONG_TYPE` at
 `$.kind.fields[0].kind.value`).
 
+### 3.6.18 `FileUpload` — the capture device (Phase 1116)
+
+`FileUploadSpec.capture` names WHICH of the reader's own recording devices the platform should open
+in place of the file browser. It is the **third** ingress route onto the control §3.6.10 gave the
+other two, and the only one that PRODUCES a file rather than moving one that already exists.
+
+| `capture` | What it asks for |
+|---|---|
+| absent (the default) | The ordinary file browser. Every document written before this revision says this. |
+| `"Camera"` | The platform camera — a still or a short clip. |
+| `"Microphone"` | The platform audio recorder. |
+
+```json
+{"$type":"FileUpload",
+ "accept":["image/*"],
+ "capture":"Camera",
+ "label":"Photograph the receipt",
+ "multiple":false,
+ "onSelect":"<closure>"}
+```
+
+**It is a REQUEST, and its scope is exactly the file picker's.** A host asks the platform; the
+platform decides. Nothing here opens a stream, previews one, records continuously, or acquires a
+standing permission: the reader performs one gesture, the platform returns one file, and the control
+is the same control it was. There is no display-capture case and there will not be one by widening
+this member — a screen capture reaches every window the reader has open rather than one device
+behind the picker, so it is a different class of thing and not a third spelling of this one.
+
+**The member is OPTIONAL, not omit-at-default, and the distinction is real.** "Say nothing" is a
+state of its own here: an upload naming no device is asking for the file browser, which is not one of
+the two devices wearing a default. A host MUST read an absent member as *the ordinary picker*; a
+present value outside `Camera | Microphone` is `UNKNOWN_DU_CASE` at `$.…capture` — a **bare** enum,
+so the path carries no `.$type` suffix (§6) — and MUST NOT fall back to either device.
+
+**`capture` and `accept` are ONE statement, and a host emits both exactly as declared.** The capture
+request asks the platform for a recording device; WHICH device it opens is decided by `accept`. So a
+document declaring `"Microphone"` under `accept:["image/*"]` opens a camera, and one declaring a
+device under no filter at all gets whichever the user agent guesses. A host MUST NOT synthesise an
+`accept` from the declared device: that would put a filter in the document's mouth that nobody wrote,
+make emitted markup depend on renderer defaults, and — the half that settles it — silently repair the
+one case most worth reporting. An authoring surface SHOULD report the incoherent pair instead (the
+reference tier's FUARAN134, a Warning); the wire carries what was written.
+
+**Render obligations (normative, both tiers).**
+
+1. **The projection is the two HTML attributes and nothing else.** A host emits the file input's
+   `accept` from `accept` and its `capture` from this member. `capture`'s value is an enumerated
+   HTML attribute whose keywords name a camera FACING, so the projection is `Camera` →
+   `environment` and `Microphone` → `user`: both are conforming keywords, the facing constrains only
+   a camera, and a host MUST NOT emit the device name itself, which is not a keyword and is
+   non-conforming markup.
+2. **A device the platform does not have degrades to the picker, and that is the whole desktop
+   story.** The user agent ignores an unsatisfiable `capture`; the control remains a fully working
+   upload. A host owes NO code for this case and MUST NOT hide, disable or relabel the control on a
+   platform it believes has no such device — a control removed on a guess is worse than a request
+   the platform declined.
+3. **A captured file is the same selection a picked one is.** It reaches the selection handler with
+   the same shape, is bounded by `multiple` identically, and is filtered by `accept` identically. No
+   new handler slot, no new `Action` case and no new event name is introduced — which is precisely
+   what lets a capture reach every mechanism a pick already reaches.
+4. **A static (no-script) host emits BOTH attributes, and this floor FULLY holds.** Unlike the two
+   routes in §3.6.10 there is nothing to degrade: `capture` needs no listener, the user agent reads
+   it off the markup, and a zero-JS document opens the camera exactly as a hydrated one does. A host
+   that emitted the keyword without the filter would have a floor that held only by accident.
+
+Fixtures: `nodes/upload-capture-camera-1.json` and `nodes/upload-capture-microphone-1.json` (the two
+devices, each over the filter that selects it — a corpus carrying only the keyword would say nothing
+about the half that makes it work, and a host reading the device off `accept` alone would decode both
+correctly while being wrong about what either document says), `nodes/upload-1.json` unchanged (the
+member OMITTED, which is what pins the polarity: every upload written before this revision is
+byte-identical), and `reject/reject-unknown-capture-source.json` (`UNKNOWN_DU_CASE` at
+`$.kind.capture` on `"Screen"` — the near miss an emitter will actually write, refused rather than
+reserved).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -3096,7 +3171,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->119<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->120<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3444,10 +3519,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->453<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->193<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->456<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->195<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->119<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->120<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
