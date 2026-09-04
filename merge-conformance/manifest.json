@@ -42,5 +42,28 @@
       "verdictHash": "81f5fd4c1ed6868855d57c92ed094b7079fdcbcf18db57986154ecb275b06216",
       "description": "Disjoint Brand-tone edits to sibling panes — the merge introduces a duplicate-Brand sibling-invariant violation"
     }
+  ],
+  "refusalDescription": "merge-refusal (Phase 1497, additive, SEPARATE key): decode base/a/b, run the 3-way merge, assert it REFUSES, and assert the canonically-encoded two-sided conflict envelope is byte-equal to envelopeFile with sha256(envelope) == envelopeHash. Swapping a and b must transpose each entry's 'a' and 'b' and change nothing else. Held under its own key because a host that iterates 'fixtures' expecting every entry to auto-merge is correct to do so. A side's 'value' is the contended cell's canonical encoding, EXCEPT for the style.* sub-facets, whose value is the sub-field's case name — that coincides with its wire spelling because every style sub-field is enum-shaped, and a host must not generalise it to a compound cell.",
+  "refusalFixtures": [
+    {
+      "id": "merge-refusal-concurrent-tone",
+      "kind": "merge-refusal",
+      "baseFile": "merge-refusal-concurrent-tone.base.json",
+      "aFile": "merge-refusal-concurrent-tone.a.json",
+      "bFile": "merge-refusal-concurrent-tone.b.json",
+      "envelopeFile": "merge-refusal-concurrent-tone.envelope.json",
+      "envelopeHash": "95084eb56fbdc95058421b1cbaaffa61d075687900a80319ff923a87ed0cb7e7",
+      "description": "Both sides retone the same pane — a two-sided ConcurrentEdit refusal with no primacy pin"
+    },
+    {
+      "id": "merge-refusal-same-id-insert",
+      "kind": "merge-refusal",
+      "baseFile": "merge-refusal-same-id-insert.base.json",
+      "aFile": "merge-refusal-same-id-insert.a.json",
+      "bFile": "merge-refusal-same-id-insert.b.json",
+      "envelopeFile": "merge-refusal-same-id-insert.envelope.json",
+      "envelopeHash": "fb5b76d753c5b71e5000c4aa72dad9e4298a6face0a2f0197797b72ab9e50c43",
+      "description": "Both sides insert the same NodeId with different content — refused naming the id, never an A-side default"
+    }
   ]
 }
