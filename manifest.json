@@ -2635,6 +2635,14 @@
       "description": "Input/FileUpload (Phase 1116 — microphone capture, audio/* filtered)"
     },
     {
+      "id": "upload-destination-1",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/upload-destination-1.json",
+      "expectedFile": "nodes/upload-destination-1.json",
+      "description": "Input/FileUpload (Phase 1117 — streamed to a registered destination)"
+    },
+    {
       "id": "upload-drop-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3742,6 +3750,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.acceptPaste",
       "description": "a FileUpload `acceptPaste` of `1` — the second gesture slot, refused on the same reasoning and vectored separately because it is a separate decoder arm. A number is the shape a truthiness coercion is likeliest to admit, which is why this vector carries one where its `dropTarget` twin carries a string"
+    },
+    {
+      "id": "reject-upload-destination-empty",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-upload-destination-empty.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.destination",
+      "description": "a FileUpload `destination` of `\"\"` — refused rather than read as absence. The member names a host-registered destination and the empty string names none, so the document describes an upload that can never stream; reading it as \"no destination\" would silently turn a streaming upload into a client-only one, which is the one failure mode with no visible symptom"
     },
     {
       "id": "reject-upload-droptarget-nonbool",

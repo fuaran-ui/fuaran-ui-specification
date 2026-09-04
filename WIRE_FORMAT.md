@@ -373,7 +373,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
@@ -3021,6 +3021,99 @@ vocabulary unpinned), `reject/reject-tokens-value-not-list.json` (`WRONG_TYPE` a
 
 ---
 
+### 3.6.20 `FileUpload` — the streamed destination (Phase 1117)
+
+`FileUploadSpec.destination` names the **host-registered destination** an upload streams its selected
+files to. It is the fourth thing §3.6.10 and §3.6.18 have added to this control and the only one that
+is about what happens AFTER the selection: the other three are ingress routes, this is egress.
+
+```json
+{"$type":"FileUpload",
+ "accept":["video/*"],
+ "destination":"session-recordings",
+ "label":"Upload your recordings",
+ "multiple":true,
+ "onSelect":"<closure>"}
+```
+
+**It is a NAME, and it is a name because it must never be an address.** The string is an id the host
+has registered with its own upload sink. A host resolves it against that sink's declared set and
+refuses an id the set does not contain. It is not a URL, not a path, not a template, and nothing on
+this member is ever fetched, joined to a base, or otherwise turned into one — which is the whole
+point of the member existing in this shape. A wire document comes from an arbitrary emitter; a URL
+here would let that emitter choose where a reader's file goes, and no host-side check on the string
+could recover the guarantee that a registered name gives for free.
+
+**What comes back is a REFERENCE and never the bytes.** A completed upload yields four values — a
+sink-assigned id, a content digest, the size the sink accepted, and the type it recorded — and it is
+those that reach the document's state, the host's telemetry, and any durable authoring record the
+host keeps. This is the member's reason for existing: `Action.ReadFileBody` reads a whole body into a
+string and hands it to the message loop, where under `Base64` or `DataUrl` it is a third larger than
+the file and lands, on a host that persists its authoring channel, in a hash-chained record that
+replays forever. `ReadFileBody` remains the correct answer for a small payload a handler needs in
+hand. It is the wrong answer for a video, and the two are not deprecating each other.
+
+**The member is OPTIONAL, and the empty string is REFUSED rather than read as absence.** Absent — the
+default — is the pre-1117 control: the selection reaches the handler and nothing leaves the client,
+so every upload document written before this revision is byte-identical and means what it always
+meant. `""` is a name no host registers, so a document carrying it describes an upload that can never
+stream: `WRONG_TYPE` at `$.…destination`, on the same line as a `Rating` whose `max` is below one.
+Reading it as absence is the coercion this rule exists to refuse — it silently turns an upload the
+author meant to stream into a client-only one, and every visible thing about the control still works.
+
+**An UNREGISTERED non-empty id is NOT a decode refusal, and that division is deliberate.** Whether an
+id is registered is a fact about the host, not about the document: the same bytes name a live
+destination on one deployment and nothing on another. A decoder that judged it would make one
+document's validity depend on who was reading it. The refusal belongs at dispatch, where the registry
+is — and it is a refusal, loudly, never a fallback.
+
+**Render obligations (normative, both tiers).**
+
+1. **Two refusals stand in front of a transfer, in this order, and a host owes both.** First, the
+   host's own dispatch policy decides whether this tree may cause an upload to this destination at
+   all — the same gate a host applies to a call, a navigation or an export, and a host that denies by
+   default denies this. Second, the host's upload sink is asked whether it serves the named
+   destination. **There is NO FALLBACK at the second step**: the id is not tried as a path, as a URL,
+   or against a default destination, because a fallback makes registration advisory, which is
+   indistinguishable from not having it. A host with no upload sink at all refuses every declared
+   destination.
+2. **Every refusal is ANNOUNCED, never swallowed.** A reader who selected a file and got nothing must
+   be told that nothing was saved, in a live region, whether the cause was policy, an unregistered
+   destination, a size limit, a type limit or a transport failure. "Nothing happened" and "this was
+   refused" are different facts and only one of them is actionable. A host MAY tell the reader less
+   than it tells its operator — the reader is owed the outcome, not the host's configuration.
+3. **Progress is surfaced, and an unknown total is an honest state.** A transfer at the size this
+   member exists for is not instantaneous, so a host reports it as it goes. Where the sink cannot say
+   how many bytes it expects, the host says that a transfer is running rather than inventing a
+   proportion.
+4. **The selection path is UNCHANGED.** `onSelect` fires exactly as it did before this member
+   existed, with exactly the selection it always received. The transfer is a SECOND FACT about one
+   gesture, not a second spelling of the first, and a host MUST NOT fold the reference into that
+   handler: doing so means either firing it twice for one gesture or delaying it until the transfer
+   finishes, which makes every existing upload handler asynchronous the day a destination is
+   declared. Where the reference reaches the document, it reaches it by a host write.
+5. **A declared destination and a body read are MUTUALLY EXCLUSIVE.** A host MUST refuse an
+   `Action.ReadFileBody` against an upload that declares a destination. The document has said its
+   bytes go to a sink and only a reference comes back; the body route contradicts that statement, and
+   on a server-driven host it is the exact path by which a forged inbound event would put a reader's
+   file into a durable record. The refusal is a refusal on both sides of any policy gate — a
+   permissive host is refused as a denying one is, or the discipline is merely a preference.
+6. **A static (no-script) host emits the plain control, and this floor DOES degrade.** Unlike
+   `capture` in §3.6.18, a transfer needs a listener and a sink, so there is nothing a zero-JS
+   document can do with the declaration. The control it renders is the fully working picker it was
+   before this member existed. A host MAY record that the declaration was READ — the §3.6.10
+   read-marker shape — and if it does, it records only THAT a destination was declared and never
+   WHICH: the id is the host's registry key and a static document is readable by anyone.
+
+Fixtures: `nodes/upload-destination-1.json` (the streaming upload, carried at the large-file shape
+the member exists for — `video/*` and `multiple` — and deliberately WITHOUT `capture`, next to the
+two §3.6.18 vectors that carry `capture` without a destination, so no host can read either member as
+implying the other), `nodes/upload-1.json` unchanged (the member OMITTED, which pins the polarity),
+and `reject/reject-upload-destination-empty.json` (`WRONG_TYPE` at `$.kind.destination` on `""` — the
+coercion refused rather than the near miss).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -3314,7 +3407,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->122<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->123<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3527,6 +3620,30 @@ optional, so a host that has not adopted it decodes every pre-1122 document exac
 meets a document that carries the key with an `UNKNOWN` field it ignores or refuses per its own
 policy. What it cannot say is that it advances.
 
+**Streamed-upload adoption (`FileUploadSpec.destination`, Phase 1117).** A FIFTH bar, and the one
+whose two halves are furthest apart. The decode leg is small — an optional string, with `""` refused
+per §3.6.20 — and every host owes it. The DISPATCH leg is where the substance is, and only a host
+that actually performs transfers owes it: the two refusals in front of a transfer, the announcement
+of every refusal, the progress report, the unchanged selection path, and the mutual exclusion with a
+body read. A codec-only or headless host owes the decode leg alone; it has no sink and performs no
+transfer, so there is nothing there for it to get wrong.
+
+| Host | Streamed-upload adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — decode + the empty-string refusal, the seam and its default-deny registry, the client-tier transfer with its gate, its typed refusals and its announced status line, the host write-back of the reference, the body-read refusal at the server-driven boundary, and the static floor |
+| `fuaran-ts` | pending |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending — headless, so the decode leg only |
+| `fuaran-rs` | pending — decode leg, plus the dispatch obligations in its WASM-client role |
+| `fuaran-swift` | pending — a render projection owes the dispatch obligations for what it renders, and owes no codec leg |
+| `fuaran-kt` | pending — as above |
+
+**A pending host is unchanged, not broken**, on the same reading: the member is optional, so a host
+that has not adopted it decodes every pre-1117 document exactly as before and renders a document
+carrying the key as the client-only upload it was. What it cannot say is that it streams — and,
+specifically, it must not claim the §3.6.20 obligation that a body read is refused on a streaming
+upload, because a host with no transfer has no streaming upload to refuse one on.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -3662,10 +3779,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->462<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->199<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->464<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->200<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->122<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->123<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
