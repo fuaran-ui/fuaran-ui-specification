@@ -3551,8 +3551,8 @@ recorded here rather than inferred:
 | Host | Render-obligation adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
-| `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
-| `fuaran-py` | **adopted** – asserts all 10 declared claims in emitted HTML; nothing exempt |
+| `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt. Asserts all 19 declared claims in emitted HTML, the Phase 1128 batch's nine included |
+| `fuaran-py` | **adopted** – asserts all 19 declared claims in emitted HTML; nothing exempt |
 | `fuaran-go` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. The hand assertions its renderer already carried are now reached *through* the artefact's enumeration rather than standing beside it |
 | `fuaran-rs` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. Stated over the server render emission, which is the single surface both its headless and WASM-client roles produce |
 | `fuaran-swift` | **adopted** – asserts 8 of 10 over its render projections; declares 2 *exemptions*, `Image/alt-always-emitted` and `Image/figure-caption-outside-link`, both being claims about an emitted document this projection does not produce (no attribute bag, no anchor element, no network image loader) |
@@ -3608,8 +3608,8 @@ emitter can run.
 | Host | Timed-advance adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** – decode + refusal, the client-tier advance/pause/stop state machine, the reduced-motion floor, swipe + arrow keys, and the static SSR floor |
-| `fuaran-ts` | pending |
-| `fuaran-py` | pending |
+| `fuaran-ts` | **decode adopted** (Phase 1128) – the member, and the refusal of a non-positive or fractional value. The three WCAG 2.2.2 interaction obligations are NOT claimed: this host has a client tier, so it genuinely owes them, and the row says so rather than reading its decode leg as the whole bar |
+| `fuaran-py` | **decode adopted** (Phase 1128) – the member and the refusal. Its rendering tier is the static floor, which is the conforming answer here rather than a gap: advancing means writing a state key on an interval, and a static document has neither |
 | `fuaran-go` | pending – headless, so the decode leg only |
 | `fuaran-rs` | pending – decode leg, plus the interaction obligations in its WASM-client role |
 | `fuaran-swift` | pending – a render projection owes the interaction obligations for what it renders, and owes no codec leg |
@@ -3631,8 +3631,8 @@ transfer, so there is nothing there for it to get wrong.
 | Host | Streamed-upload adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** — decode + the empty-string refusal, the seam and its default-deny registry, the client-tier transfer with its gate, its typed refusals and its announced status line, the host write-back of the reference, the body-read refusal at the server-driven boundary, and the static floor |
-| `fuaran-ts` | pending |
-| `fuaran-py` | pending |
+| `fuaran-ts` | **decode adopted** (Phase 1128) — the member and the empty-string refusal, plus the static floor's read-marker, which records only THAT a destination was declared and never which. The DISPATCH leg is not claimed: this host has a client tier and therefore owes it |
+| `fuaran-py` | **decode adopted** (Phase 1128) — the member, the empty-string refusal and the same read-marker. It performs no transfer, so it has no sink and owes the decode leg alone |
 | `fuaran-go` | pending — headless, so the decode leg only |
 | `fuaran-rs` | pending — decode leg, plus the dispatch obligations in its WASM-client role |
 | `fuaran-swift` | pending — a render projection owes the dispatch obligations for what it renders, and owes no codec leg |
