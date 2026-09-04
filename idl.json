@@ -33,6 +33,13 @@
     },
     {
       "cases": [
+        "Camera",
+        "Microphone"
+      ],
+      "name": "CaptureSource"
+    },
+    {
+      "cases": [
         "OutOnly",
         "TwoWay"
       ],
@@ -277,7 +284,9 @@
         "ShakeOnError",
         "RotateOnRefresh",
         "SlideInFromRight",
-        "ExpandCollapse"
+        "ExpandCollapse",
+        "CrossFade",
+        "SlideBetween"
       ],
       "name": "Motion"
     },
@@ -1037,6 +1046,24 @@
           }
         },
         {
+          "name": "transferInKey",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
+          "name": "transferOutKey",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
+          }
+        },
+        {
           "name": "keepRowsTogether",
           "optionality": {
             "$type": "omitDefault",
@@ -1051,6 +1078,19 @@
         },
         {
           "name": "repeatHeader",
+          "optionality": {
+            "$type": "omitDefault",
+            "default": {
+              "$type": "bool",
+              "value": false
+            }
+          },
+          "type": {
+            "$type": "bool"
+          }
+        },
+        {
+          "name": "exportable",
           "optionality": {
             "$type": "omitDefault",
             "default": {
@@ -1492,6 +1532,25 @@
           },
           "type": {
             "$type": "bool"
+          }
+        },
+        {
+          "name": "capture",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "enum",
+            "name": "CaptureSource"
+          }
+        },
+        {
+          "name": "destination",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "str"
           }
         }
       ],
@@ -2937,6 +2996,15 @@
     {
       "category": "Meta",
       "fields": [
+        {
+          "name": "autoAdvanceMs",
+          "optionality": {
+            "$type": "optional"
+          },
+          "type": {
+            "$type": "int"
+          }
+        },
         {
           "name": "cases",
           "optionality": {
@@ -4837,7 +4905,9 @@
                 "$type": "required"
               },
               "type": {
-                "$type": "str"
+                "$type": "union",
+                "args": [],
+                "name": "TextSource"
               }
             }
           ],
@@ -5095,6 +5165,10 @@
             }
           ],
           "tag": "AiTool"
+        },
+        {
+          "fields": [],
+          "tag": "Print"
         }
       ],
       "name": "Action",
@@ -6767,6 +6841,168 @@
             }
           ],
           "tag": "Combobox"
+        },
+        {
+          "fields": [
+            {
+              "name": "allowHalf",
+              "optionality": {
+                "$type": "omitDefault",
+                "default": {
+                  "$type": "bool",
+                  "value": false
+                }
+              },
+              "type": {
+                "$type": "bool"
+              }
+            },
+            {
+              "name": "max",
+              "optionality": {
+                "$type": "required"
+              },
+              "type": {
+                "$type": "int"
+              }
+            },
+            {
+              "name": "onChange",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "float -> Action<'Msg>",
+                  "placeholder": "(fun (_: float) -> Action.Chain [])",
+                  "typescript": "(v: number) => Action"
+                },
+                "wire": "<closure>"
+              }
+            },
+            {
+              "name": "value",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "float"
+                  }
+                ],
+                "name": "Binding"
+              }
+            }
+          ],
+          "tag": "Rating"
+        },
+        {
+          "fields": [
+            {
+              "name": "onChange",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "string -> Action<'Msg>",
+                  "placeholder": "(fun (_: string) -> Action.Chain [])",
+                  "typescript": "(v: string) => Action"
+                },
+                "wire": "<closure>"
+              }
+            },
+            {
+              "name": "value",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "str"
+                  }
+                ],
+                "name": "Binding"
+              }
+            }
+          ],
+          "tag": "Color"
+        },
+        {
+          "fields": [
+            {
+              "name": "allowFreeText",
+              "optionality": {
+                "$type": "omitDefault",
+                "default": {
+                  "$type": "bool",
+                  "value": true
+                }
+              },
+              "type": {
+                "$type": "bool"
+              }
+            },
+            {
+              "name": "onChange",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "fn",
+                "hostSurface": {
+                  "fsharp": "string list -> Action<'Msg>",
+                  "placeholder": "(fun (_: string list) -> Action.Chain [])",
+                  "typescript": "(v: string[]) => Action"
+                },
+                "wire": "<closure>"
+              }
+            },
+            {
+              "name": "suggestions",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "list",
+                    "of": {
+                      "$type": "record",
+                      "name": "SelectOption"
+                    }
+                  }
+                ],
+                "name": "Binding"
+              }
+            },
+            {
+              "name": "value",
+              "optionality": {
+                "$type": "optional"
+              },
+              "type": {
+                "$type": "union",
+                "args": [
+                  {
+                    "$type": "list",
+                    "of": {
+                      "$type": "str"
+                    }
+                  }
+                ],
+                "name": "Binding"
+              }
+            }
+          ],
+          "tag": "Tokens"
         }
       ],
       "name": "FormFieldKind",

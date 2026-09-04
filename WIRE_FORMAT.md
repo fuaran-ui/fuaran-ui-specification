@@ -373,19 +373,19 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
 | `Chart` | _Visualisation_ | `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
-| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
 | `FragmentDecl` | _Meta_ | `body`, `effect?`, `holes?`, `name` | NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion. |
 | `FragmentRef` | _Meta_ | `args?`, `name` | An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time. |
 | `Mount` | _Meta_ | `capabilities`, `channel`, `inputs?`, `onBubble?`, `scopeId` | An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document. |
-| `Switch` | _Meta_ | `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
+| `Switch` | _Meta_ | `autoAdvanceMs?`, `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
 <!-- /fuaran:spec-kinds -->
 
 Every `kind.$type` is globally unique. The former `Grid` collision (a Layout grid and a Visualisation data-grid both once named `Grid`) is fully resolved: the CSS-grid container is now a **`Box`** with `layout: {"$type":"Grid",…}` (Phase 390 – see below), and the data-bound grid is **`DataGrid`** (payload `GridSpec`). This global uniqueness is what lets the wire be flat – a single discriminator unambiguously selects both the primitive and its category.
@@ -411,7 +411,85 @@ The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direct
 
 **Retired container tags are rejected, as are `Spacer` / `Divider`.** The four superseded container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and the superseded `Table` tag are **hard-retired (Phase 673)**: a bare `"$type":"Stack"` is a decode error, not an upgrade. They briefly decode-upgraded to `Box` / `DataGrid` for permalink and op-stream compatibility; that seam was removed once measurement showed nothing depended on it (no persisted artefact carried the tags, and across 6,561 eval runs no model emitted one without being taught it). This restores §1.1's stated 0.2.0 posture — *retired vocabulary is a hard decode error, not a deprecation* — which the upgrade seam had quietly contradicted. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
 
+#### Timed advance — the carousel behaviour on `Switch` (Phase 1122)
+
+**One optional integer on `SwitchSpec`, omitted at absence, that says this switch is meant to MOVE
+ON ITS OWN and how often.** A document that does not declare it is byte-identical to what it was
+before this member existed, and behaves identically on every host.
+
+```json
+{"$type":"Switch","autoAdvanceMs":5000,"cases":[…],"default":{…},"stateKey":"slide"}
+```
+
+| Member | Says |
+|---|---|
+| `autoAdvanceMs` | advance to the next case every this-many milliseconds |
+
+**It declares the one fact a host cannot recover from the tree.** Every other half of a carousel is
+already composable and was before this phase: the stage is a `Box`, the panels are the `cases`, the
+position is the bound key, and the arrows and dots are ordinary controls writing that key. Nothing
+in any arrangement of those says a timer exists. It is the `sortStateKey` shape — a behaviour the
+host performs, keyed by something only the document can name.
+
+**A duration, never a flag.** "Advances" with no interval is not renderable: a host would have to
+invent a period, and two hosts inventing different ones is exactly the divergence this corpus
+exists to prevent.
+
+**Non-positive is REFUSED, not canonicalised** (`reject/reject-switch-autoadvance-zero.json`,
+`…-negative.json`, `…-fractional.json`). `0` is what an emitter reaches for to mean "off", and the
+language already HAS a spelling for off — an absent key. Rewriting a zero to absence would make two
+document shapes mean one thing and tell the emitter nothing about its misreading; decoding it to a
+live zero-millisecond timer would be a re-render loop. This is the `Masonry.cols` ruling
+(§3.3) at a second slot, and the code is the same: `WRONG_TYPE`, a number outside the slot's value
+space, with a bound rather than a legal set to name back. A FRACTIONAL value is refused for a
+different reason worth stating separately: the slot is an integer count, and a decoder truncating
+where another rounded would leave two hosts disagreeing about a document neither refused.
+
+**What advances, and what a conformant client owes the reader.** The advance writes the switch's
+OWN selector key, so it is meaningful only where that selector is the compact `stateKey` (or the
+`State` form of `on`). A switch selecting on a `Selection` / `Filter` / `Query` binding is driven by
+another node, has no key of its own to move, and the declaration is inert there; the reference
+host's pre-emit validator reports that shape as **FUARAN128 (Warning)**, alongside a switch carrying
+fewer than two cases.
+
+Where it IS live, a client tier that honours the interval **MUST** also, per WCAG 2.2.2
+(Pause, Stop, Hide):
+
+  1. **pause** the advance while the reader hovers the stage, holds a touch on it, or holds focus
+     anywhere inside it — and resume when they let go;
+  2. **stop it permanently** for the life of the mount as soon as the reader interacts with the
+     stage at all. There is deliberately no resume path and no timeout back to running: a carousel
+     that restarts itself drags the reader off whatever they chose to look at;
+  3. **never start it** when the reader's environment reports `prefers-reduced-motion: reduce`. This
+     obligation is stated here rather than left to a stylesheet because a stylesheet can suppress a
+     TRANSITION and cannot suppress an ADVANCE — the content would still change under the reader,
+     silently, which is the harm the preference is about.
+
+**These are recorded normatively rather than left per-host**, and none of them is a wire member. No
+gesture, threshold, event name, pause policy or resume rule appears in the vocabulary: a document
+says WHAT the switch does and never HOW the reader takes it over. Swipe and the arrow keys are the
+same affordance in two input modalities and are likewise renderer-owned.
+
+**The static floor is the bound case, rendered once, with no timer.** A no-script host resolves the
+selector from seeded state, renders the matching case (else the `default`), and stops. That is the
+conforming answer rather than a gap: advancing means writing a state key on an interval, and a
+static document has neither. Nothing about the emitted markup differs from a switch with no
+interval, which is also what keeps hydration mismatch-free.
+
+**The two transition tokens are NOT here, and that is the ruling rather than an omission.**
+`Motion.CrossFade` and `Motion.SlideBetween` (Phase 1122) name what a renderer does when a `Switch`
+replaces the child standing in its stage. They join the `Motion` vocabulary (§9's host-only
+enumeration, listed in the enum table above) and therefore **never reach the wire at all**: motion
+is consumer-authored, not AI-authored, so a between-children transition is a look the host chooses
+and not a fact the document carries. The consequence for this section is exact — no fixture in this
+corpus can carry either token, and neither case costs any host a codec change.
+
 #### Print break control — subtree cohesion across a page boundary (Phase 1473)
+
+_(How a reader REACHES a paged rendering is a separate question with a separate answer: `Action.Print`,
+§3.6.14. The two are deliberately independent — these members hold whether the print was raised from a
+document's own control or from the browser's menu, and a page must be correct on paper with no action
+ever having fired.)_
 
 **Four booleans, all omitted at `false`, that say which subtree must stay together when the
 rendering is PAGED.** `BoxSpec` carries `keepTogether` and `breakBefore`; `DataGridSpec` carries
@@ -857,7 +935,7 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 ### 3.3 Nested DU positions
 
-`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). Field names and presence are pinned by the corpus.
+`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
 
 `Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to the **row-feed** binding at a data-bearing node (`DataGrid` / `Chart` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source, in the same row shape §5 defines for a literal feed. See `nodes/grid-transform.json` for the canonical shape.
 
@@ -1051,6 +1129,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `BadgeVariant`: `"Neutral"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `BoxRole`: `"Dashboard"` / `"Card"` / `"Group"` / `"Separator"`
 - `ButtonVariant`: `"Primary"` / `"Secondary"` / `"Tertiary"` / `"Destructive"`
+- `CaptureSource`: `"Camera"` / `"Microphone"`
 - `ChannelDirection`: `"OutOnly"` / `"TwoWay"`
 - `ChartDataLabels`: `"Off"` / `"Ends"`
 - `ChartKind`: `"Line"` / `"Bar"` / `"Area"` / `"Pie"` / `"Scatter"` / `"Heatmap"`
@@ -1078,7 +1157,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `LiveRegionKind`: `"polite"` / `"assertive"` / `"off"`
 - `MathDisplay`: `"Inline"` / `"Block"`
 - `ModalityKind`: `"Modal"` / `"Popover"`
-- `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"`
+- `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"` / `"CrossFade"` / `"SlideBetween"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
 - `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
 - `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
@@ -1120,6 +1199,8 @@ read-compat):
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
+| `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
+| `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
@@ -1135,6 +1216,7 @@ read-compat):
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
 | `expandable` | `bool` | `false` | `ImageSpec` |  |
+| `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -2265,6 +2347,771 @@ the leaf omission), `nodes/tree-expanded-1.json` (three levels, the expansion ke
 `reject/reject-tree-nested-item-missing-id.json` (`MISSING_FIELD`, the third one level DOWN, because
 a host whose child walker is looser than its root walker passes the other two).
 
+### 3.6.13 `DataGrid` — cross-container transfer (Phase 1123)
+
+`DataGridSpec.transferOutKey` and `.transferInKey` are the two sides of ONE shared State key, and
+between them they say exactly one thing: **these grids exchange rows.** A grid declaring
+`transferOutKey` K may RELEASE rows onto K; a grid declaring `transferInKey` K ACCEPTS rows arriving
+on it; a grid declaring both with one K does each. Nothing else is named — not the drag, not the drop,
+not the drag image, not the keyboard route, not the visible drop state.
+
+This is the first pair in the format whose subject is a RELATION BETWEEN TWO NODES rather than one
+node's own behaviour, and the affordance→op rule is extended for it in exactly one clause: where a
+gesture spans two nodes, the wire names the capability on BOTH ENDS as a shared key each declares its
+own side of, and the effect is one record written to that key. Every other node-local rule is unchanged.
+
+```json
+{"$type":"DataGrid",
+ "columns":[{"field":"card","kind":{"$type":"Text"},"label":"Card"}],
+ "rowKeyField":"card",
+ "source":{"$type":"State","key":"board-todo"},
+ "transferInKey":"board",
+ "transferOutKey":"board"}
+```
+
+**Both members are optional and emitted only when present (rule 4)**, so a grid declaring neither is
+byte-identical to every grid written before this revision. A present member of any type other than
+string is `WRONG_TYPE` and MUST NOT be coerced: the slot names a STATE KEY, so an ordinal or a boolean
+names no key, and a grid identified by position could not be paired with by any other grid.
+
+**TWO members and not one symmetric key**, because the one-way ends are ordinary: an archive column
+that accepts and never releases, a Done column that releases nothing back. A single key would make
+every declaration bidirectional and those documents inexpressible. Neither carries the `-StateKey`
+suffix the sibling behaviour fields do (`sortStateKey`, `pageStateKey`, `editStateKey`), and that is
+deliberate: that suffix marks a key a grid both writes AND READS to change its own presentation, and
+neither end reads this one for its own presentation.
+
+#### The transfer record
+
+A drop writes ONE object to the shared key. Its shape is fixed here, exactly as the sort descriptor's
+is, so two hosts cannot disagree about what a transfer said:
+
+```json
+{"itemId": "<row identity>", "from": "<source node id>", "to": "<target node id>", "index": 0}
+```
+
+All four members are ALWAYS present. `itemId` is the moved row's identity, projected through the
+`rowKeyField` contract the grid already carries. `from` and `to` are **NodeIds** — identity within the
+tree, never store addresses. `index` is the **0-based** position the row took in the receiving grid's
+full row set, and it is written even when it is `0`: a record that omitted it at the top of a list
+would be indistinguishable from one that failed to state a position at all.
+
+A host MUST NOT trust a value it finds at the key. A descriptor that is absent, not an object, or
+missing any member is not a transfer and MUST be ignored — the same posture `sortStateKey` and
+`pageStateKey` already take, where a malformed descriptor reads as the honest default rather than as
+an arbitrary action.
+
+**Row identity is `rowKeyField`, and no second identity vocabulary is minted.** The closure form
+`rowKey` crosses the wire as `"<closure>"` and carries no projection, so a decoded transfer end
+naming only a closure has nothing to put in `itemId`. That decodes successfully — a per-object codec
+judges no relation between siblings — and is refused pre-emit (`FUARAN130`), which is where a shape
+that decodes but cannot describe what it did belongs.
+
+**Render obligations (normative, both tiers).**
+
+1. **The record is written on EVERY transfer, whatever either end's source shape is.** It is the one
+   part of a transfer that is promised unconditionally, and it is what makes the capability reach the
+   case it exists for: the canonical board's columns are filtered views over one collection, which
+   have no writable slot at either end, so on those documents the record IS the whole outcome and the
+   application applies it.
+2. **A host that CAN apply a half MUST apply it.** Each end commits through the destination that end
+   already declares — a declared `editStateKey`, else the grid's own `source` when that source is a
+   direct `State` binding — so the source loses the row and the target gains it with no application
+   wiring at all. **No second write path is introduced**: a transfer is a write of each end's whole
+   rows value, exactly as a reorder and an edit are. An end with no writable destination is simply
+   not applied; the record still names what the reader asked for.
+3. **A grid never transfers to ITSELF.** A two-way column declares both ends of one key, so a drop on
+   the grid the drag began in satisfies the key on both sides — and that gesture is a REORDER, which
+   `reorderable` already owns. A host MUST route it there, and MUST NOT write a transfer record for it.
+4. **The gesture has a keyboard equivalent, and it is not optional.** A drag has no keyboard analogue
+   and none is invented; what a host MUST provide is a SECOND ROUTE to the same effect. The reference
+   tier lifts a row with `Control+X` on its row handle, places it with the receiving grid's own place
+   control, and positions it from there with `reorderable`'s arrow keys — two affordances that between
+   them reach every position the pointer reaches. A host MAY choose a different route; a host that
+   provides none has shipped a pointer-only capability.
+5. **The route is announced and advertised.** The chord is named on the handle (`aria-keyshortcuts`)
+   and every transition — lifted, placed, cancelled, and refused-because-nothing-is-lifted — is
+   announced through a live region. An undiscoverable shortcut is a fake affordance, and a lift with
+   no announcement is a mode change a screen-reader user cannot detect.
+6. **A static (no-script) host renders the grid EXACTLY as it renders one declaring neither member,
+   and that is the conforming answer.** A transfer is a gesture plus state writes, and a static
+   document has neither; emitting an inert handle or an inert place control would advertise a move the
+   page cannot perform. The declaration still rides the wire to a tier that can act on it.
+
+**A declared end whose counterpart is absent from the tree is a dead pairing** and is refused pre-emit
+(`FUARAN129`), from either side: an accepting grid nothing releases to is a drop zone no drag can
+reach, and a releasing grid nothing accepts from is a handle with nowhere to go. It cannot be a decoder
+rule — whether ANY OTHER grid names the key is a whole-tree question and a per-object codec sees one
+grid — which is the same split `pageSize`-without-`pageStateKey` already carries.
+
+Fixtures: `nodes/transfer-board.json` (the canonical corner — two two-way columns and a one-way
+`archive` that declares `transferInKey` ALONE, which is also what pins the omission polarity: the
+archive's bytes carry no `transferOutKey` key at all), and
+`reject/reject-wrongtype-grid-transfer-in-key.json` /
+`reject/reject-wrongtype-grid-transfer-out-key.json` (`WRONG_TYPE` at `$.kind.transferInKey` and
+`$.kind.transferOutKey`, vectored separately because they are separate decoder arms).
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the pre-emit rules and every render obligation above. Every other codec host in the §11.0 roster is
+**pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible.
+
+---
+
+### 3.6.14 `Action.Print` — the payload-free action (Phase 1124)
+
+`Action.Print` says one thing and takes nothing to say it: **open the reader's own print dialogue.**
+
+```json
+{"$type":"Print"}
+```
+
+That is the complete encoding. It is the format's first **payload-free `Action` case**, and the
+emptiness is the specification rather than an omission in it. Printing has parameters — page size,
+margins, orientation, sheet range, copies, which printer — and every one of them belongs either to the
+host's page setup or to the dialogue the reader is looking at when the action fires. A document may
+therefore ask for the dialogue and may say nothing about what happens in it.
+
+**A member beside `$type` is `WRONG_TYPE` and MUST NOT be ignored**, at the path of the offending
+member. This is the one `Action` arm that is strict about unrecognised members, and the asymmetry is
+deliberate: everywhere else in this format an unknown member is one the reading host has not learned
+yet, and dropping it is the forward-compatible answer. Here there is nothing to learn. A host that
+accepted `{"$type":"Print","pageRange":"1-3"}` and printed everything would leave the emitter believing
+it had constrained a printing it had not constrained, and no error anywhere would say otherwise. Vector:
+`reject/reject-action-print-with-payload.json`.
+
+**Wire survivability: survivable, trivially** (§5.1) — there is no slot for a closure to hide in, so the
+decode of an encode is the value itself on every host.
+
+**It composes like any other action.** `Chain` carries it, and the corpus fixture
+(`nodes/button-print.json`) places it inside one deliberately: a bare `Print` exercises the case, where
+a `Print` beside a sibling exercises what a memberless object can actually break — an encoder that
+emits `{}` for a case with no fields, or a decoder that requires at least one member, fails differently
+in a list than alone.
+
+**What this case does NOT do, and what carries those obligations instead.** It does not describe the
+paged rendering: which subtrees stay whole, which start a fresh page, and whether a grid repeats its
+header are `BoxSpec.keepTogether` / `.breakBefore` / `DataGridSpec.keepRowsTogether` / `.repeatHeader`
+(the "Print break control" members, Phase 1473), and they apply whether the reader printed through this action or
+through the browser's own menu — which is the point: a printed page must be correct without any action
+having been raised at all. It does not select medium-conditional content either; a document showing one
+thing on screen and another on paper is a `Switch` over a host-supplied binding, not vocabulary here.
+And it names no target: `Print` prints the page, never a subtree of it, because a subtree is something
+the host already holds and can select for itself.
+
+**Host obligation.** A host performs `Action.Print` by asking its own platform to print the rendered
+document — on a browser host, `window.print()`. Three properties are normative:
+
+1. **It is user-visible and user-cancellable.** The obligation is to raise the platform's own dialogue,
+   never to print silently. A host with no interactive print path performs nothing.
+2. **Nothing is reported back.** The action yields no value, no callback and no event: a host MUST NOT
+   tell the tree whether the reader printed, cancelled, or what they chose. A server-driven host
+   therefore ships the effect one way and receives no response to it.
+3. **A host that cannot print performs nothing, and refuses nothing.** Printing is an act of the
+   machine the document is being READ on. A server rendering the document has no printer, but the
+   reader's browser does, so a server-driven host **lowers** the effect to its client rather than
+   treating it as unserviceable; a host with no display at all simply does nothing, exactly as it does
+   with any other affordance it cannot present.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the strict-member refusal and the render obligations above. Every other codec host in the §11.0 roster
+is **pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible. Note the failure mode a
+pending host presents here is unusually quiet: `{"$type":"Print"}` is the shape a lenient decoder is
+most likely to accept and then do nothing with, so the §11.2 vocabulary attestation is what makes an
+unimplemented case visible rather than the reject leg.
+
+---
+
+### 3.6.15 `DataGrid` — the export affordance (Phase 1125)
+
+`DataGridSpec.exportable` is a `bool`, omitted at `false`, and it says exactly one thing: **this
+grid's rows are the reader's to take.** Nothing else is named — not the file format, not the file
+name, not the control, not the gesture that reaches it, and not which rows.
+
+```json
+{"id":"grid-exportable-1","kind":{"$type":"DataGrid","columns":[…],"exportable":true,"rowKeyField":"reference","source":{"$type":"Query","name":"settlements"}}}
+```
+
+It is the grid-behaviour rule (§3.6.9) reached by a node that writes no state. Every other member of
+that family — `sortStateKey`, `pageStateKey`, `editStateKey` — names a State key because the behaviour
+it declares WRITES something the grid then reads back, which is why a bare `sortable` / `pageable`
+boolean is refused there. An export writes nothing: it produces a file and returns nothing to the
+tree, so there is no key it could name, no descriptor whose shape this specification would have to
+fix, and no reader of that key to disappoint. The boolean is the whole declaration.
+
+**Host obligation.** A host that admits this member and can present a control performs three things.
+Each is normative, and the third is the one a host is most likely to get wrong in a way that looks
+right.
+
+1. **The control is the GRID's.** A host draws the export affordance as part of the grid, and a
+   conforming host does not require the document to supply a button. This is the same rule the pager
+   follows and for the same reason: the control that serialises the rows and the grid that holds them
+   must not be able to come apart.
+2. **What it exports is what the HOST HOLDS FOR THAT GRID, as the reader is seeing it** — the grid's
+   resolved rows in their current order, projected through the columns the document declared, in the
+   order it declared them. A host that has sorted the rows for the reader exports them sorted. A host
+   that has PAGED them exports the whole resolved set and not the page on screen.
+3. **A host that holds only part of the data says so, and exports only what it holds.** Where the row
+   source is host-paged — a `Query` whose `dependsOn` names the page key, §3.6.9 — the client holds one
+   page, and a control that offered *export* without qualification would promise a dataset it cannot
+   deliver. The obligation is to name the scope in the control's accessible name. **A full-dataset
+   export over a paged source is host chrome and is deliberately outside this format:** the tree cannot
+   substantiate data it does not hold, and a member asking a host to fetch every page would be asking
+   the document to describe a fetch rather than a rendering.
+
+**Cell text.** A cell is exported as the text the reader is looking at: the column's own value
+projection, rendered through the column's own declared `format`. This is stated normatively because
+the alternative is defensible and would produce different bytes — exporting the underlying number or
+timestamp would hand back a file matching neither what the reader sees nor what the source would
+serve, and a host that chose it would diverge from every other host with nothing in the corpus to
+catch it. The consequence is accepted rather than hidden: a currency-formatted column exports as text
+a spreadsheet will not sum.
+
+**No new delivery instruction.** Handing the file over uses whatever mechanism the host already has
+for a download — on a browser host, a url and a suggested name. Nothing is added to the
+client-effect vocabulary for this member.
+
+**Nothing is reported back.** The export yields no value, no callback and no event: a host MUST NOT
+tell the tree whether the reader kept the file. It is therefore, like `Action.Print`, an effect the
+tree cannot use to observe the reader.
+
+**A host that cannot export draws nothing.** A rendering with no scripting and no way to make a file
+— a static server rendering, an email projection — emits the grid exactly as it emits a grid that
+declares nothing, and specifically **does not** emit an inert control. An export button that cannot
+export is worse than an absent one: it reads as a broken page rather than a degraded one. The
+declaration still rides the wire to whatever tier can act on it.
+
+Pre-emit: a host's authoring tier SHOULD report an `exportable` grid that names no row source, and one
+that declares no columns (the columns are the file's fields, so with none the file has none). A grid
+whose source merely RESOLVES to no rows is NOT a defect — the export of an empty grid is a header
+record, which is a true statement about the data.
+
+Fixtures: `nodes/grid-exportable-1.json` (the canonical shape — one new member and nothing else, so a
+decoder that dropped it could not round-trip), and
+`reject/reject-wrongtype-grid-exportable.json` / `reject/reject-wrongtype-grid-exportable-number.json`
+(`WRONG_TYPE` at `$.kind.exportable`, two shapes because a decoder can refuse one non-boolean and
+accept another). Omission polarity is pinned by every other grid fixture in the corpus, whose bytes
+carry no `exportable` key at all.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the pre-emit rule and every render obligation above. Every other codec host in the §11.0 roster is
+**pending** until its own change-set lands, on the §11 step-5 terms. A pending host is not thereby
+exempt — it owes the behaviour and has simply not made its answer visible. The failure mode a pending
+host presents here is a quiet one, as with `Action.Print`: a lenient decoder accepts the boolean and
+draws nothing, so a reader is silently denied their data and no leg goes red — the §11.2 attestations
+and this row, not the reject leg, are what make an unimplemented member visible.
+
+---
+
+### 3.6.16 `Action.WriteToClipboard` — the payload is a `TextSource` (Phase 1126)
+
+`Action.WriteToClipboard`'s `text` member is a **`TextSource`**, not a bare string. The reader may
+therefore be given a value the tree computed — a figure in the grid in front of them, a link the
+session holds — and not only a literal the author typed at authoring time.
+
+```json
+{"$type":"WriteToClipboard","text":"https://example.com/share/abc123"}
+{"$type":"WriteToClipboard","text":{"$type":"Bound","binding":{"$type":"State","key":"shareUrl"}}}
+```
+
+**Both of those are canonical, and the first one is not a legacy spelling.** `TextSource.Literal`'s
+canonical form is the bare JSON string (§3.6's first 0.2.0 exception), so every document written
+before this member widened carries bytes the encoder still emits and the decoder still reads — the
+widening is source-breaking for a host's own construction sites and **wire-neutral**. What is new is
+the second shape. The explicit `{"$type":"Literal","text":…}` envelope normalises down to the bare
+string here exactly as it does at every other text slot (§16;
+`lenient/lenient-1126-clipboard-literal-envelope.json`).
+
+**A `text` that is neither a string nor a `$type`-tagged `TextSource` is `WRONG_TYPE`** at
+`$.…​.text`, and a host MUST NOT coerce it. Vector:
+`reject/reject-wrongtype-clipboard-payload.json`. The refusal carries more weight at this slot than
+at an ordinary label: a host that read the widening as "this member is now open" would put a JSON
+literal on the reader's clipboard, and a clipboard is a channel the reader later pastes somewhere
+with authority.
+
+**Host obligation — resolution happens at DISPATCH time.** A bound payload is resolved when the
+reader raises the action, through the same binding resolution the host renders text slots with, so
+what is copied is what the reader was looking at. Resolving at decode time would freeze the value at
+the moment the document arrived, which for the shapes this widening exists for is the wrong value.
+An unresolvable binding resolves to the empty string, as it does at every text slot; a missing i18n
+key resolves the same way it does in a label. A host that cannot resolve at all in a given path
+(a zero-JS resume interpreter holding no binding sources, say) MUST NOT write the declaration
+itself — it either hydrates first or performs nothing.
+
+**A server-driven host resolves BEFORE it lowers.** The client shim that performs the write holds no
+resolver, no store and no catalogue, so the effect that crosses to it carries resolved text. This is
+the division `Action.Navigate` already draws: the server decides what crosses, the shim performs it.
+
+**Wire survivability: survivable** (§5.1) — a `TextSource` is data in all three arms.
+
+**There is deliberately NO clipboard READ, and this is a decline rather than an omission.** A tree
+that could read the clipboard without a paste gesture is a keylogger-adjacent capability: the
+clipboard routinely holds a password, a one-time code or an address the reader copied for somewhere
+else entirely, and a document that samples it at will has taken that without asking. Paste is
+user-initiated by construction — the reader chooses the moment and the target — and that gesture,
+not a vocabulary member, is the consent. Structured paste into an editable grid (below) is inside
+that boundary for exactly this reason: it happens because the reader pasted.
+
+**Structured paste into an editable grid is a HOST AFFORDANCE and reaches no member.** A grid that
+declares `editable` and an edit destination (`editStateKey`, or a directly-`State`-sourced feed) has
+already said that its cells are the reader's to change; whether they change one by typing or twenty
+by pasting a tab- or comma-separated block is a property of that affordance, not a second capability
+to declare. A host offering it MUST write through the same destination a typed edit uses, and MUST
+NOT grow the grid: a block taller or wider than the space below and right of the anchor loses its
+surplus, because the format has no row-insert and no column-add, and a `Query`-sourced grid's rows
+are the host's to begin with. A host that offers nothing here is conformant — the grid still edits
+cell by cell.
+
+**Host adoption.** Recorded here on the §11.0 convention: the reference F# host implements the codec,
+the dispatch-time resolution, the server-driven lowering and the paste affordance. Every other codec
+host in the §11.0 roster is **pending** until its own change-set lands, on the §11 step-5 terms. A
+pending host is not thereby exempt. Note what a pending host owes and what it does not: the
+**legacy-accept obligation is already discharged by construction** — a host that decoded the bare
+string before this phase decodes it still, because those bytes did not change — so what is pending is
+the BOUND payload, which a host typing this member as `string` will refuse outright rather than
+mis-handle. That is the loud failure mode, and it is the one to prefer.
+
+---
+
+### 3.6.17 `Rating` and `Color` — the score and the swatch (Phase 1130)
+
+Two `FormFieldKind` cases, specified together because their one shared property is the one a host is
+most likely to get wrong: **each carries a rule that is checked in more than one place, and neither
+rule is a coercion anywhere.**
+
+```json
+{"$type":"Rating","allowHalf":true,"max":5,"onChange":"<closure>","value":{"$type":"Static","value":3.5}}
+{"$type":"Color","value":{"$type":"Static","value":"#FFAA00"}}
+```
+
+#### `Rating`
+
+**The line an emitter has to hold is one sentence:** a SUBJECTIVE SCORE on a small ordinal scale is
+`Rating`; a NUMERIC QUANTITY the reader types or drags is `RangedNumber`. The test is who the number
+belongs to — a rating is a judgement a person GIVES, a ranged number is a measurement they REPORT.
+Both carry a floating-point value and a ceiling, which is exactly why the sentence is written down
+rather than left to be inferred from the shapes.
+
+**Members.** `max` is an `int` and is the case's only REQUIRED member: it is the scale, it is what the
+control announces as `aria-valuemax`, and a rating with no declared ceiling is not a scale. **A `max`
+of less than 1 is `WRONG_TYPE` and MUST be refused, not clamped** — a scale with no positions has
+nothing to draw, nothing to announce and no keystroke that could change anything, so the document
+names a control that cannot exist. `value` is a `Binding<float>` whose absent form is the ordinary
+auto-bind; `onChange` carries `float`.
+
+**The value is a float even where nothing can type a fraction, and this is normative rather than
+incidental.** The commonest rating a reader sees is an AVERAGE — 4.3 of 5 over three hundred reviews,
+arriving through a `Query` binding — and an integer slot could not carry it. A host **MUST** render a
+fractional value as a partial position rather than rounding it: rounding would show the reader a
+figure the document did not state.
+
+**`allowHalf` omits at `false`, and the polarity is load-bearing.** The SHORTEST rating document is
+the WHOLE-STAR one; halves are what an emitter has to ask for. A host MUST read an absent `allowHalf`
+as `false`; a present member of any other type is `WRONG_TYPE` and MUST NOT be coerced.
+
+**`allowHalf` governs ENTRY, never DISPLAY.** It is the granularity of a keystroke and of a pointer
+commit; it says nothing about what a bound value may be. A host **MUST NOT** quantise a resolved
+value to the granularity — a 4.3 average on a whole-star control is a correct document, and a host
+that snapped it to 4 would be answering a question the author did not ask.
+
+**It is a bool and not a `step`, deliberately.** A `step` slot would admit `0.3`, which is a valid
+document naming an interaction no rating control has ever had, so the decoder would owe a refusal
+enumerating exactly `{1, 0.5}` — at which point the float is a boolean wearing a wider type. It would
+also give `Rating` and `RangedNumber` a third member in common, widening the very confusion pair the
+sentence above exists to keep apart.
+
+**Where the VALUE's bounds are checked, and where they are not.** The scale is refused at decode; a
+value outside `0 .. max` is **not**, and the asymmetry is the design. A bound value is invisible to a
+decoder, and a rule enforced only on literals would be two rules wearing one name. A host therefore
+owes the value rule at the two places the value becomes visible: an authoring-time check over a
+`Static` literal (the reference host's `FUARAN132`, a warning — the render path clamps, so the
+document still renders), and a **server-side re-check on submission**, which is the only one that is a
+trust boundary.
+
+**Render obligations (normative, both tiers).**
+1. **Nothing on the wire names a keystroke or a role.** Arrow / Home / End, the glyph, the partial
+   fill and the announcement are the RENDERER's affordance under the affordance→op rule.
+2. **An adjustable rating is `role="slider"`, not `role="radiogroup"`.** It carries
+   `aria-valuemin="0"`, `aria-valuemax` from `max`, `aria-valuenow`, and an `aria-valuetext` giving
+   the whole reading ("3.5 out of 5") — `aria-valuetext` being the only ARIA member that can announce
+   a fraction at all. It is ONE tab stop; Arrow Right/Up and Left/Down move by the granularity and
+   STOP at both ends (they MUST NOT wrap: a slider's ends are ends, and wrapping turns "one more
+   star" into "none"), Home is 0 and End is `max`. A radiogroup is wrong for three reasons and they
+   are worth stating: a rating is a magnitude and not a set of named options; a radiogroup cannot
+   announce a fraction; and with `allowHalf` it would need `2·max` radios for one continuous quantity.
+3. **A rating nothing can write is `role="img"`, carrying the whole reading as its accessible name,
+   and takes no focus.** That is the bound-average display case. A slider a reader can focus and can
+   never move is a fake affordance, and the honest markup for a picture of a score is a picture.
+4. **A static (no-script) host that renders an ADJUSTABLE rating MUST still produce a working
+   control**, and the floor is native radios — one per enterable position, grouped by the field's
+   name. Zero-JS, a `role="slider"` element can be neither adjusted nor submitted; radios are
+   keyboard-adjustable and submit with the form, and the user agent supplies the group semantics
+   itself. A static host **MUST NOT** emit hand-written `role="slider"` / `aria-valuenow` on that
+   markup, for §3.6.9's reason: a static value that can never change replaces the user agent's correct
+   semantics with a claim inert markup cannot keep. The floor and the hydrated control differ because
+   what each medium can HONOUR differs; a display-only rating has no interaction to floor, so both
+   tiers emit the identical `role="img"` star row.
+5. **A static host's radio floor may check nothing when the current value is a fraction that lands on
+   no enterable position.** That is a recorded limit rather than a defect: the floor shows the
+   positions a reader can choose, not the average.
+
+#### `Color`
+
+`FormFieldKind.Color` is the platform's own colour picker. Note what it is NOT: it is a CONTROL, and
+not a `rule.format` — a `format` constrains the text a reader types into a text box, where this case
+is a swatch that opens the operating system's colour picker, which no `format` on a `Text` field can
+produce. The two do not overlap, and admitting this case leaves any decision about a `color` rule
+format exactly where it was.
+
+**Members.** Both optional: `value` is a `Binding<string>` and `onChange` carries `string`. The case
+has no required member, so `{"$type":"Color"}` is a complete, auto-bound colour field.
+
+**The value is `#rrggbb` and nothing else.** Six hexadecimal digits after a `#`, either case. That is
+the one form a native colour input can hold or return, so it is the wire form too rather than a wider
+colour syntax the control would silently narrow. **A `Static` literal outside that shape is
+`WRONG_TYPE` and MUST be refused, not coerced**: `#fff`, `rebeccapurple`, `rgb(0 0 0)` and an alpha
+channel are all documents naming a colour this control could never carry, and a host that narrowed one
+would show a colour the document did not choose.
+
+**Only the `Static` case is judged at decode, and the split is recorded rather than hidden.** A
+`State` / `Query` / `Selection` binding carries its text from outside the document, where a decoder
+cannot see it. A host owes the same rule at the two other places the value becomes visible: an
+authoring-time check over a literal (the reference host's `FUARAN133`, an **error** — a tree carrying
+a non-hex literal encodes to a document no conformant host will read back), and a **server-side
+re-check on submission**. One rule, checked wherever the value becomes visible; a coercion at none of
+the three.
+
+**Case is PRESERVED, never normalised.** `#FFAA00` is a hex colour and round-trips byte-identically;
+a codec that lower-cased it would fail the round-trip this corpus exists to pin. Browsers normalise at
+the DOM, which is their business and not the wire's.
+
+**Render obligations (normative, both tiers).** A host renders the platform's native colour input;
+there is no ARIA to hand-write and no keyboard model to invent, because the element carries both. A
+value that resolves to something the element cannot hold **MUST** fall back to the unset default
+rather than being passed through — a native colour input substitutes its own default silently, so
+handing it a bad literal would show a colour the document did not choose while the tree still said
+otherwise.
+
+#### Corpus
+
+`nodes/form-rating.json` (whole stars, `allowHalf` omitted, a static value on a position),
+`nodes/form-rating-halves.json` (`allowHalf` entry beside a ten-scale average whose value slot is
+omitted entirely — the auto-bind), `nodes/form-color.json` (UPPER-CASE hex, preserved not normalised),
+`nodes/filters-rating-colour.json` (both controls as declarative filter chips — a chip carries the
+same control as a field since the 0.2.0 unification, and a corpus covering only the field route would
+leave half the vocabulary unpinned), `reject/reject-rating-max-zero.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.max`) and `reject/reject-color-value-not-hex.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.value`).
+
+### 3.6.18 `FileUpload` — the capture device (Phase 1116)
+
+`FileUploadSpec.capture` names WHICH of the reader's own recording devices the platform should open
+in place of the file browser. It is the **third** ingress route onto the control §3.6.10 gave the
+other two, and the only one that PRODUCES a file rather than moving one that already exists.
+
+| `capture` | What it asks for |
+|---|---|
+| absent (the default) | The ordinary file browser. Every document written before this revision says this. |
+| `"Camera"` | The platform camera — a still or a short clip. |
+| `"Microphone"` | The platform audio recorder. |
+
+```json
+{"$type":"FileUpload",
+ "accept":["image/*"],
+ "capture":"Camera",
+ "label":"Photograph the receipt",
+ "multiple":false,
+ "onSelect":"<closure>"}
+```
+
+**It is a REQUEST, and its scope is exactly the file picker's.** A host asks the platform; the
+platform decides. Nothing here opens a stream, previews one, records continuously, or acquires a
+standing permission: the reader performs one gesture, the platform returns one file, and the control
+is the same control it was. There is no display-capture case and there will not be one by widening
+this member — a screen capture reaches every window the reader has open rather than one device
+behind the picker, so it is a different class of thing and not a third spelling of this one.
+
+**The member is OPTIONAL, not omit-at-default, and the distinction is real.** "Say nothing" is a
+state of its own here: an upload naming no device is asking for the file browser, which is not one of
+the two devices wearing a default. A host MUST read an absent member as *the ordinary picker*; a
+present value outside `Camera | Microphone` is `UNKNOWN_DU_CASE` at `$.…capture` — a **bare** enum,
+so the path carries no `.$type` suffix (§6) — and MUST NOT fall back to either device.
+
+**`capture` and `accept` are ONE statement, and a host emits both exactly as declared.** The capture
+request asks the platform for a recording device; WHICH device it opens is decided by `accept`. So a
+document declaring `"Microphone"` under `accept:["image/*"]` opens a camera, and one declaring a
+device under no filter at all gets whichever the user agent guesses. A host MUST NOT synthesise an
+`accept` from the declared device: that would put a filter in the document's mouth that nobody wrote,
+make emitted markup depend on renderer defaults, and — the half that settles it — silently repair the
+one case most worth reporting. An authoring surface SHOULD report the incoherent pair instead (the
+reference tier's FUARAN134, a Warning); the wire carries what was written.
+
+**Render obligations (normative, both tiers).**
+
+1. **The projection is the two HTML attributes and nothing else.** A host emits the file input's
+   `accept` from `accept` and its `capture` from this member. `capture`'s value is an enumerated
+   HTML attribute whose keywords name a camera FACING, so the projection is `Camera` →
+   `environment` and `Microphone` → `user`: both are conforming keywords, the facing constrains only
+   a camera, and a host MUST NOT emit the device name itself, which is not a keyword and is
+   non-conforming markup.
+2. **A device the platform does not have degrades to the picker, and that is the whole desktop
+   story.** The user agent ignores an unsatisfiable `capture`; the control remains a fully working
+   upload. A host owes NO code for this case and MUST NOT hide, disable or relabel the control on a
+   platform it believes has no such device — a control removed on a guess is worse than a request
+   the platform declined.
+3. **A captured file is the same selection a picked one is.** It reaches the selection handler with
+   the same shape, is bounded by `multiple` identically, and is filtered by `accept` identically. No
+   new handler slot, no new `Action` case and no new event name is introduced — which is precisely
+   what lets a capture reach every mechanism a pick already reaches.
+4. **A static (no-script) host emits BOTH attributes, and this floor FULLY holds.** Unlike the two
+   routes in §3.6.10 there is nothing to degrade: `capture` needs no listener, the user agent reads
+   it off the markup, and a zero-JS document opens the camera exactly as a hydrated one does. A host
+   that emitted the keyword without the filter would have a floor that held only by accident.
+
+Fixtures: `nodes/upload-capture-camera-1.json` and `nodes/upload-capture-microphone-1.json` (the two
+devices, each over the filter that selects it — a corpus carrying only the keyword would say nothing
+about the half that makes it work, and a host reading the device off `accept` alone would decode both
+correctly while being wrong about what either document says), `nodes/upload-1.json` unchanged (the
+member OMITTED, which is what pins the polarity: every upload written before this revision is
+byte-identical), and `reject/reject-unknown-capture-source.json` (`UNKNOWN_DU_CASE` at
+`$.kind.capture` on `"Screen"` — the near miss an emitter will actually write, refused rather than
+reserved).
+
+---
+
+### 3.6.19 `Tokens` — the multi-token input (Phase 1121)
+
+`FormFieldKind.Tokens` is SEVERAL values accumulated as removable chips, over a suggestion set that
+may be open, searchable, asynchronous, or absent entirely. Recipients, labels, skills.
+
+```json
+{"$type":"Tokens"}
+
+{"$type":"Tokens",
+ "allowFreeText":false,
+ "onChange":"<closure>",
+ "suggestions":{"$type":"Static","value":[{"label":"France","value":"fra"}]},
+ "value":{"$type":"Static","value":["deu","fra"]}}
+```
+
+#### THE TRIANGLE — the line an emitter has to hold
+
+**A CLOSED set small enough for a reader to scan is a `Select` with `multiple`; ONE value from a
+large, searchable or asynchronous set is a `Combobox`; SEVERAL values — over a set that is open, or
+that the document does not enumerate at all — is `Tokens`.** Two axes decide it: *how many values*,
+and *whether the set is closed*.
+
+The failure this exists to prevent is not an invalid document but a valid one, and there are two of
+them. A multi-`Select` over a closed set parses, validates and renders — and cannot admit a value
+nobody listed in advance, which is the whole of what a labels box is for. And **a `Combobox` PER
+ITEM is not a smaller version of this control**: it is `N` single-value fields with `N` ids, no
+gesture that removes the third entry, no way to say how many there may be, and a submission shaped
+like `tag1`, `tag2`, `tag3` rather than one list. That second mistake is the one to watch, because it
+is the one an emitter reaches for when it knows `Combobox` and has not met this case.
+
+#### Members
+
+Every member is OPTIONAL, so `{"$type":"Tokens"}` is a complete, useful document — the plain open
+token box, which is the commonest shape this control takes.
+
+`value` is a `Binding<string list>`, the SAME slot type the multi-select `values` has carried since
+§`Select` multi-select. **The list is ORDERED and the order is the reader's**: chips appear where they
+were added. A host **MUST NOT** sort or de-duplicate the decoded list — both would rewrite a fact the
+reader can see, and de-duplication would silently repair a document this specification says is wrong
+(see *Duplicates*, below). `onChange` carries `string list`: the WHOLE list on every add and every
+remove, never a delta, which is what lets the declarative write-back rewrite the slot and keep the
+order with no host code.
+
+`suggestions` is a `Binding<SelectOption list>` and is **optional**, which is the difference from
+`Combobox.options` and the reason the next paragraph reads the way it does. **An asynchronous
+suggestion source needs no vocabulary of its own**: a `Binding.Query` in this slot IS the async feed,
+resolved by the same machinery every other query-bound slot uses, with `dependsOn` giving it the
+dependency edge. Nothing in this case names a request, a debounce or a minimum query length.
+
+**An ABSENT `suggestions` and an EMPTY one are different facts**, and a host must keep them apart: an
+absent source means the control has no candidate set at all, and a resolved-empty one means it has a
+set that is currently empty — which is also every asynchronous source's first frame. The render
+obligations below turn on that distinction.
+
+#### `allowFreeText` omits at `true`, and the polarity is the OPPOSITE of `Combobox`'s
+
+This is the one thing about this case a host is most likely to get wrong, so it is stated normatively:
+**a host MUST read an absent `allowFreeText` as `true` on `Tokens`, and as `false` on `Combobox`.** A
+present member of any other type is `WRONG_TYPE` and MUST NOT be coerced.
+
+The two differ because their sets differ. `Combobox.options` is REQUIRED, so a combobox always has a
+candidate set and "constrained" is its resting state; `Tokens.suggestions` is optional, so a token box
+with nothing to suggest is the commonest shape rather than a degenerate one, and "open" is its resting
+state. **The default follows the required-ness of the set** — one rule, not two habits — and it is what
+makes the shortest document of each case the useful one.
+
+#### The one decode refusal, and the two rules that are deliberately not refusals
+
+**`allowFreeText: false` with NO `suggestions` member is `WRONG_TYPE` and MUST be refused.** No
+gesture could put a token into that field: it admits nothing typed and offers nothing to pick, so the
+document names a control that cannot exist rather than a control with a bad value in it. Under the
+polarity above it is reachable only DELIBERATELY, which is what makes refusing it right rather than
+hostile.
+
+Two rules are **not** decode refusals, and the asymmetry is the design:
+
+- **DUPLICATES.** A token list is a set the reader sees as chips, and two identical chips are one fact
+  drawn twice with two remove buttons that do different things. A duplicate is nonetheless **not**
+  refused at decode, because duplication is a property of the VALUE and a bound value is invisible to
+  a decoder — a rule enforced only on literals would be two rules wearing one name. A host owes it at
+  the two places the value becomes visible: an authoring-time check over a `Static` literal (the
+  reference host's `FUARAN136`, a warning) and a **server-side re-check on submission**.
+- **MEMBERSHIP.** Likewise: whether a token is in the suggestion set is a question about a resolved
+  set, which a decoder does not have. A closed field over a `Static` and EMPTY suggestion list is the
+  remaining unusable shape and is reported at authoring time (the reference host's `FUARAN135`, a
+  warning — the document decodes and renders; what is wrong is that no reader can use it).
+
+#### Render obligations (normative, both tiers)
+
+1. **Nothing on the wire names a keystroke.** Enter, Backspace, Delete, the arrow walk, the chip row
+   and the suggestion popup are the RENDERER's affordance under the affordance→op rule. A host MUST
+   NOT expect a document to configure them and MUST NOT add wire vocabulary for them.
+2. **A client-tier host renders the chips as a `role="list"` of `role="listitem"`, each carrying a
+   real `<button>` that removes it.** NOT a `role="listbox"` of `role="option"`, and the three reasons
+   are worth stating because the listbox reading is the one a writer reaches for first. A listbox is
+   for CHOOSING from candidates, and these are not candidates — they are the value, already chosen,
+   and the candidates live in the suggestion popup, which IS a listbox. `aria-selected` has no honest
+   value on a chip: every chip is selected, and none can be deselected. And the gesture a chip offers
+   is REMOVAL, which is a button — a real one carries the platform's own name, role, focus ring and
+   activation, none of which `role="option"` does. **Each remove control's accessible name MUST name
+   the token it removes**; a row of buttons all reading "Remove" is a row a screen-reader user cannot
+   tell apart.
+3. **The entry input carries `role="combobox"` ONLY where a suggestion source was declared** (with
+   `aria-expanded`, `aria-controls` naming the popup, `aria-autocomplete="list"` and
+   `aria-activedescendant` naming the active suggestion — §3.6.9's pattern exactly, because it is the
+   same affordance). With no suggestion source it is a plain text input and a host **MUST NOT** emit
+   combobox ARIA: a `role="combobox"` with nothing to expand is the same overclaim §3.6.9 forbids a
+   static host to make.
+4. **A `allowFreeText = false` refusal MUST be announced, not swallowed.** A control that ignores a
+   keystroke without saying why reads as broken. The refusal is an AFFORDANCE and never a gate: per
+   §22's standing posture, client validation is not a trust boundary, so **a host that accepts
+   submissions MUST re-check membership and uniqueness server-side**, exactly as it re-checks every
+   other declared constraint.
+5. **A static (no-script) host's floor is ONE TEXT INPUT carrying the tokens comma-and-space
+   separated.** A chip row is BUILT by a keystroke handler; zero-JS there is no gesture that adds a
+   chip, none that removes one, and a row of static chips with dead remove buttons would be an
+   affordance inert markup cannot honour. A `<datalist>` of the resolved suggestions MAY accompany it,
+   on §3.6.9's trade. Two limits are **recorded rather than claimed as coverage**: a token CONTAINING
+   A COMMA does not survive the projection (it re-parses as two — escaping it would put a quoting
+   grammar into a medium no reader can see, trading a visible limit for an invisible one), and
+   `allowFreeText = false` is not enforceable, since a text input has no native membership constraint.
+   The declaration rides as `data-fuaran-tokens-constrained` so a reader can see it was not silently
+   dropped; nothing in the platform reads that attribute.
+
+#### Corpus
+
+`nodes/form-tokens-freetext.json` (the SHORTEST spelling — `allowFreeText` omitted, no suggestion
+source, value auto-bound; the omission is what pins the polarity, since a host reading absence as
+`false` would refuse these bytes as a control that admits nothing),
+`nodes/form-tokens-suggested.json` (the constrained shape over a static source, carrying
+`["deu","fra"]` — deliberately not alphabetical, so a host that sorted the list fails the byte
+round-trip), `nodes/form-tokens-query.json` (the `Query`-bound suggestion feed with `dependsOn`,
+declarative and auto-bound), `nodes/filters-tokens.json` (the same control as a filter chip — a chip
+carries the same control as a field, and a corpus covering only the field route would leave half the
+vocabulary unpinned), `reject/reject-tokens-value-not-list.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.value` — a bare string refused rather than lifted into a one-element list) and
+`reject/reject-tokens-closed-without-suggestions.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.allowFreeText` — the one cross-member refusal).
+
+---
+
+### 3.6.20 `FileUpload` — the streamed destination (Phase 1117)
+
+`FileUploadSpec.destination` names the **host-registered destination** an upload streams its selected
+files to. It is the fourth thing §3.6.10 and §3.6.18 have added to this control and the only one that
+is about what happens AFTER the selection: the other three are ingress routes, this is egress.
+
+```json
+{"$type":"FileUpload",
+ "accept":["video/*"],
+ "destination":"session-recordings",
+ "label":"Upload your recordings",
+ "multiple":true,
+ "onSelect":"<closure>"}
+```
+
+**It is a NAME, and it is a name because it must never be an address.** The string is an id the host
+has registered with its own upload sink. A host resolves it against that sink's declared set and
+refuses an id the set does not contain. It is not a URL, not a path, not a template, and nothing on
+this member is ever fetched, joined to a base, or otherwise turned into one — which is the whole
+point of the member existing in this shape. A wire document comes from an arbitrary emitter; a URL
+here would let that emitter choose where a reader's file goes, and no host-side check on the string
+could recover the guarantee that a registered name gives for free.
+
+**What comes back is a REFERENCE and never the bytes.** A completed upload yields four values — a
+sink-assigned id, a content digest, the size the sink accepted, and the type it recorded — and it is
+those that reach the document's state, the host's telemetry, and any durable authoring record the
+host keeps. This is the member's reason for existing: `Action.ReadFileBody` reads a whole body into a
+string and hands it to the message loop, where under `Base64` or `DataUrl` it is a third larger than
+the file and lands, on a host that persists its authoring channel, in a hash-chained record that
+replays forever. `ReadFileBody` remains the correct answer for a small payload a handler needs in
+hand. It is the wrong answer for a video, and the two are not deprecating each other.
+
+**The member is OPTIONAL, and the empty string is REFUSED rather than read as absence.** Absent — the
+default — is the pre-1117 control: the selection reaches the handler and nothing leaves the client,
+so every upload document written before this revision is byte-identical and means what it always
+meant. `""` is a name no host registers, so a document carrying it describes an upload that can never
+stream: `WRONG_TYPE` at `$.…destination`, on the same line as a `Rating` whose `max` is below one.
+Reading it as absence is the coercion this rule exists to refuse — it silently turns an upload the
+author meant to stream into a client-only one, and every visible thing about the control still works.
+
+**An UNREGISTERED non-empty id is NOT a decode refusal, and that division is deliberate.** Whether an
+id is registered is a fact about the host, not about the document: the same bytes name a live
+destination on one deployment and nothing on another. A decoder that judged it would make one
+document's validity depend on who was reading it. The refusal belongs at dispatch, where the registry
+is — and it is a refusal, loudly, never a fallback.
+
+**Render obligations (normative, both tiers).**
+
+1. **Two refusals stand in front of a transfer, in this order, and a host owes both.** First, the
+   host's own dispatch policy decides whether this tree may cause an upload to this destination at
+   all — the same gate a host applies to a call, a navigation or an export, and a host that denies by
+   default denies this. Second, the host's upload sink is asked whether it serves the named
+   destination. **There is NO FALLBACK at the second step**: the id is not tried as a path, as a URL,
+   or against a default destination, because a fallback makes registration advisory, which is
+   indistinguishable from not having it. A host with no upload sink at all refuses every declared
+   destination.
+2. **Every refusal is ANNOUNCED, never swallowed.** A reader who selected a file and got nothing must
+   be told that nothing was saved, in a live region, whether the cause was policy, an unregistered
+   destination, a size limit, a type limit or a transport failure. "Nothing happened" and "this was
+   refused" are different facts and only one of them is actionable. A host MAY tell the reader less
+   than it tells its operator — the reader is owed the outcome, not the host's configuration.
+3. **Progress is surfaced, and an unknown total is an honest state.** A transfer at the size this
+   member exists for is not instantaneous, so a host reports it as it goes. Where the sink cannot say
+   how many bytes it expects, the host says that a transfer is running rather than inventing a
+   proportion.
+4. **The selection path is UNCHANGED.** `onSelect` fires exactly as it did before this member
+   existed, with exactly the selection it always received. The transfer is a SECOND FACT about one
+   gesture, not a second spelling of the first, and a host MUST NOT fold the reference into that
+   handler: doing so means either firing it twice for one gesture or delaying it until the transfer
+   finishes, which makes every existing upload handler asynchronous the day a destination is
+   declared. Where the reference reaches the document, it reaches it by a host write.
+5. **A declared destination and a body read are MUTUALLY EXCLUSIVE.** A host MUST refuse an
+   `Action.ReadFileBody` against an upload that declares a destination. The document has said its
+   bytes go to a sink and only a reference comes back; the body route contradicts that statement, and
+   on a server-driven host it is the exact path by which a forged inbound event would put a reader's
+   file into a durable record. The refusal is a refusal on both sides of any policy gate — a
+   permissive host is refused as a denying one is, or the discipline is merely a preference.
+6. **A static (no-script) host emits the plain control, and this floor DOES degrade.** Unlike
+   `capture` in §3.6.18, a transfer needs a listener and a sink, so there is nothing a zero-JS
+   document can do with the declaration. The control it renders is the fully working picker it was
+   before this member existed. A host MAY record that the declaration was READ — the §3.6.10
+   read-marker shape — and if it does, it records only THAT a destination was declared and never
+   WHICH: the id is the host's registry key and a static document is readable by anyone.
+
+Fixtures: `nodes/upload-destination-1.json` (the streaming upload, carried at the large-file shape
+the member exists for — `video/*` and `multiple` — and deliberately WITHOUT `capture`, next to the
+two §3.6.18 vectors that carry `capture` without a destination, so no host can read either member as
+implying the other), `nodes/upload-1.json` unchanged (the member OMITTED, which pins the polarity),
+and `reject/reject-upload-destination-empty.json` (`WRONG_TYPE` at `$.kind.destination` on `""` — the
+coercion refused rather than the near miss).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -2297,9 +3144,9 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 
 | Slot(s) | Payload type | Typed wire form | Empty / `None` form |
 |---|---|---|---|
-| `FormFieldKind.Choice` / `SegmentedChoice` / `Combobox` `.options` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
-| the same specs' `.value` | `string option` | the plain string | `null` |
-| `SelectSpec.values` (multi-select, Phase 291) | `string list` | array of strings | `[]` |
+| `FormFieldKind.Choice` / `SegmentedChoice` / `Combobox` `.options`, `FormFieldKind.Tokens.suggestions` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
+| the same specs' `.value` — the single-value ones, i.e. every one above except `Tokens`, whose `.value` is the `string list` row below | `string option` | the plain string | `null` |
+| `SelectSpec.values` (multi-select, Phase 291), `FormFieldKind.Tokens.value` (Phase 1121) | `string list` | array of strings, **in the document's own order** — never sorted, never de-duplicated | `[]` |
 | `SparklineSpec.source` | `float seq` | array of numbers (rule 5 layout) | `[]` |
 | `MapSpec.source` | `MapMarker seq` | array of `{"label":<TextSource>,"latitude":<number>,"longitude":<number>}` | `[]` |
 | `GridSpec.source` / `ChartSpec.source` – the grid / chart / table **row feed** (Phase 665) | `Row seq`, where `Row` is an **open** `string`→scalar map (not a fixed record) | array of row objects – see *Row payloads* below | `[]` |
@@ -2430,6 +3277,9 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
+| `FormFieldKind.Rating` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `max` and `allowHalf` are DATA and survive intact; the erasure here is the handler alone |
+| `FormFieldKind.Color` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.Tokens` | partial | omit the handler – the renderer's write-back default rewrites the WHOLE token list into the control's writable Binding.State / Binding.Filter value slot on every add and remove, which is what preserves the reader's own chip order on a decoded tree. `allowFreeText` and the suggestion source are DATA and survive intact; the erasure here is the handler alone |
 
 _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
 
@@ -2505,6 +3355,7 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Action.Chain` | survivable | – |
 | `Action.CommitLocal` | survivable | – |
 | `Action.WriteToClipboard` | survivable | – |
+| `Action.Print` | survivable | – |
 | `Action.ReadFileBody` | partial | – |
 | `Action.Invoke` | survivable | – |
 
@@ -2556,7 +3407,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->123<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -2700,8 +3551,8 @@ recorded here rather than inferred:
 | Host | Render-obligation adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
-| `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt |
-| `fuaran-py` | **adopted** – asserts all 10 declared claims in emitted HTML; nothing exempt |
+| `fuaran-ts` | **adopted** – the server-renderer suite enumerates from the artefact; nothing exempt. Asserts all 19 declared claims in emitted HTML, the Phase 1128 batch's nine included |
+| `fuaran-py` | **adopted** – asserts all 19 declared claims in emitted HTML; nothing exempt |
 | `fuaran-go` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. The hand assertions its renderer already carried are now reached *through* the artefact's enumeration rather than standing beside it |
 | `fuaran-rs` | **adopted** – asserts all 10 in emitted HTML; nothing exempt. Stated over the server render emission, which is the single surface both its headless and WASM-client roles produce |
 | `fuaran-swift` | **adopted** – asserts 8 of 10 over its render projections; declares 2 *exemptions*, `Image/alt-always-emitted` and `Image/figure-caption-outside-link`, both being claims about an emitted document this projection does not produce (no attribute bag, no anchor element, no network image loader) |
@@ -2747,6 +3598,52 @@ component identity, echoes no prop value, and invents no description — and eac
 suite. Taking the obligation is not taking §25: these rows stay `pending` deliberately, and a reader
 should not infer a card reader from an `adopted` row in the table above.
 
+**Timed-advance adoption (`SwitchSpec.autoAdvanceMs`, Phase 1122).** A FOURTH bar, and narrower than
+the three above because it is a single optional field rather than a family: a host adopts by decoding
+the member (refusing a non-positive or fractional value, per §3), and — where it is a client tier that
+drives interaction — by honouring the three WCAG 2.2.2 obligations recorded normatively with the
+field. A codec-only or headless host owes the decode leg alone; the timer is not something a headless
+emitter can run.
+
+| Host | Timed-advance adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** – decode + refusal, the client-tier advance/pause/stop state machine, the reduced-motion floor, swipe + arrow keys, and the static SSR floor |
+| `fuaran-ts` | **decode adopted** (Phase 1128) – the member, and the refusal of a non-positive or fractional value. The three WCAG 2.2.2 interaction obligations are NOT claimed: this host has a client tier, so it genuinely owes them, and the row says so rather than reading its decode leg as the whole bar |
+| `fuaran-py` | **decode adopted** (Phase 1128) – the member and the refusal. Its rendering tier is the static floor, which is the conforming answer here rather than a gap: advancing means writing a state key on an interval, and a static document has neither |
+| `fuaran-go` | pending – headless, so the decode leg only |
+| `fuaran-rs` | pending – decode leg, plus the interaction obligations in its WASM-client role |
+| `fuaran-swift` | pending – a render projection owes the interaction obligations for what it renders, and owes no codec leg |
+| `fuaran-kt` | pending – as above |
+
+**A pending host is unchanged, not broken**, on this section's standing reading: the member is
+optional, so a host that has not adopted it decodes every pre-1122 document exactly as before and
+meets a document that carries the key with an `UNKNOWN` field it ignores or refuses per its own
+policy. What it cannot say is that it advances.
+
+**Streamed-upload adoption (`FileUploadSpec.destination`, Phase 1117).** A FIFTH bar, and the one
+whose two halves are furthest apart. The decode leg is small — an optional string, with `""` refused
+per §3.6.20 — and every host owes it. The DISPATCH leg is where the substance is, and only a host
+that actually performs transfers owes it: the two refusals in front of a transfer, the announcement
+of every refusal, the progress report, the unchanged selection path, and the mutual exclusion with a
+body read. A codec-only or headless host owes the decode leg alone; it has no sink and performs no
+transfer, so there is nothing there for it to get wrong.
+
+| Host | Streamed-upload adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — decode + the empty-string refusal, the seam and its default-deny registry, the client-tier transfer with its gate, its typed refusals and its announced status line, the host write-back of the reference, the body-read refusal at the server-driven boundary, and the static floor |
+| `fuaran-ts` | **decode adopted** (Phase 1128) — the member and the empty-string refusal, plus the static floor's read-marker, which records only THAT a destination was declared and never which. The DISPATCH leg is not claimed: this host has a client tier and therefore owes it |
+| `fuaran-py` | **decode adopted** (Phase 1128) — the member, the empty-string refusal and the same read-marker. It performs no transfer, so it has no sink and owes the decode leg alone |
+| `fuaran-go` | pending — headless, so the decode leg only |
+| `fuaran-rs` | pending — decode leg, plus the dispatch obligations in its WASM-client role |
+| `fuaran-swift` | pending — a render projection owes the dispatch obligations for what it renders, and owes no codec leg |
+| `fuaran-kt` | pending — as above |
+
+**A pending host is unchanged, not broken**, on the same reading: the member is optional, so a host
+that has not adopted it decodes every pre-1117 document exactly as before and renders a document
+carrying the key as the client-only upload it was. What it cannot say is that it streams — and,
+specifically, it must not claim the §3.6.20 obligation that a body read is refused on a streaming
+upload, because a host with no transfer has no streaming upload to refuse one on.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -2771,11 +3668,15 @@ called out because a list of families that quietly over- or under-counts is the 
 exists to end.
 
 1. **model the case in the IDL** — the single source for the F# structural layer. The vocabulary is
-   declared as data in `fuaran-core` ([`tests/Fuaran.Core.Tests/UiIdl.fs`](https://github.com/Fuaran-Core/fuaran-core/blob/main/tests/Fuaran.Core.Tests/UiIdl.fs));
-   regenerating (`dotnet run --project tests/Fuaran.Core.Tests -- --regen-snapshots`) and syncing
-   (`fuaran-dotnet` [`scripts/sync-generated-layer.ps1`](../fuaran-dotnet/scripts/sync-generated-layer.ps1))
-   emits the generated `Fuaran.UI.Generated` module — the **type, canonical encoder, structural
-   decoder and `mk` constructor** for the case, never hand-edited. There is no hand-written node
+   declared as data in `fuaran-dotnet` itself ([`src/Fuaran.UI.Idl/Vocabulary.fs`](../fuaran-dotnet/src/Fuaran.UI.Idl/Vocabulary.fs)
+   for the declarations, [`Support.fs`](../fuaran-dotnet/src/Fuaran.UI.Idl/Support.fs) for doc comments, verbatim
+   splices, decode refinements and host projections); one command in that repo —
+   `FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Idl.Tests` — rewrites `src/Fuaran.UI.Idl/idl.json`,
+   `support.json` and the generated `Fuaran.UI.Generated` module together, in process, through the packaged
+   IDL engine. The generated module is the **type, canonical encoder, structural decoder and `mk` constructor**
+   for the case, never hand-edited, and the five files are committed together — a partial commit is a
+   vocabulary describing something the tree does not contain. (The earlier flow — a declaration in the
+   engine's own test fixture plus a sync script — is retired; a session following it would edit the wrong repo.) There is no hand-written node
    encoder to update: the F# op codec ([`CanonicalJson.fs`](../fuaran-dotnet/src/Fuaran.UI.OpStream.Abstractions/CanonicalJson.fs))
    splices the generated encoder and adding a kind does not touch it. _(A `TreeOp` case is the
    exception — the op envelope codec itself is hand-maintained there.)_
@@ -2878,11 +3779,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->432<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->184<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->464<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->200<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->108<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->65<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->123<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -2961,14 +3862,15 @@ Consequences for a consumer:
 - **`hostSurface` keys are not wire spec.** Function-typed slots (`fn`) and host-codec slots (`hosted`) carry the host-language declarations the F# and TypeScript tiers generate from. Nothing in them is observable on the wire – the accompanying `wire` key states the fixed wire form (`"<closure>"`, or arbitrary JSON) – and a host building a codec from this artefact must ignore them.
 
 - **Shape.** A single JSON object: `version` (the *encoding* version, bumped when this artefact's shape changes, never when the vocabulary does), `description`, then `kinds`, `unions`, `enums`, `records`, `defaults` and `nodeFields` (the node envelope, §3.1). Object keys are Ordinal-sorted throughout, per §2 rule 1. **Ordering is a contract, so the artefact is diffable:** the top-level collections are sorted by identity (kinds by tag; unions, enums and records by name; defaults by kind then field), so reordering a vocabulary declaration produces no diff and an addition lands as one clean insert – while *within* an entry the declared order is preserved verbatim, because union-case fields and type parameters are positional and a reorder there is a real change.
-- **Generated, not hand-authored** – and **not** by the `--emit-corpus` command that writes the fixtures and `schema.json` (§12). The encoder ([`Fuaran.Core.Idl.Artifact`](../../Fuaran-Core/src/Fuaran.Core.Idl/Idl.fs)) and the vocabulary it renders both live in the `Fuaran-Core` sibling, so the artefact is emitted from there:
+- **Generated, not hand-authored** – and **not** by the `--emit-corpus` command that writes the fixtures and `schema.json` (§12). The encoder is the packaged IDL engine (`Fuaran.Core.Idl.Artifact`); the vocabulary it renders lives in `fuaran-dotnet` (`src/Fuaran.UI.Idl/`), and the same regeneration command that rewrites the generated module rewrites that repo's committed `idl.json`. **This corpus's copy is carried over by hand from that file, byte for byte, in the same change-set as the vocabulary edit** — the fixture emitter does not write it, so a session that regenerates and forgets the copy leaves this corpus describing the previous vocabulary while the projection check beside it (which reads *this* copy) stays green.
 
   ```
-  cd Fuaran-Core
-  dotnet run --project tests/Fuaran.Core.Tests -- --emit-idl ../Fuaran-UI/wire-format-fixtures
+  cd fuaran-dotnet
+  FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Idl.Tests
+  cp src/Fuaran.UI.Idl/idl.json ../wire-format-fixtures/idl.json
   ```
 
-- **Conformance.** A stale-artefact guard on the `Fuaran-Core` side asserts byte-equality between the committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
+- **Conformance.** A stale-artefact guard in `fuaran-dotnet` asserts byte-equality between that repo's committed `idl.json` and a fresh emission, and names the regeneration command on failure – the same discipline as the stale-schema guard above, so a vocabulary edit that skips regeneration fails a test rather than quietly serving a stale spec. Adding the artefact changed no fixture payload and did not touch `schema.json`.
 - **Scope.** The IDL models the **node** vocabulary. `TreeOp`s (§3.4) are outside it, as are decode-side policy surfaces a structural model cannot state: the §16 lenient-accept profile, the reject semantics of §6, and the §15/§17/§18 envelopes. For those, this prose spec and the corpus remain the only sources.
 
 ### Render-fidelity manifest artefact (`render-fidelity.json`)
