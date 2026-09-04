@@ -15,6 +15,7 @@ conformance corpus**.
 | [`manifest.json`](manifest.json) | The authoritative index of every **wire-format codec** fixture family and count. |
 | Fixture directories (`nodes/`, `ops/`, `reject/`, `lenient/`, `envelope/`, `cards/`, `markdown/`, …) | The executable conformance suite: round-trip, reject, and lenient-accept families. A conformant codec must pass every assertion the manifest enumerates. |
 | [`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) + [`devtools-relay/`](devtools-relay/) | The **DevTools relay contract** — a companion specification and its own fixture family. See below. |
+| [`laws/`](laws/) | **Conformance-law vectors** — the (input, expected) pairs a `Fuaran.Core` conformance law family draws from a declared seed, so a host that is not the reference can run the same family over the same sample. Its own fixture family, enumerated by its own manifest. See below. |
 
 ## Conformance
 
@@ -66,6 +67,38 @@ Relay fixtures are **shape fixtures, not byte-parity fixtures**: they pin messag
 refusal classification, carry no canonical-ordering obligation, and are not produced by the reference
 emitter. A runner compares shapes and enumerated values — tree-revision tokens, geometry numbers,
 resolved binding values and human-readable messages are environment-specific and legitimately differ.
+
+## Conformance-law vectors
+
+[`laws/`](laws/) carries the sample one `Fuaran.Core` conformance law family draws from a declared
+seed, rendered host-neutrally: the inputs and the verdicts the reference gave for them. It exists
+because several families are **self-contained** — they take only `(seed, iterations)` and build
+their own inputs — so their content is not otherwise readable from anywhere but the reference's
+source. A host reproduces the sample from the parameters recorded in the file, then asserts the
+verdicts.
+
+Every `expected` is **computed by calling the kit**, never by restating what the law says should
+happen, and the reference's own suite asserts each computed verdict is the one the law demands
+before the file can be published. So a vector that disagreed with its law would fail at generation
+rather than reach a host.
+
+These are **behaviour vectors, not byte-parity fixtures**: a host asserts the verdicts and the
+derived values (an effect-identity key, a codec round-trip, an enumeration order), not the framing
+of the file.
+
+### Enumeration
+
+Like [`devtools-relay/`](devtools-relay/) and [`merge-conformance/`](merge-conformance/), the law
+vectors are enumerated by their **own** [`laws/manifest.json`](laws/manifest.json) and are
+deliberately **not** indexed by the root `manifest.json`, which indexes the canonical wire-format
+codec families only. A law run is not a codec round-trip, so listing it there would put entries in
+front of every codec host that each would have to learn to skip.
+
+That manifest also carries a `notExported` list. A family named there is one the reference
+**declined** to export, with the reason — a *parity* family, for instance, whose vectors would be
+meaningless drawn from a reference compared against itself. It is the reserved-name posture of
+[`SPEC_CONVENTIONS.md`](SPEC_CONVENTIONS.md) applied to absence: a family recorded there is not
+missing, and a host reading the manifest can tell a decision from an oversight.
 
 ## Licence
 
