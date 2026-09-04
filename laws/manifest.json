@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Fuaran conformance-law vector corpus. SELF-ENUMERATED: these vectors are deliberately not indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ and devtools-relay/ precedent. A `law-vectors` file carries the (input, expected) pairs one Fuaran.Core conformance law family draws from a declared seed, computed by calling the pinned kit, so a host that is not the reference can run the same family over the same sample. These are BEHAVIOUR vectors, not byte-parity fixtures: a host asserts the verdicts and derived values, not the framing of this file.",
+  "families": [
+    { "id": "capabilityLaws", "kind": "law-vectors", "file": "capability-laws.json", "kitVersion": "0.18.0", "seed": 20260904, "iterations": 12, "vectors": 72, "description": "The invocable-capability contract: arg validation, the capture-replay key, the declaration codec round-trip, and id-stable registry enumeration." }
+  ],
+  "notExported": [
+    { "id": "transformLaws", "reason": "A parity family: it takes a HOST dataframe evaluator and compares it byte-for-byte against the Fuaran.Core.DataFrame reference. The reference implementation exporting these vectors ships no second evaluator, so running it here would export the reference's own self-consistency check. Derive these vectors from a host that has one." }
+  ]
+}
