@@ -62,7 +62,8 @@
     "SegmentedChoice",
     "Text",
     "TextArea",
-    "Toggle"
+    "Toggle",
+    "Tokens"
   ],
   "ops": [
     "Batch",
@@ -1498,6 +1499,14 @@
       "description": "Input/Filters (SegmentedFilter horizontal)"
     },
     {
+      "id": "filters-tokens",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/filters-tokens.json",
+      "expectedFile": "nodes/filters-tokens.json",
+      "description": "Input/Filters (Phase 1121 — Tokens chip, constrained and auto-bound)"
+    },
+    {
       "id": "form-1",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -1632,6 +1641,30 @@
       "inputFile": "nodes/form-toggle.json",
       "expectedFile": "nodes/form-toggle.json",
       "description": "Input/Form (Phase 766 — the Toggle switch affordance beside a Checkbox)"
+    },
+    {
+      "id": "form-tokens-freetext",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-tokens-freetext.json",
+      "expectedFile": "nodes/form-tokens-freetext.json",
+      "description": "Input/Form (Phase 1121 — Tokens: the shortest spelling, allowFreeText omitted (true), value auto-bound)"
+    },
+    {
+      "id": "form-tokens-query",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-tokens-query.json",
+      "expectedFile": "nodes/form-tokens-query.json",
+      "description": "Input/Form (Phase 1121 — Tokens: Query-bound suggestion source, declarative, value auto-bound)"
+    },
+    {
+      "id": "form-tokens-suggested",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/form-tokens-suggested.json",
+      "expectedFile": "nodes/form-tokens-suggested.json",
+      "description": "Input/Form (Phase 1121 — Tokens: allowFreeText false over a static suggestion source, tokens in reader order)"
     },
     {
       "id": "format-bindings",
@@ -3529,6 +3562,24 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.autoAdvanceMs",
       "description": "Switch autoAdvanceMs is 0 — refused, never canonicalised to absence. An absent key is already the only spelling of \"does not advance\", so accepting a zero would make two shapes mean one thing and hide the emitter's misreading of the slot (Phase 1122)"
+    },
+    {
+      "id": "reject-tokens-closed-without-suggestions",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tokens-closed-without-suggestions.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].kind.allowFreeText",
+      "description": "a Tokens field admitting no free text and declaring NO suggestion source — refused. No gesture could ever put a token into it: this is not a control with a bad value in it but a document naming a control that cannot exist, the same line `Rating`'s `max` of zero is refused on. Note the polarity that makes the refusal fair rather than hostile: `allowFreeText` omits at TRUE on this case (unlike `Combobox`, whose option source is required), so the shortest document `{\"$type\":\"Tokens\"}` is the plain open token box and passes — only an emitter that wrote `false` and then omitted the suggestions lands here. Note also what is NOT refused anywhere: duplicate tokens and membership of a token in the suggestion set are properties of the VALUE, invisible to a decoder whenever the slot is bound, and are held by the pre-emit validator and the server-side submission floor instead"
+    },
+    {
+      "id": "reject-tokens-value-not-list",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-tokens-value-not-list.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.fields[0].kind.value",
+      "description": "a Tokens `value` carrying a bare STRING where the slot is a `Binding<string list>` — refused rather than lifted into a one-element list. The lift is the tempting coercion and it is exactly wrong: a document saying `\"urgent\"` where the wire says a list has a misunderstanding of the slot, and silently agreeing with it would let an emitter ship a token field that can only ever hold one token while every host round-tripped it perfectly"
     },
     {
       "id": "reject-tonedpill-unknown-tone",

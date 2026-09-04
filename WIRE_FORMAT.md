@@ -1199,6 +1199,7 @@ read-compat):
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
+| `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
 | `aspectRatio` | `ImageAspect` | `Natural` | `EmbedSpec`, `ImageSpec` |  |
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
@@ -2879,6 +2880,147 @@ reserved).
 
 ---
 
+### 3.6.19 `Tokens` — the multi-token input (Phase 1121)
+
+`FormFieldKind.Tokens` is SEVERAL values accumulated as removable chips, over a suggestion set that
+may be open, searchable, asynchronous, or absent entirely. Recipients, labels, skills.
+
+```json
+{"$type":"Tokens"}
+
+{"$type":"Tokens",
+ "allowFreeText":false,
+ "onChange":"<closure>",
+ "suggestions":{"$type":"Static","value":[{"label":"France","value":"fra"}]},
+ "value":{"$type":"Static","value":["deu","fra"]}}
+```
+
+#### THE TRIANGLE — the line an emitter has to hold
+
+**A CLOSED set small enough for a reader to scan is a `Select` with `multiple`; ONE value from a
+large, searchable or asynchronous set is a `Combobox`; SEVERAL values — over a set that is open, or
+that the document does not enumerate at all — is `Tokens`.** Two axes decide it: *how many values*,
+and *whether the set is closed*.
+
+The failure this exists to prevent is not an invalid document but a valid one, and there are two of
+them. A multi-`Select` over a closed set parses, validates and renders — and cannot admit a value
+nobody listed in advance, which is the whole of what a labels box is for. And **a `Combobox` PER
+ITEM is not a smaller version of this control**: it is `N` single-value fields with `N` ids, no
+gesture that removes the third entry, no way to say how many there may be, and a submission shaped
+like `tag1`, `tag2`, `tag3` rather than one list. That second mistake is the one to watch, because it
+is the one an emitter reaches for when it knows `Combobox` and has not met this case.
+
+#### Members
+
+Every member is OPTIONAL, so `{"$type":"Tokens"}` is a complete, useful document — the plain open
+token box, which is the commonest shape this control takes.
+
+`value` is a `Binding<string list>`, the SAME slot type the multi-select `values` has carried since
+§`Select` multi-select. **The list is ORDERED and the order is the reader's**: chips appear where they
+were added. A host **MUST NOT** sort or de-duplicate the decoded list — both would rewrite a fact the
+reader can see, and de-duplication would silently repair a document this specification says is wrong
+(see *Duplicates*, below). `onChange` carries `string list`: the WHOLE list on every add and every
+remove, never a delta, which is what lets the declarative write-back rewrite the slot and keep the
+order with no host code.
+
+`suggestions` is a `Binding<SelectOption list>` and is **optional**, which is the difference from
+`Combobox.options` and the reason the next paragraph reads the way it does. **An asynchronous
+suggestion source needs no vocabulary of its own**: a `Binding.Query` in this slot IS the async feed,
+resolved by the same machinery every other query-bound slot uses, with `dependsOn` giving it the
+dependency edge. Nothing in this case names a request, a debounce or a minimum query length.
+
+**An ABSENT `suggestions` and an EMPTY one are different facts**, and a host must keep them apart: an
+absent source means the control has no candidate set at all, and a resolved-empty one means it has a
+set that is currently empty — which is also every asynchronous source's first frame. The render
+obligations below turn on that distinction.
+
+#### `allowFreeText` omits at `true`, and the polarity is the OPPOSITE of `Combobox`'s
+
+This is the one thing about this case a host is most likely to get wrong, so it is stated normatively:
+**a host MUST read an absent `allowFreeText` as `true` on `Tokens`, and as `false` on `Combobox`.** A
+present member of any other type is `WRONG_TYPE` and MUST NOT be coerced.
+
+The two differ because their sets differ. `Combobox.options` is REQUIRED, so a combobox always has a
+candidate set and "constrained" is its resting state; `Tokens.suggestions` is optional, so a token box
+with nothing to suggest is the commonest shape rather than a degenerate one, and "open" is its resting
+state. **The default follows the required-ness of the set** — one rule, not two habits — and it is what
+makes the shortest document of each case the useful one.
+
+#### The one decode refusal, and the two rules that are deliberately not refusals
+
+**`allowFreeText: false` with NO `suggestions` member is `WRONG_TYPE` and MUST be refused.** No
+gesture could put a token into that field: it admits nothing typed and offers nothing to pick, so the
+document names a control that cannot exist rather than a control with a bad value in it. Under the
+polarity above it is reachable only DELIBERATELY, which is what makes refusing it right rather than
+hostile.
+
+Two rules are **not** decode refusals, and the asymmetry is the design:
+
+- **DUPLICATES.** A token list is a set the reader sees as chips, and two identical chips are one fact
+  drawn twice with two remove buttons that do different things. A duplicate is nonetheless **not**
+  refused at decode, because duplication is a property of the VALUE and a bound value is invisible to
+  a decoder — a rule enforced only on literals would be two rules wearing one name. A host owes it at
+  the two places the value becomes visible: an authoring-time check over a `Static` literal (the
+  reference host's `FUARAN136`, a warning) and a **server-side re-check on submission**.
+- **MEMBERSHIP.** Likewise: whether a token is in the suggestion set is a question about a resolved
+  set, which a decoder does not have. A closed field over a `Static` and EMPTY suggestion list is the
+  remaining unusable shape and is reported at authoring time (the reference host's `FUARAN135`, a
+  warning — the document decodes and renders; what is wrong is that no reader can use it).
+
+#### Render obligations (normative, both tiers)
+
+1. **Nothing on the wire names a keystroke.** Enter, Backspace, Delete, the arrow walk, the chip row
+   and the suggestion popup are the RENDERER's affordance under the affordance→op rule. A host MUST
+   NOT expect a document to configure them and MUST NOT add wire vocabulary for them.
+2. **A client-tier host renders the chips as a `role="list"` of `role="listitem"`, each carrying a
+   real `<button>` that removes it.** NOT a `role="listbox"` of `role="option"`, and the three reasons
+   are worth stating because the listbox reading is the one a writer reaches for first. A listbox is
+   for CHOOSING from candidates, and these are not candidates — they are the value, already chosen,
+   and the candidates live in the suggestion popup, which IS a listbox. `aria-selected` has no honest
+   value on a chip: every chip is selected, and none can be deselected. And the gesture a chip offers
+   is REMOVAL, which is a button — a real one carries the platform's own name, role, focus ring and
+   activation, none of which `role="option"` does. **Each remove control's accessible name MUST name
+   the token it removes**; a row of buttons all reading "Remove" is a row a screen-reader user cannot
+   tell apart.
+3. **The entry input carries `role="combobox"` ONLY where a suggestion source was declared** (with
+   `aria-expanded`, `aria-controls` naming the popup, `aria-autocomplete="list"` and
+   `aria-activedescendant` naming the active suggestion — §3.6.9's pattern exactly, because it is the
+   same affordance). With no suggestion source it is a plain text input and a host **MUST NOT** emit
+   combobox ARIA: a `role="combobox"` with nothing to expand is the same overclaim §3.6.9 forbids a
+   static host to make.
+4. **A `allowFreeText = false` refusal MUST be announced, not swallowed.** A control that ignores a
+   keystroke without saying why reads as broken. The refusal is an AFFORDANCE and never a gate: per
+   §22's standing posture, client validation is not a trust boundary, so **a host that accepts
+   submissions MUST re-check membership and uniqueness server-side**, exactly as it re-checks every
+   other declared constraint.
+5. **A static (no-script) host's floor is ONE TEXT INPUT carrying the tokens comma-and-space
+   separated.** A chip row is BUILT by a keystroke handler; zero-JS there is no gesture that adds a
+   chip, none that removes one, and a row of static chips with dead remove buttons would be an
+   affordance inert markup cannot honour. A `<datalist>` of the resolved suggestions MAY accompany it,
+   on §3.6.9's trade. Two limits are **recorded rather than claimed as coverage**: a token CONTAINING
+   A COMMA does not survive the projection (it re-parses as two — escaping it would put a quoting
+   grammar into a medium no reader can see, trading a visible limit for an invisible one), and
+   `allowFreeText = false` is not enforceable, since a text input has no native membership constraint.
+   The declaration rides as `data-fuaran-tokens-constrained` so a reader can see it was not silently
+   dropped; nothing in the platform reads that attribute.
+
+#### Corpus
+
+`nodes/form-tokens-freetext.json` (the SHORTEST spelling — `allowFreeText` omitted, no suggestion
+source, value auto-bound; the omission is what pins the polarity, since a host reading absence as
+`false` would refuse these bytes as a control that admits nothing),
+`nodes/form-tokens-suggested.json` (the constrained shape over a static source, carrying
+`["deu","fra"]` — deliberately not alphabetical, so a host that sorted the list fails the byte
+round-trip), `nodes/form-tokens-query.json` (the `Query`-bound suggestion feed with `dependsOn`,
+declarative and auto-bound), `nodes/filters-tokens.json` (the same control as a filter chip — a chip
+carries the same control as a field, and a corpus covering only the field route would leave half the
+vocabulary unpinned), `reject/reject-tokens-value-not-list.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.value` — a bare string refused rather than lifted into a one-element list) and
+`reject/reject-tokens-closed-without-suggestions.json` (`WRONG_TYPE` at
+`$.kind.fields[0].kind.allowFreeText` — the one cross-member refusal).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -2909,9 +3051,9 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 
 | Slot(s) | Payload type | Typed wire form | Empty / `None` form |
 |---|---|---|---|
-| `FormFieldKind.Choice` / `SegmentedChoice` / `Combobox` `.options` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
-| the same specs' `.value` | `string option` | the plain string | `null` |
-| `SelectSpec.values` (multi-select, Phase 291) | `string list` | array of strings | `[]` |
+| `FormFieldKind.Choice` / `SegmentedChoice` / `Combobox` `.options`, `FormFieldKind.Tokens.suggestions` (forms and filter chips), `SelectSpec.source` | `SelectOption list` | array of `{"label":<TextSource>,"value":<string>}` | `[]` |
+| the same specs' `.value` — the single-value ones, i.e. every one above except `Tokens`, whose `.value` is the `string list` row below | `string option` | the plain string | `null` |
+| `SelectSpec.values` (multi-select, Phase 291), `FormFieldKind.Tokens.value` (Phase 1121) | `string list` | array of strings, **in the document's own order** — never sorted, never de-duplicated | `[]` |
 | `SparklineSpec.source` | `float seq` | array of numbers (rule 5 layout) | `[]` |
 | `MapSpec.source` | `MapMarker seq` | array of `{"label":<TextSource>,"latitude":<number>,"longitude":<number>}` | `[]` |
 | `GridSpec.source` / `ChartSpec.source` – the grid / chart / table **row feed** (Phase 665) | `Row seq`, where `Row` is an **open** `string`→scalar map (not a fixed record) | array of row objects – see *Row payloads* below | `[]` |
@@ -3044,6 +3186,7 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Rating` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `max` and `allowHalf` are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Color` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.Tokens` | partial | omit the handler – the renderer's write-back default rewrites the WHOLE token list into the control's writable Binding.State / Binding.Filter value slot on every add and remove, which is what preserves the reader's own chip order on a decoded tree. `allowFreeText` and the suggestion source are DATA and survive intact; the erasure here is the handler alone |
 
 _(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
 
@@ -3171,7 +3314,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->120<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->122<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3519,10 +3662,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->456<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->195<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->462<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->199<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->120<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->122<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
