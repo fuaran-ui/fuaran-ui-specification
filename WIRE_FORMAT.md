@@ -231,7 +231,7 @@ carving `visible` out of it would make one slot the exception to a position-inde
 
 **The spelling for "visible unless something says otherwise" is therefore an explicit default** —
 `{"$type":"State","key":"banner.dismissed","defaultValue":true}` — and the reference host reports the
-omission as **FUARAN143** (Warning), which stands down under a declared default, under a writer
+omission as **FUARAN148** (Warning), which stands down under a declared default, under a writer
 anywhere in the tree, and under any opaque writer. `nodes/node-visible.json` carries both spellings on
 sibling nodes.
 
