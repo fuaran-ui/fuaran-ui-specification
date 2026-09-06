@@ -5891,6 +5891,191 @@ this section updates the normative text, the `cards/` corpus family, and every c
 ---
 
 
+## 26. Attested document envelope (Phase 1549)
+
+A tree says what it contains. It does not say who produced it. §15's envelope negotiates a profile,
+and a host that signs a segment of its op-stream can say who wrote a run of ops, but a standalone
+document, the artefact one party emits and another stores, forwards or mounts as a guest, carries no
+author claim at all.
+
+This section specifies an optional envelope that wraps a document with a signature over its canonical
+bytes, naming the signing key, the instant it was signed, and an open set of claims such as a model
+identity and a prompt digest. The envelope is **outside** the document: the tree's canonical bytes,
+every fixture in `nodes/`, and every existing decoder are untouched, and a document that carries no
+envelope decodes exactly as it did before.
+
+### 26.1 The envelope
+
+```json
+{"$attestedDocument":"1","attestation":{"algorithm":"ecdsa-p256-sha256-v1","claims":{"model":"example-model-1","promptDigest":"4fec…"},"digest":"a524…","keyId":"doc-key-2026","signature":"MEUC…","signedAt":1755648000},"document":{"id":"markdown-1","kind":{"$type":"Markdown","text":"Updated hourly."}}}
+```
+
+Three members, no others, member order Ordinal per §2:
+
+| Member | Type | Meaning |
+|---|---|---|
+| `$attestedDocument` | string | The self-identifying format tag. This section specifies version `"1"`; a decoder refuses any other value rather than guessing. |
+| `attestation` | object | The signed claim, below. |
+| `document` | object | The attested document, in the ordinary canonical node form of §3. |
+
+The `attestation` object carries exactly six members, again Ordinal-ordered: `algorithm`, `claims`,
+`digest`, `keyId`, `signature`, `signedAt`.
+
+| Member | Type | Meaning |
+|---|---|---|
+| `algorithm` | string | A registered algorithm id naming the signature primitive, the digest and the signature encoding together. `ecdsa-p256-sha256-v1` is ECDSA over NIST P-256 with SHA-256, the signature being base64 of the 64-byte IEEE P1363 `r||s` pair. |
+| `claims` | object | An open map of string keys to string values. The format reserves no key and interprets none of them; `model` and `promptDigest` are conventions, not vocabulary. Member order is Ordinal. |
+| `digest` | string | Lower-case hex SHA-256 over the canonical bytes of `document`. See §26.2. |
+| `keyId` | string | Names the signing key in the verifier's own key directory. It is not a key, and it is not a trust root. |
+| `signature` | string | The signature over the claim pre-image of §26.3, in the encoding the algorithm id declares. |
+| `signedAt` | integer | Unix seconds, asserted by the signer. Whole seconds is the resolution the pre-image binds, so it is the resolution the signature covers. |
+
+An undeclared member at either level is a refusal, not a thing to ignore. This follows the
+default-deny-by-shape rule the elicitation envelope states in §18.3, and for the same reason: a
+member a verifier silently skips is a member an adversary can add.
+
+### 26.2 The digest, and exactly what it covers
+
+`digest` is the SHA-256 of the **canonical node bytes** of the document, rendered lower-case hex. It
+is not a digest of the envelope, and it is not a digest of the bytes the document happened to arrive
+in. A verifier recomputes it by decoding the `document` member and re-encoding the decoded tree
+through the canonical node encoder of §2 and §3.
+
+Two consequences follow, and both are deliberate.
+
+A document transmitted in a non-canonical spelling that the lenient profile of §16 normalises to the
+same tree still verifies, because what was signed is the tree and not its transport spelling. A
+verifier that wants byte fidelity of the received document as well has a separate question to ask,
+and this envelope does not answer it.
+
+A document whose canonical form differs by one byte fails the comparison, whatever produced the
+difference. The refusal is the digest comparison and not the signature, which is worth distinguishing
+in a report: a digest mismatch says the attestation is authentic and the document is not the one it
+covers, where an invalid signature says the claim itself does not stand up.
+
+The digest, the signing input of §26.3 and any content address a host computes elsewhere are three
+different things over three different byte sequences, and a document that conflates them will
+eventually join on the wrong one.
+
+### 26.3 The claim pre-image
+
+The signature covers the UTF-8 bytes of one canonical string, and that string is never the envelope.
+Its member order is **pinned**, not sorted, in the same shape and for the same reason as the segment
+attestation's claim payload: it is a signing input, produced identically by every signer and every
+verifier, and pinning removes any question of what a sort would have done.
+
+```
+{"documentVersion":1,"algorithm":<algorithm>,"digest":<digest>,"keyId":<keyId>,"signedAt":<signedAt>,"claims":<claims>}
+```
+
+`documentVersion` is the literal `1`, the version of the claim shape itself, and it is folded into the
+pre-image rather than carried in the envelope. It is therefore bound by the signature, and a verifier
+folding a different version reproduces different bytes and reports an invalid signature.
+
+`<claims>` is the same object the envelope carries, rendered with Ordinal member order and the string
+escaping of §2 rule 6. `<signedAt>` is the bare integer. String members use §2 rule 6 escaping, so the
+pre-image is byte-identical on every host that follows §2.
+
+Every field of the claim is inside the pre-image, so a party who can rewrite the stored envelope can
+alter none of them without invalidating the signature. That includes `signedAt`, which is what makes
+a revocation boundary meaningful against a store-writer, and `claims`, which is what makes the model
+identity a claim rather than an annotation.
+
+### 26.4 Verification is a host obligation
+
+**A conformant decoder does not verify anything by decoding.** Verification is a separate act a host
+performs deliberately, and this specification names it here so that no implementation can treat it as
+implied. A host that decodes an attested document and reads its claims without verifying has read an
+unauthenticated assertion, and must not describe it otherwise.
+
+A verifier holding a key directory of its own performs these steps, in this order:
+
+1. Parse the envelope. Refuse an undeclared member, a missing member, a member of the wrong type, or a
+   `$attestedDocument` value this decoder does not implement.
+2. Resolve `keyId` in the verifier's **own** directory. An unresolved id is its own refusal class: the
+   remedy is establishing the key out of band, not distrusting the document.
+3. Refuse when the resolved key's algorithm differs from the claim's. A signature cannot be valid
+   under a key of a different algorithm, and an algorithm id names one curve, so a verifier checks the
+   curve rather than the key size. A key size does not identify a curve.
+4. Refuse when the key carries a revocation boundary at or before `signedAt`.
+5. Reconstruct the pre-image of §26.3 and verify `signature` over it under the resolved key.
+6. Decode `document` and recompute the digest of §26.2. Refuse a mismatch.
+
+Advisory lifecycle findings, an expiry that predates `signedAt` or a validity start that postdates it,
+are warnings on a successful verdict and never failures. An expiry that silently invalidated history
+would be a mechanism for losing records, not for authenticating them.
+
+The verdict is typed, never a boolean. The refusal classes above demand different responses from a
+consumer, and a caller handed `false` cannot tell an unknown key from a forged signature from an
+edited document.
+
+Verification requires nothing beyond the envelope and the verifier's own directory. In particular a
+key travelling inside the envelope, or beside it, is never a trust root: a party who mints a key pair
+and publishes the public half has produced a document that agrees with itself.
+
+### 26.5 What the envelope proves, and what it does not
+
+It proves exactly this: the holder of the named key signed these canonical document bytes together
+with these claims, at the asserted instant.
+
+It does not prove that the claims are true. `model` and `promptDigest` are assertions by the signer,
+carried intact and bound to the bytes; nothing here checks that the named model produced the document
+or that the digest is of the prompt that was used.
+
+It does not prove that the key holder is honest. A compromised or dishonest signer signs its own
+forgery, and the mechanism moves the question to key custody rather than answering it.
+
+It does not prove that a person authored the document. A key is held by a host, so the claim is that
+this host stood behind these bytes.
+
+It does not defend against a signer backdating `signedAt`. The field is bound against a store-writer,
+not against the signer, so a revocation boundary compared against it is a co-operative-failure
+mechanism.
+
+It says nothing about a document that carries no envelope. An unattested document is honestly
+unattested: that is a true statement about it, not a defect in it, and a consumer asking an evidence
+question treats it as a refusal. Whether an envelope is required is a policy that belongs with the
+verifier and never with the document, because a document that could declare itself exempt could have
+that declaration written by whoever wrote the rest of it.
+
+### 26.6 Capability admission
+
+A `Mount` (§4o) carries a `capabilities` list, and that list is a request rather than a grant: it
+arrives on the wire, so a decoded tree names whatever tags it likes. A host that admits guests from
+elsewhere may make a verified attestation a precondition of granting any of them, denying the whole
+list when verification did not succeed or when the verified key is not one the host admits for that
+purpose.
+
+This is a host-side narrowing, on the same footing as §23's kind admission policy. It narrows no wire:
+a document refused a capability is still a valid document, and conformance is measured with no such
+policy in force.
+
+### 26.7 Conformance
+
+The vectors are `attestation/document-corpus.json`, a self-contained corpus file beside the segment
+attestation's `descriptor-corpus.json`.
+
+**It is deliberately outside `manifest.json`.** A host that has not adopted this section runs its
+manifest-driven suites unchanged and reports nothing new, which is what lets the corpus land ahead of
+any host implementing it. A host that has adopted reads the file by name, exactly as the segment
+attestation's corpus is read.
+
+Its `claims` array pins the pre-image of §26.3: build the string from the fields, assert byte
+equality with `canonical`, and cross-check the `sha256` convenience digest. This leg needs no
+signature verification at all, so a host can pin the bytes before it has any crypto.
+
+Its `documents` array carries an envelope, the key directory contents a verifier is to hold, and the
+expected verdict: `verified`, `digest-mismatch`, `signature-invalid` and `unknown-key`. The three
+refusals are the point. A corpus of accept vectors alone cannot tell a verifier that works from one
+that returns success unconditionally.
+
+**Forward coupling.** A change to any member, ordering, encoding, refusal class or verification step
+in this section updates the normative text, the `attestation/document-corpus.json` vectors, and every
+host that has adopted, in the same change-set.
+
+---
+
+
 ## See also
 
 - [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
