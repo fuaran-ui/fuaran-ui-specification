@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"week","yFields":["latencyMs"],"title":"p95 latency","stacked":false,"annotations":[{"$type":"RangeBand","label":"Tolerance","range":{"$type":"ValueRange","from":200,"to":260}}],"data":[{"week":"W1","latencyMs":180},{"week":"W2","latencyMs":240},{"week":"W3","latencyMs":210},{"week":"W4","latencyMs":300}]}

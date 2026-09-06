@@ -1243,6 +1243,14 @@
       "description": "Visualisation/Chart"
     },
     {
+      "id": "chart-annotation-bands",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/chart-annotation-bands.json",
+      "expectedFile": "nodes/chart-annotation-bands.json",
+      "description": "Visualisation/Chart (Phase 1492 — annotations: range bands in all three addressing forms, value / category / date)"
+    },
+    {
       "id": "chart-annotation-events",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -3001,6 +3009,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.annotations[0].value",
       "description": "chart annotation carrying the §7 NaN sentinel — the value slot is narrowed to the finite numbers (Phase 1490)"
+    },
+    {
+      "id": "reject-chart-annotation-range-unordered",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-chart-annotation-range-unordered.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.annotations[0].range",
+      "description": "chart range band whose pair runs from its upper value to its lower one — a band names an interval, and swapping the ends silently would draw one the author did not describe (Phase 1492)"
     },
     {
       "id": "reject-color-value-not-hex",
