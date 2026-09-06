@@ -65,5 +65,74 @@
       "envelopeHash": "fb5b76d753c5b71e5000c4aa72dad9e4298a6face0a2f0197797b72ab9e50c43",
       "description": "Both sides insert the same NodeId with different content — refused naming the id, never an A-side default"
     }
+  ],
+  "totalityDescription": "merge-totality (Phase 1526, additive, SEPARATE key): each PAIR is a triad that must REFUSE, immediately followed by a corrected twin that must AUTO-MERGE. The refusal entry carries an envelopeFile + envelopeHash and is checked exactly as a `merge-refusal` entry is; the twin carries an expectedFile + outcomeHash and is checked exactly as a `merge-3way` entry is; `twin` and `refusal` cross-reference the two. The pair is the point: a host can pass the refusal by refusing every structural merge, and can pass an auto-merge suite by never growing the arm, and only the pair pins the boundary between them. Three cases are covered, each one merge behaviour a host can silently OMIT and still look conformant: DeleteModify (one side edits a node the other REMOVES) and ConcurrentMove (a node relocated by one side and moved or edited by the other), both declared since Phase 179 and constructed by nothing until 1526 — so a host that reproduced the reference exactly reproduced a silent loss; and the node-level `tooltip` trait, which the reference merges as a facet of its own since Phase 1112 and which no fixture in any other family reaches, so a host whose merge constructs its nodes with the trait hardcoded empty drops an uncontested hint and nothing notices. The tooltip pair fails on its TWIN rather than its refusal, because a dropped trait is a different TREE and not a different envelope. Two envelope spellings are specific to these classes and a host must not generalise either: a side that holds NO value for the cell — the removing side of a DeleteModify — carries the EMPTY STRING, which no node canonical-encodes to and which `base` already uses for a same-id insert; and a ConcurrentMove is TWO entries on one node, `move` whose side value is the parent id that side holds the node under (empty string at the root) and `node` whose side value is that side's canonical subtree, never one entry compounding position and content. Held under its own key for the reason refusalFixtures is: a host that iterates `fixtures` expecting every entry to auto-merge is correct to do so, and one that iterates `refusalFixtures` expecting every entry to refuse is correct too.",
+  "totalityFixtures": [
+    {
+      "id": "merge-totality-delete-modify",
+      "kind": "merge-refusal",
+      "baseFile": "merge-totality-delete-modify.base.json",
+      "aFile": "merge-totality-delete-modify.a.json",
+      "bFile": "merge-totality-delete-modify.b.json",
+      "envelopeFile": "merge-totality-delete-modify.envelope.json",
+      "envelopeHash": "2653a66f8397a341d94d2db48924a596801a90ceacd4603a8f053330fe8207eb",
+      "twin": "merge-totality-delete-modify-twin",
+      "description": "One side restyles the right pane while the other removes it — a DeleteModify refusal naming the removed node, where the pre-1526 merge dropped the edit with the node"
+    },
+    {
+      "id": "merge-totality-delete-modify-twin",
+      "kind": "merge-3way",
+      "baseFile": "merge-totality-delete-modify-twin.base.json",
+      "aFile": "merge-totality-delete-modify-twin.a.json",
+      "bFile": "merge-totality-delete-modify-twin.b.json",
+      "expectedFile": "merge-totality-delete-modify-twin.expected.json",
+      "outcomeHash": "70cbd71c7912b3d003f4d0a7b3fe69b3cab57105707de69f09223b35a295fc49",
+      "refusal": "merge-totality-delete-modify",
+      "description": "The same removal with the edit moved to a pane nobody removed — auto-merges, so a host cannot pass the pair by refusing every removal"
+    },
+    {
+      "id": "merge-totality-concurrent-move",
+      "kind": "merge-refusal",
+      "baseFile": "merge-totality-concurrent-move.base.json",
+      "aFile": "merge-totality-concurrent-move.a.json",
+      "bFile": "merge-totality-concurrent-move.b.json",
+      "envelopeFile": "merge-totality-concurrent-move.envelope.json",
+      "envelopeHash": "de0ef48e71fd2a4fc372da5d2d9abab2881c2d428805c411c92dca78377b3637",
+      "twin": "merge-totality-concurrent-move-twin",
+      "description": "One side moves a node to another parent while the other restyles it in place — a ConcurrentMove refusal carrying both POSITIONS (the `move` facet) and both SUBTREES (the `node` facet), where the pre-1526 merge adopted the mover's copy and discarded the edit"
+    },
+    {
+      "id": "merge-totality-concurrent-move-twin",
+      "kind": "merge-3way",
+      "baseFile": "merge-totality-concurrent-move-twin.base.json",
+      "aFile": "merge-totality-concurrent-move-twin.a.json",
+      "bFile": "merge-totality-concurrent-move-twin.b.json",
+      "expectedFile": "merge-totality-concurrent-move-twin.expected.json",
+      "outcomeHash": "abb167ac866a53de747c8f71f7e19300d6308c4e7f923e16e8a93dbe3224fee0",
+      "refusal": "merge-totality-concurrent-move",
+      "description": "The same move with the edit moved to the source container itself — auto-merges, so a host cannot pass the pair by refusing every move"
+    },
+    {
+      "id": "merge-totality-tooltip",
+      "kind": "merge-refusal",
+      "baseFile": "merge-totality-tooltip.base.json",
+      "aFile": "merge-totality-tooltip.a.json",
+      "bFile": "merge-totality-tooltip.b.json",
+      "envelopeFile": "merge-totality-tooltip.envelope.json",
+      "envelopeHash": "6d036995c274c00fe34078e72176af6128af2f3180c3ae725c3cc908f12648a7",
+      "twin": "merge-totality-tooltip-twin",
+      "description": "Both sides set a different tooltip on the same pane — a ConcurrentEdit refusal on the `tooltip` facet, which the reference merges independently (Phase 1112) and which no fixture in any other family reaches"
+    },
+    {
+      "id": "merge-totality-tooltip-twin",
+      "kind": "merge-3way",
+      "baseFile": "merge-totality-tooltip-twin.base.json",
+      "aFile": "merge-totality-tooltip-twin.a.json",
+      "bFile": "merge-totality-tooltip-twin.b.json",
+      "expectedFile": "merge-totality-tooltip-twin.expected.json",
+      "outcomeHash": "6d0211d8cec82ac4377e21fcbaefd5f362621cf6f65879bdd6a17ce01a8b0f06",
+      "refusal": "merge-totality-tooltip",
+      "description": "One side sets a tooltip while the other restyles a different pane — auto-merges, and the merged tree CARRIES the hint. This is where a host whose merge constructs its nodes with the trait hardcoded empty fails: it produces a different tree, not a different envelope"
+    }
   ]
 }
