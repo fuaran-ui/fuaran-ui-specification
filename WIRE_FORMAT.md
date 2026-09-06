@@ -940,7 +940,7 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 ### 3.3 Nested DU positions
 
-`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`Now`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
+`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`Now`/`I18n`/`Local`/`Format`/`Transform`/`Expr`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
 
 `Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to the **row-feed** binding at a data-bearing node (`DataGrid` / `Chart` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source, in the same row shape §5 defines for a literal feed. See `nodes/grid-transform.json` for the canonical shape.
 
@@ -1109,6 +1109,73 @@ byte-identically — that is unconditional. A RENDERING host whose binding sourc
 instant renders neither: a `Now` is unresolved by rule 6, and a `Since` slot renders its host's
 unresolved surface. It MUST NOT render the raw epoch number, which reads as data rather than as an
 absence.
+
+#### 3.3.2 Scalar logic — `Binding.Expr`
+
+`Binding.Expr` evaluates ONE scalar expression to ONE value:
+
+```json
+{"$type":"Expr","expr":{"$type":"binary","op":"mul","left":{"$type":"param","name":"unitPrice"},"right":{"$type":"param","name":"quantity"}},"params":[{"from":{"$type":"Query","name":"catalogue.unitPrice"},"name":"unitPrice"},{"from":{"$type":"State","key":"form.quantity"},"name":"quantity"}]}
+```
+
+`expr` is a `ColExpr` — the SAME algebra `Binding.Transform`'s pipeline steps carry, in the same
+encoding, owned and conformance-certified by `Fuaran.Core`'s own codec (§2). This case introduces **no
+operator and no expression language of its own**: `binary` (arithmetic, comparison, `and` / `or`),
+`not`, `coalesce`, `case`, `cast`, `apply` (`concat`, `length`, `lower`, `substr`, `dateDiffDays`, …),
+`in` (both the literal-`items` and the `param` spellings), `isNull`, `lit` and `param` are all
+already the pipeline's vocabulary. An expression therefore means here exactly what it means inside a
+`derive`, and there is one algebra to specify, certify and teach rather than two that drift apart.
+
+`params` is the SAME slot `Binding.Transform` carries and follows the same rules (§3.3 above): each
+entry binds a `param` name to a scalar `Binding` source (`State` / `Selection` / `Query` / `Filter` /
+`Static` / `Now`), a source resolving to a JSON array is a LIST param resolved by substitution into
+the `in` / `items` form, and the slot is **omitted when empty**. Its reactive edge is the params: a
+write to any param's source re-evaluates the expression and re-renders every reader.
+
+**The evaluation rule.** A host resolves each param to a `Cell`, substitutes the list params, and
+evaluates `expr` in that environment. The result is one `Cell`, coerced by the slot: a text slot takes
+`str`, a numeric slot takes `int` / `float`, a boolean slot takes `bool`. There is **no truthiness
+rule** — a number, a string or a null is not a boolean, and a host MUST refuse rather than guess,
+because the vocabulary already carries the total spellings (`isNull` for presence, `=` for a value,
+`not` for negation) and every language that has guessed at this has guessed differently.
+
+**Two refusals, both at DECODE, both because an `Expr` has no row.** A host MUST refuse:
+
+1. **a `col` reference anywhere in `expr`** — `WRONG_TYPE`, at the path of the `expr` member. An
+   `Expr` evaluates against its params alone and has no frame for a column name to read, so the
+   reference can never resolve. The remedy is a different BINDING, not a different spelling, and a
+   host's message SHOULD say so: `Binding.Transform` is the case that supplies the frame.
+2. **a `param` the binding's own `params` list does not bind** — `WRONG_TYPE`, same path. This is
+   decidable statically here where it is NOT for `Binding.Transform`, whose unbound filter params are
+   PRUNED under the deliberate "unset chip ⇒ no constraint" leniency (§3.3). An `Expr` has no step to
+   prune and no rows to fall back on, so an unbound reference has no value it could ever take.
+
+Both are decode-time and unconditional: left admitted, each would decode to an expression whose
+evaluation could only ever fail, once per render, on every host.
+
+**At RESOLUTION time there are two outcomes and they are DIFFERENT.** A declared param whose source
+produces no value at all — a `Filter` with nothing written and no declared `defaultValue`, an
+unresolved `Query` — leaves the name UNBOUND, and evaluation is an ERROR: the expression is not
+evaluated against a guessed value, because a wrong number rendered confidently is worse than a slot
+that says it could not be computed. A param whose source resolves to a value that is ABSENT — the
+`Binding.State` rule, where a key nothing has written yields the slot's default representation —
+binds a NULL cell, and null then propagates through the expression by the algebra's own rules; the
+slot renders its empty state. The distinction is not `Expr`'s to make: each source case's
+already-specified resolution decides which of the two it is. A host MUST NOT collapse them, because a
+form field the reader has not filled in is not an error, and an error surface on an untouched form is
+a worse rendering than an empty one.
+
+**A null result is ABSENCE, not an error.** An expression yielding `null` — for any reason, including
+the paragraph above — resolves as the slot's empty state, exactly as a null cell out of a scalar
+`Transform` does.
+
+**Bounds.** `expr` is subject to `MaxExprNodes` (§21) — `LIMIT_EXCEEDED` at decode. A `ColExpr` inside
+a `Transform` PIPELINE is deliberately not covered by that limit; see §21.
+
+See `nodes/expr-scalar.json` (the param-free constant-fold form) and
+`nodes/expr-params-state-selection.json` (params from `State` / `Selection` / `Query` / `Filter` /
+`Now`, including an `in` / `param` membership test), with `reject/reject-expr-col-reference.json` and
+`reject/reject-expr-unbound-param.json` for the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
@@ -3447,12 +3514,13 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Binding.Filter` | survivable | – |
 | `Binding.Selection` | partial | – |
 | `Binding.State` | survivable | – |
-| `Binding.Computed` | **host-only** | Binding.State / Binding.Filter for reactive values; Binding.Transform for derivation; Binding.Format for formatting |
+| `Binding.Computed` | **host-only** | Binding.Expr for scalar logic over bound values (AND/OR/NOT, concat, arithmetic, null tests, membership – Section 3.3.2); Binding.State / Binding.Filter for reactive values; Binding.Transform for ROW derivation; Binding.Format for formatting |
 | `Binding.Now` | survivable | – (the instant is a HOST input, never wire content — §3.3.1; only the declared `grain` rides the wire) |
 | `Binding.I18n` | survivable | – |
 | `Binding.Local` | partial | Binding.Format is the declarative twin of the Local format/parse closures |
 | `Binding.Format` | survivable | – |
 | `Binding.Transform` | survivable | – |
+| `Binding.Expr` | survivable | – (expression and params are data through the `ColExpr` codec; no closure – Section 3.3.2) |
 | `Binding.Invoke` | survivable | – |
 
 **`Action`**
@@ -3480,19 +3548,23 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `TextSource.Bound` | survivable | – |
 | `TextSource.I18n` | survivable | – |
 
-**Design note - the `Binding.Computed` replacement spike (deferred, Phase 378).** Phase 378 assessed
-introducing a bounded scalar-expression binding as a wire-survivable replacement for `Binding.Computed`,
-to let the host-only escape retire entirely. **Decision: defer, do not adopt now.** Rationale: the
-declarative, wire-survivable derivation path already exists - `Binding.Transform` carries a serialisable
-`Fuaran.Core.DataFrame` pipeline *as data* (no closure on the wire) for data-bearing nodes, and
-`Binding.Format` / `Binding.State` / `Binding.Filter` cover formatting and reactive scalars. The residual
-gap is only *arbitrary scalar expressions*, for which no concrete demand is yet recorded, so
-`Binding.Computed` stays as a clearly-marked F#-only escape (named here, in its `///` doc-comment, and
-flagged by FUARAN084) rather than being replaced speculatively. This is **not pre-publish-gated**:
-`Binding.Computed` already erases to `"<closure>"`, so keeping it does not shape the frozen wire, and a
-future scalar-expression binding would be a purely *additive* `Binding` case (a minor-version change per
-Section 15.4) - it can land post-publish if demand materialises. Tracked as a candidate follow-on, not a
-blocker.
+**Design note - the `Binding.Computed` replacement (deferred at Phase 378; ADOPTED as `Binding.Expr`).**
+Phase 378 assessed introducing a bounded scalar-expression binding as a wire-survivable replacement for
+`Binding.Computed` and **deferred it**, on the ground that the residual gap was only *arbitrary scalar
+expressions*, "for which no concrete demand is yet recorded". It recorded the condition on which the
+decision would change: a purely *additive* `Binding` case is a minor-version change per Section 15.4, so
+one "can land post-publish if demand materialises".
+
+**Demand materialised, and the case is adopted** - `Binding.Expr`, specified at Section 3.3.2. What
+changed is not the design argument, which stands unaltered, but the evidence: live composition of a
+string from form fields, a total computed from current selections, a boolean combination of two state
+slots, and a presence test are each recorded, cross-family and repeatedly, in the demand census - every
+one of them a SCALAR, and every one of them expressible before this case only by routing through a
+1x1 `Binding.Transform` frame or by an F#-only closure. Note what the adoption does NOT do: it mints no
+operator (the vocabulary is `Fuaran.Core`'s existing `ColExpr`, reused verbatim), it introduces no
+general expression language, and it does not retire `Binding.Computed`, which remains a clearly-marked
+host-only escape - what changes there is that FUARAN084's remedy can now name a declarative replacement
+for the scalar case instead of pointing at the nearest detour.
 
 ---
 
@@ -3520,7 +3592,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->143<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->145<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3958,10 +4030,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->493<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->207<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->497<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->209<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->143<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->145<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->68<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -5062,6 +5134,7 @@ typed error.
 | **max array length** | **100 000** | Elements in a single JSON array, and members in a single JSON object. |
 | **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
 | **max document bytes** | **33 554 432** | UTF-8 bytes of the whole input document — see §21.7. |
+| **max expr nodes** | **512** | `ColExpr` nodes in ONE `Binding.Expr` expression (§3.3.2) — see §21.8. |
 
 **Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
 other in either direction. One tree level costs several JSON levels — a `Box` costs three (the node
@@ -5376,6 +5449,30 @@ layer — a library handed a string, a CLI handed a file — has the same guaran
 gateway.
 
 ---
+
+### 21.8 Max expression nodes (normative)
+
+`Binding.Expr` (§3.3.2) carries an expression a host EVALUATES, which the other six limits do not
+bound in the way that matters: an expression is small in bytes and shallow in JSON relative to the
+work it names, so a document well inside every structural limit can still name an evaluation that is
+not. **512 `ColExpr` nodes in one `Binding.Expr` expression**, counted per expression rather than per
+document — a tree may carry many `Expr` bindings, each bounded here, with the whole still bounded by
+max document bytes. A breach is `LIMIT_EXCEEDED` at the path of the `expr` member.
+
+**One count, not a count and a depth.** Depth ≤ node count for every expression, so an expression 600
+deep is already 600 nodes and already refused; a second number would be one more figure to keep in
+step across the hosts and would refuse nothing the first does not.
+
+**Why the value.** An expression a person writes is single digits of nodes. The widest shape the
+vocabulary admits is an `in` over a literal set, and 512 admits a membership test over roughly 500
+values. What it refuses is the blow-up — a nested `case` chain deep enough to make evaluation itself
+the attack.
+
+**Its SCOPE is `Binding.Expr` and nothing else.** A `ColExpr` inside a `Binding.Transform` pipeline —
+a `derive`'s expression, a `filter`'s predicate — is NOT bounded by this limit, and was not bounded
+before it either. That surface predates this limit, and widening it here would change what an
+already-shipped decoder accepts; it is stated rather than left to be inferred, because a limit whose
+scope is guessed at is worse than no limit.
 
 ## 22. Render-time safety floor (normative renderer obligation)
 
