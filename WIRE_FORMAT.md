@@ -940,7 +940,7 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 ### 3.3 Nested DU positions
 
-`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
+`$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`Now`/`I18n`/`Local`/`Format`/`Transform`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `CellValue`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
 
 `Binding.Transform` (Phase 282) is the declarative-compute case – a serialisable dataframe transform evaluated client-side **as data**: `{"$type":"Transform","pipeline":<array>,"source":<object>}`. `source` is a columnar data source (an embedded `{schema, columns}` table – column-oriented, a `values` array + a `validity` mask per column – or a `{schema, ref}` host-resolved named source); `pipeline` is an ordered array of `$type`-discriminated transform steps (`filter` / `project` / `derive` / `groupBy` / `join` / `window` / `pivot` / `unpivot` / `sort` / `distinct` / `limit` / `union`, each over a scalar `ColExpr` algebra). Both sub-trees are `Fuaran.Core` values serialised in **this same canonical discipline** (§2), so they splice in byte-stably; their detailed per-step shape is owned and conformance-certified by `Fuaran.Core`'s own codec, and the schema (§13) describes them structurally (array / object) rather than re-deriving the full algebra – the same "don't constrain content the host doesn't decompose" posture as an opaque `Static.value` (§5). The case is constrained to the **row-feed** binding at a data-bearing node (`DataGrid` / `Chart` / `Metric`): the host evaluates the pipeline and the result rows resolve as the node's source, in the same row shape §5 defines for a literal feed. See `nodes/grid-transform.json` for the canonical shape.
 
@@ -1002,7 +1002,113 @@ Three shapes are **decode errors**, each a relation between slots rather than a 
 
 The vocabulary of record is `validator/defect-vocabulary.json`; this section names the three because a reader arriving at `rule` from the form side would otherwise meet only the decode errors and conclude the slot is fully specified by them.
 
-`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (`dateStyle` bare-enum), `RelativeTime` (`unit` bare-enum). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
+`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (`dateStyle` bare-enum), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
+
+#### 3.3.1 The host instant — `Binding.Now`, its grain, and `Format.Since`
+
+**`Binding.Now` names the current instant; it never carries one.** The wire form is
+`{"$type":"Now"}` plus, since Phase 1533, an OPTIONAL `grain`:
+`{"$type":"Now","grain"?:<TimeGrain>}`. There is no other member, and in particular no timestamp:
+the instant is furnished by the HOST, once per render pass, and read from the host's own binding
+sources at resolution time.
+
+**That is a normative determinism rule and not an implementation note.** A conforming host:
+
+1. MUST NOT read a clock at DECODE. Decoding is a pure function of the bytes; two decodes of the
+   same document produce the same tree.
+2. MUST NOT place an instant ON THE WIRE for a `Now`. Encoding a resolved instant into the binding
+   would make the document's identity — and therefore its content hash — a function of when it was
+   encoded.
+3. MUST resolve the instant ONCE per render pass and hold it for the whole pass. Two `Now` slots in
+   one tree that disagree are a defect, not a race: a document that says "today" twice says it once.
+4. MUST NOT let the op-stream capture it. A `TreeOp` recorded against a rendered tree carries no
+   instant, so **a replayed op-stream reproduces its ORIGINAL render** rather than drifting to
+   replay-time "now". This is the property the whole replay model rests on, and it is why the clock
+   is a host input rather than a binding that reads one.
+5. An SSR render hands ITS instant to the client's first render, so hydration compares like with
+   like; a client that later re-seeds does so on the grain tick, as a new pass with a new instant,
+   never mid-pass.
+6. A host that furnishes NO instant leaves the slot unresolved — the node shows its loading or
+   placeholder surface. It MUST NOT substitute one. A plausible wrong date is worse than a visible
+   gap, and inventing one would make rules 3 and 4 unfalsifiable.
+
+**`grain` declares the RESOLUTION the document wants, and the host truncates BEFORE the value is
+read.** `TimeGrain` is `"Second"` / `"Minute"` / `"Hour"` / `"Day"`; `Second` is the default and is
+OMITTED at its default (rule 4), so every document authored before this field is byte-identical after
+it. Truncation is defined on the canonical instant form `YYYY-MM-DDTHH:MM:SS[.fff]Z` as a PREFIX
+operation and nothing else — no calendar arithmetic, no locale, no timezone:
+
+| `grain` | Result | Example, from `2026-08-02T06:59:24Z` |
+|---|---|---|
+| `Second` (default, omitted) | the host's instant VERBATIM | `2026-08-02T06:59:24Z` |
+| `Minute` | first 16 characters + `:00Z` | `2026-08-02T06:59:00Z` |
+| `Hour` | first 13 characters + `:00:00Z` | `2026-08-02T06:00:00Z` |
+| `Day` | first 10 characters | `2026-08-02` |
+
+An instant too short to slice is passed through VERBATIM rather than padded or refused: this is a
+host-furnished value, not wire data, and a renderer is the wrong place to adjudicate a host's clock
+format. Truncation happens BEFORE any projection the slot applies, which is the point of the field
+rather than an ordering detail — a `Transform` param projecting a `Day`-grain `Now` yields the bare
+`YYYY-MM-DD` that `dateDiffDays` reads, so "days overdue" needs no host-side truncation that nobody
+specified. See `nodes/now-environment-binding.json` (no grain) and `nodes/now-grain.json` (three
+grains plus the `Day`-grain `Transform` param).
+
+**`TimeGrain` is a strict SUBSET of `RelativeTimeUnit`, deliberately.** `Week`, `Month` and `Year`
+are REFUSED — `UNKNOWN_DU_CASE` at the `…grain` path (`reject/reject-now-grain-invalid.json`) — and
+not clamped to `Day`: a truncation to a week has no definition five hosts agree on (which weekday
+starts it), and a document that asked for a resolution the language does not have must be told so
+rather than rendered at a neighbouring one in silence. For the same reason a `grain` that is present
+and unreadable is a refusal, never a fallback to the default.
+
+**`Format.Since` reads its source as an INSTANT.** `Format.RelativeTime`'s numeric source is a signed
+COUNT of its unit, already computed by whoever produced it. `Since`'s source is an instant in whole
+Unix-epoch seconds — `Format.Date`'s convention — and the count is the delta the host takes against
+its own furnished instant, so a timestamp column reads "3 hours ago" with no `Transform` and no
+arithmetic on the wire. The two are separate cases on purpose: widening `RelativeTime` to mean either
+would silently re-interpret every document that already uses it.
+
+The delta is `source − hostInstant`, so the sign follows the relative-time convention already in use:
+negative is the past. The host instant is read through the SAME rules 1–6 above, and an unset or
+unreadable one leaves the slot unresolved rather than rendering against an invented now.
+
+`unit` is OPTIONAL, and its absence is **not** a default — it is the auto-selection request. The
+`(unit, count)` reduction is NORMATIVE and identical on every host:
+
+| Condition on \|delta\| (seconds) | Unit |
+|---|---|
+| `< 60` | `Second` |
+| `< 3600` | `Minute` |
+| `< 86400` | `Hour` |
+| `< 604800` | `Day` |
+| `< 2629746` | `Week` |
+| `< 31556952` | `Month` |
+| otherwise | `Year` |
+
+`count = trunc(delta / secondsPerUnit(unit))`, truncating toward ZERO — and a zero count is ZERO,
+not negative zero: IEEE truncation of a small negative quotient yields `-0` on hosts with IEEE
+semantics, which renders identically and compares distinctly, so a host whose truncation produces it
+normalises before returning the pair. `secondsPerUnit` is
+`Second` 1, `Minute` 60, `Hour` 3600, `Day` 86400, `Week` 604800, `Month` 2629746, `Year` 31556952.
+The month and year lengths are the mean Gregorian ones (365.2425 days ÷ 12, and 365.2425 days) rather
+than calendar arithmetic, because "2 months ago" is a rounded human phrase and a calendar-exact
+answer would make one delta read differently depending on which months it spanned. Truncation rather
+than rounding, because the ladder and the count then agree at every boundary: 3599 seconds is
+"59 minutes" and never "1 hour", which is exactly where a reader checks. A DECLARED `unit` skips the
+ladder and uses the same `count` formula.
+
+**What is normative here is the reduction, not the phrasing.** Turning `(unit, count)` into words is
+locale-aware rendering, and §13 already places `Binding.Format` in the fidelity tier where a host
+with a platform locale engine and a host without produce different text. `Since` inherits
+`RelativeTime`'s tier exactly: a host on `Intl.RelativeTimeFormat` says "3 hours ago", a stdlib-only
+host says so through its own documented invariant fallback. Two hosts differing there is not a
+conformance failure; two hosts computing a different `(unit, count)` from the same delta is. See
+`nodes/format-since.json` for both spellings of `unit`.
+
+**A host with no instant of its own.** A codec host MUST round-trip `grain` and `Since`
+byte-identically — that is unconditional. A RENDERING host whose binding sources cannot carry an
+instant renders neither: a `Now` is unresolved by rule 6, and a `Since` slot renders its host's
+unresolved surface. It MUST NOT render the raw epoch number, which reads as data rather than as an
+absence.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
@@ -1164,7 +1270,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `ModalityKind`: `"Modal"` / `"Popover"`
 - `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"` / `"CrossFade"` / `"SlideBetween"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
-- `RelativeTimeUnit` (inside `Format.RelativeTime.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
+- `RelativeTimeUnit` (inside `Format.RelativeTime.unit` and the optional `Format.Since.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
 - `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
 - `SortDirection`: `"asc"` / `"desc"`
 - `StyleRole`: `"None"` / `"Eyebrow"` / `"Data"` / `"Lede"` / `"Caption"`
@@ -1172,6 +1278,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
 - `TextDirection`: `"auto"` / `"ltr"` / `"rtl"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
+- `TimeGrain` (inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on): `"Second"` / `"Minute"` / `"Hour"` / `"Day"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
 - `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
@@ -3341,6 +3448,7 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Binding.Selection` | partial | – |
 | `Binding.State` | survivable | – |
 | `Binding.Computed` | **host-only** | Binding.State / Binding.Filter for reactive values; Binding.Transform for derivation; Binding.Format for formatting |
+| `Binding.Now` | survivable | – (the instant is a HOST input, never wire content — §3.3.1; only the declared `grain` rides the wire) |
 | `Binding.I18n` | survivable | – |
 | `Binding.Local` | partial | Binding.Format is the declarative twin of the Local format/parse closures |
 | `Binding.Format` | survivable | – |
@@ -3412,7 +3520,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->142<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->143<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3850,10 +3958,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->490<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->205<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->493<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->207<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->142<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->143<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->68<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
