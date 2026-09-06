@@ -1243,6 +1243,14 @@
       "description": "Visualisation/Chart"
     },
     {
+      "id": "chart-annotation-events",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/chart-annotation-events.json",
+      "expectedFile": "nodes/chart-annotation-events.json",
+      "description": "Visualisation/Chart (Phase 1491 — annotations: event markers in both x-address forms, category and date)"
+    },
+    {
       "id": "chart-annotations",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2975,6 +2983,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.layout.cols",
       "description": "Masonry cols 0 — refused: a column count names how many columns the children fill, so a non-positive one describes a layout no renderer can realise. Refused rather than canonicalised to `Auto`, unlike a column-less `Grid`: that leniency works because `Auto` already means the browser's own choice, and masonry has no such case for the rewrite to land on"
+    },
+    {
+      "id": "reject-chart-annotation-date-unparseable",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-chart-annotation-date-unparseable.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.annotations[0].at.iso",
+      "description": "chart event marker addressing a date that names no calendar day — the address is what the marker is drawn at, and an unreadable one would place it at 1970-01-01 and drag the axis back with it (Phase 1491)"
     },
     {
       "id": "reject-chart-annotation-nonfinite",
