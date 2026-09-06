@@ -1266,7 +1266,6 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"` / `"CrossFade"` / `"SlideBetween"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
 - `RelativeTimeUnit` (inside `Format.RelativeTime.unit` and the optional `Format.Since.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
-- `TimeGrain` (inside `Binding.Now.grain`, §3.3.1): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on
 - `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
 - `SortDirection`: `"asc"` / `"desc"`
 - `StyleRole`: `"None"` / `"Eyebrow"` / `"Data"` / `"Lede"` / `"Caption"`
@@ -1274,6 +1273,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextAnchor`: `"Start"` / `"Middle"` / `"End"`
 - `TextDirection`: `"auto"` / `"ltr"` / `"rtl"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
+- `TimeGrain` (inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on): `"Second"` / `"Minute"` / `"Hour"` / `"Day"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
 - `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
@@ -3515,7 +3515,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->128<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->129<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3921,10 +3921,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->472<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->203<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->475<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->205<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->128<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->129<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

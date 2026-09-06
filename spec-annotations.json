@@ -22,7 +22,8 @@
       "FileReadEncoding": "inside `Action.ReadFileBody.encoding`",
       "HashStrictness": "inside `Custom.contentHash.strictness`",
       "Motion": "a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9",
-      "RelativeTimeUnit": "inside `Format.RelativeTime.unit`"
+      "RelativeTimeUnit": "inside `Format.RelativeTime.unit` and the optional `Format.Since.unit`",
+      "TimeGrain": "inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on"
     },
     "omitDefaults": {
       "default=Default": "The tone for a value the `map` does not mention.",
