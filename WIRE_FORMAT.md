@@ -4710,11 +4710,18 @@ So, normatively:
 3. A conformance claim naming a host without naming its entry points is unfalsifiable, and this
    specification does not recognise one.
 
-The reference host's own declaration is the worked example, and it is a gap rather than a design:
-its secondary parser is **stricter** than §20.2 on nothing and **stricter than its structural
-decoder** on rows 3, 4 and 5, having refused them before they were rules. The direction is
-fortunate rather than planned, and the gap closes when the substrate and the structural decoder are
-one parser.
+The reference host's own declaration is the worked example, and the shape of it is the argument for
+the rule. Its policy decoder — the one every `decodeNode` / `decodeOp` call reaches — enforces all
+eight rows. Its IDL-generated structural layer reads through the substrate's parser, which
+**refuses** row 2, row 4 and three of row 3's four arms (`+1`, `.5`, `1.`), and **accepts** row 1,
+row 3's leading-zero arm (`03`), row 5, and row 6 in all three shapes.
+
+So the divergence is neither "the substrate is stricter" nor "it is looser": it is a *different
+accept set*, arrived at by a parser written against RFC 8259 in one place and not another. That is
+precisely why a host-level claim is not well-formed, and why the honest report is an enumeration
+rather than an adjective. The reference host carries this list in the test that guards the two
+decoders' agreement, so the declaration is executable rather than prose, and the gap closes when the
+substrate and the policy parser are one parser — not by a refinement to either.
 
 ### 20.2 The rules
 
