@@ -3644,6 +3644,40 @@ carrying the key as the client-only upload it was. What it cannot say is that it
 specifically, it must not claim the §3.6.20 obligation that a body read is refused on a streaming
 upload, because a host with no transfer has no streaming upload to refuse one on.
 
+**Chart-annotation adoption (`ChartSpec.annotations`).** A SIXTH bar, and the one whose two halves
+are furthest apart in KIND rather than in size. The CODEC leg is the optional list over the closed
+`ChartAnnotation` union — `ReferenceLine` / `EventMarker` / `RangeBand`, the `ChartAnnotationX`
+address and the `ChartAnnotationRange` pair — plus the three refusals that go with them, and every
+codec host owes it. The LOWERING leg is the draw order and the geometry, and only a host that lowers
+a chart in-host owes it: a host whose posture is require-pre-lowered has nothing there to get wrong,
+and renders an already-lowered `Drawing` like any other.
+
+The three refusals are worth naming, because they are what a host adopting the shape can still get
+wrong: a NON-FINITE reference-line value or value-band end, an UNPARSEABLE event date, and an
+UNORDERED value or date pair. Each is refused at the wire boundary rather than normalised, and the
+reason is the same in all three — an annotation ADDRESSES a place in the data's own coordinates and
+that address participates in the domain it addresses, so a non-finite one takes every gridline, tick
+and mark to NaN, and a typo'd date drags the whole axis back to the epoch. The picture is not merely
+wrong at the annotation; it is wrong everywhere. A CATEGORY pair's order is deliberately NOT decided
+at the boundary: two band keys order only through the rows, which is a cross-reference rather than a
+local property of the address, so the authoring-path check owns that one.
+
+| Host | Chart-annotation adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the typed slot, the three refusals, and the lowering that generates the goldens |
+| `fuaran-ts` | **adopted** — codec + lowering, byte-identical on every `chart-lowering` golden |
+| `fuaran-py` | **adopted** — codec + lowering. The slot is carried structurally and CHECKED, so a conformant document round-trips unchanged while the three refusals still bite |
+| `fuaran-rs` | **adopted** — codec + lowering. The three cases are native `enum`s, so each lowering arm is an exhaustive `match` and a fourth member would be a build error at every site |
+| `fuaran-go` | **decode adopted** — the slot and its three refusals. The LOWERING leg is `n/a` rather than pending: this host's posture is REQUIRE-PRE-LOWERED, so a raw `Chart` at its SSR boundary is a typed passthrough and a pre-lowered `Drawing` carrying annotation marks renders as ordinary inline SVG. Both halves are pinned by a test |
+| `fuaran-swift` | inherited — a render projection over the Rust core owes no codec leg, and draws whatever geometry the core hands it |
+| `fuaran-kt` | inherited — as above |
+
+**`n/a` and `pending` are different answers, and the Go row is the first place this table needs the
+distinction.** A pending host owes the obligation and has not made its answer visible; a host whose
+declared posture excludes the obligation has answered it. Reading the Go row as pending would suggest
+a gap that closing would VIOLATE its posture — so the row says which it is, and names the test that
+holds it.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
