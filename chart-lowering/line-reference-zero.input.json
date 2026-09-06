@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"month","yFields":["netFlow"],"title":"Net flow","stacked":false,"annotations":[{"$type":"ReferenceLine","value":0}],"data":[{"month":"Jan","netFlow":40},{"month":"Feb","netFlow":-25},{"month":"Mar","netFlow":15},{"month":"Apr","netFlow":-60},{"month":"May","netFlow":35}]}

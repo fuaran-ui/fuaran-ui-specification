@@ -1243,6 +1243,14 @@
       "description": "Visualisation/Chart"
     },
     {
+      "id": "chart-annotations",
+      "kind": "node-round-trip",
+      "decoder": "node",
+      "inputFile": "nodes/chart-annotations.json",
+      "expectedFile": "nodes/chart-annotations.json",
+      "description": "Visualisation/Chart (Phase 1490 — annotations: two data-addressed reference lines, one labelled)"
+    },
+    {
       "id": "chart-axis-titles",
       "kind": "node-round-trip",
       "decoder": "node",
@@ -2924,24 +2932,6 @@
       "description": "Binding<float> bare scalar is a MIS-CASED sentinel (\"nan\") — §7's three tokens are exact, and a case-folding host would accept a document no encoder emits (Phase 1064)"
     },
     {
-      "id": "reject-binding-floatseq-sentinel-case",
-      "kind": "reject",
-      "decoder": "node",
-      "inputFile": "reject/reject-binding-floatseq-sentinel-case.json",
-      "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind.source",
-      "description": "Binding<float seq> ELEMENT is a MIS-CASED sentinel (\"nan\") — the sequence twin of reject-binding-float-sentinel-case: §7's three tokens are exact at an element too, so a host that routes elements through a looser reader than its scalar slots is caught (Phase 1099)"
-    },
-    {
-      "id": "reject-spark-element-nonnumeric",
-      "kind": "reject",
-      "decoder": "node",
-      "inputFile": "reject/reject-spark-element-nonnumeric.json",
-      "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind.source",
-      "description": "A Sparkline series element of \"lots\" — a typed float SEQUENCE slot types its ELEMENTS, not just the binding. spark-nonfinite-sentinel proves the §7 sentinels are accepted, which an entirely untyped slot also does by never reading an element, so this is the vector that separates the two (Phase 1099)"
-    },
-    {
       "id": "reject-binding-float-string",
       "kind": "reject",
       "decoder": "node",
@@ -2949,6 +2939,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.value",
       "description": "Binding<float> Static payload is a non-sentinel string — §7's float accept set is JSON number plus exactly \"NaN\" / \"Infinity\" / \"-Infinity\" (Phase 1064)"
+    },
+    {
+      "id": "reject-binding-floatseq-sentinel-case",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-binding-floatseq-sentinel-case.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.source",
+      "description": "Binding<float seq> ELEMENT is a MIS-CASED sentinel (\"nan\") — the sequence twin of reject-binding-float-sentinel-case: §7's three tokens are exact at an element too, so a host that routes elements through a looser reader than its scalar slots is caught (Phase 1099)"
     },
     {
       "id": "reject-binding-int-bool",
@@ -2976,6 +2975,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.layout.cols",
       "description": "Masonry cols 0 — refused: a column count names how many columns the children fill, so a non-positive one describes a layout no renderer can realise. Refused rather than canonicalised to `Auto`, unlike a column-less `Grid`: that leniency works because `Auto` already means the browser's own choice, and masonry has no such case for the rewrite to land on"
+    },
+    {
+      "id": "reject-chart-annotation-nonfinite",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-chart-annotation-nonfinite.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.annotations[0].value",
+      "description": "chart annotation carrying the §7 NaN sentinel — the value slot is narrowed to the finite numbers (Phase 1490)"
     },
     {
       "id": "reject-color-value-not-hex",
@@ -3543,6 +3551,15 @@
       "expectedErrorCode": "WRONG_TYPE",
       "expectedPath": "$.kind.onClick.valueFrom",
       "description": "SetState carrying BOTH 'value' and 'valueFrom' — exactly one is allowed; the didactic names both fields and how each is used (Phase 818)"
+    },
+    {
+      "id": "reject-spark-element-nonnumeric",
+      "kind": "reject",
+      "decoder": "node",
+      "inputFile": "reject/reject-spark-element-nonnumeric.json",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind.source",
+      "description": "A Sparkline series element of \"lots\" — a typed float SEQUENCE slot types its ELEMENTS, not just the binding. spark-nonfinite-sentinel proves the §7 sentinels are accepted, which an entirely untyped slot also does by never reading an element, so this is the vector that separates the two (Phase 1099)"
     },
     {
       "id": "reject-style-direction-nonstring",
