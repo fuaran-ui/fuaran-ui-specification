@@ -80,6 +80,8 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
 
 2. **Object keys are sorted alphabetically by Ordinal comparison** on encode (`StringComparer.Ordinal` – *not* culture-aware, *not* case-insensitive). Empty objects render `{}`. **Decoders MUST accept any key order** – the structural shape is what matters, not the byte order. (Encoder enforces order; decoder tolerates any order. Field lookup is by name.)
 
+   **"Ordinal" means UTF-16 code-unit order, and the distinction is observable.** Comparing by UTF-16 code unit, by Unicode code point and by UTF-8 byte agree on every key up to `U+FFFF`, and code point and UTF-8 byte agree everywhere — but UTF-16 disagrees with both above the BMP, because a surrogate pair begins at `U+D800`–`U+DBFF` and therefore sorts *below* a key starting in `U+E000`–`U+FFFF` that it sorts *above* under the other two. So an object carrying an astral key beside a private-use or specials-block key canonicalises to two different byte sequences, and therefore to two different hash-chain and teleport digests, depending on which comparison a host reached for. This rule pins **UTF-16 code-unit order** everywhere, including for astral keys, and a host whose native string sort is by code point or by byte must map into it rather than assume agreement. It applies to author-supplied keys as much as to spec-minted ones — the rule-12 payload positions (`Custom` props, `Notify` / `SetState` / `AiTool` payloads, `I18n` args, row-feed field names) are where a non-BMP key actually arrives, and the `custom-nonascii-keys` fixture pins the boundary.
+
 3. **Lists / arrays preserve source order.** A list is an *ordered* structure (sibling order matters for layout). Empty arrays render `[]`.
 
 4. **`None` / null fields are EXCLUDED from object output.** An `option` that is `None` does **not** render as `"key":null` – the key is omitted entirely. `Some x` renders the unwrapped `x`. This keeps emissions minimal. **Corollary for decoders:** an absent optional key means `None`; never synthesise `null`.
@@ -97,6 +99,9 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
      - This differs from the JS native `String(x)` form (lowercase `e`, no sign-padding, a wider fixed-point threshold), so the TypeScript host **normalises** `String(x)` into this layout (see `@fuaran-ui/ops` `encode.ts` `formatFiniteDouble`); the F# host emits it natively via `ToString("R")`. The two are byte-identical over the full finite-double range – exercised by the `metric-float-*` corpus fixtures (1e21, 1e-7, a 17-significant-digit value, an integer > 2^53) and the cross-host property fuzzer.
    - **Negative zero collapses to positive zero** (`0`, never `-0`).
    - **Special values** `NaN`, `+∞`, `-∞` render as the **quoted strings** `"NaN"`, `"Infinity"`, `"-Infinity"` (RFC 8259 forbids them as bare numbers). See §7 for the decode side.
+   - **Integer identity, and where it stops.** The two layouts above are chosen by the SLOT, not by the token. At a **typed float slot** the decoded value is an IEEE-754 double and re-encodes under the float layout whatever the token looked like: `100000000000000000` at a float slot re-encodes as `1E+17`, its base-10 exponent being 17 and the fixed-point window ending at 16. At a **typed integer slot** (§7) it is an integer and re-encodes under the integer layout. In a **rule-12 structured payload position**, where no slot declares a type, the token decides: a token with no `.`, no `e`/`E` and a magnitude within **±(2⁵³−1)** keeps integer identity and re-encodes under the integer layout; every other token is a double and re-encodes under the float layout.
+
+     **±(2⁵³−1) is a boundary of the FORMAT, not of one host.** Beyond it a decimal integer token has no representation every host holds exactly — three hosts route every number through a double, one keeps an `int64`, one an arbitrary-precision integer — so one document canonicalises to different bytes on different hosts and therefore to different hash-chain and teleport digests. A conformant **encoder MUST NOT emit** an integer token outside that range: carry a uint64 column or a 19-digit identifier as a **string**. A conformant **decoder MUST** treat one it receives as a double and accept the rounding — `9007199254740993` decodes as `9007199254740992` and re-encodes as such. That is a §16-class lenient normalisation and is pinned as one. Refusing it instead would refuse a document three hosts have always accepted; preserving it exactly would require every host to carry a bignum this format has no slot for.
 
 6. **Strings** are quoted with these escapes, and **only** these:
    - `"` → `\"`
@@ -3407,7 +3412,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->128<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->142<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -3420,7 +3425,39 @@ Symmetric with rule 5. At a float slot, a conformant decoder accepts **both** fo
 - `JString "Infinity"` → +∞
 - `JString "-Infinity"` → −∞
 
-Integer slots truncate the parsed number via integer cast; round-trip is exact across the int53 range (any 32-bit int).
+### 7.1 Integer slots (normative; ratified with §20)
+
+At a **typed integer slot** a conformant decoder accepts `JNumber n` when — and only when — `n` is
+finite, has **no fractional part**, and lies within the **signed 32-bit range**
+(`−2 147 483 648` … `2 147 483 647`). `2.0` decodes as `2`. Everything else at that slot is a
+**`WRONG_TYPE`**: `2.5`, `1e10`, `1e400`, a §7 sentinel string, `"banana"`, `true`.
+
+**32-bit, not §2 rule 5's ±(2⁵³−1), and the two bounds are answering different questions.** Rule 5's
+bound is where *integer identity* stops in an untyped rule-12 payload position, and it is set by
+what every host can hold exactly. This bound is the width of the slot: every typed integer slot this
+format declares is a 32-bit integer, so a larger value has nowhere to land. Hosts were converting it
+anyway, and divergently — `1e10` became `−2147483648` on one runtime and `1410065408` on another
+from the same bytes, which is §20's defect in a slot rather than in the syntax. A value the slot
+cannot hold is a `WRONG_TYPE`, not a value to be reinterpreted.
+
+**This ratifies one of three behaviours that were shipping, and it is not the one the majority
+shipped.** The rule read "integer slots truncate the parsed number via integer cast" and three hosts
+did exactly that, so `2.5` decoded as `2` — a silent loss of the author's value, at a slot the author
+chose to type as an integer. Two hosts refused `2.0` outright, which is the opposite error: a
+document whose intent is unambiguous, refused for its spelling. The rule above takes the accepting
+half of one and the refusing half of the other, and it is defensible where neither of them was —
+`2.0` and `2` denote the same integer, and `2.5` denotes something an integer slot cannot hold, so
+the only answer that neither invents data nor discards it is to accept the first and refuse the
+second.
+
+**Truncation is retired, not deprecated.** There is no lenient profile under which `2.5` decodes at
+an integer slot; §16's lenient shorthands exist for unambiguous intent, and a fractional value at an
+integer slot has none. A host converting from truncation should expect the change to be visible —
+that is the point.
+
+Note the asymmetry with a float slot,
+which per §20.2 row 8 **widens** to the three sentinel strings: an integer slot does not, and a host
+where one function serves both must check that the widening cannot leak.
 
 ---
 
@@ -3813,11 +3850,11 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->472<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->203<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->490<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->205<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->128<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->66<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->142<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->68<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -4119,6 +4156,17 @@ The contract is executable in the shared [`wire-format-fixtures/`](./) corpus as
 - **F#** (`Fuaran.UI` + `Fuaran.Core.Wire.Versioning`) – certified against the corpus families, in addition to the value-level `VersioningTests` in the `Fuaran.Core` codec suite.
 - **TypeScript** (`@fuaran-ui/ops`) – certified against the same families via the `@fuaran-ui/conformance` kit (the `envelope-round-trip` / `envelope-reject` legs).
 - **Python** – adopts the same envelope + tolerance rules and certifies against these fixtures through its own conformance phase; the corpus families are the shared authority the moment it does.
+
+> **Declared entry point (§20.1).** Neither reference host exposes profile negotiation on its
+> ordinary decode surface: `decodeNode` / `decodeOp` are structural readers, and negotiation lives in
+> each host's own conformance harness as a bridge over the versioning substrate. The `envelope-*`
+> families' `decoder` field says `node` for want of a better name, and a tool that takes it literally
+> hands a `$profile`-carrying document to the structural decoder — which refuses it for its SHAPE
+> (`MISSING_FIELD` at `$.id`), a plausible answer to a different question. The cross-host comparison
+> therefore reports this family as a NAMED SKIP on both hosts rather than manufacturing a
+> disagreement out of a gap. Recorded here per §20.1 rather than left for the next tool to
+> rediscover; a host that DOES expose negotiation publicly should say so, and the family stops being
+> a skip for it.
 
 ---
 
@@ -4621,22 +4669,131 @@ and a host that only decodes, re-encodes or transforms trees carries the value t
 
 ---
 
-## 20. Decode determinism (PROPOSED – NOT YET NORMATIVE)
+## 20. Decode determinism (normative)
 
-> **Status: proposal, not contract.** Nothing in this section is binding on any host, no fixture
-> pins it, and no host should be changed to conform to it before the questions below are settled and
-> every host can move together. It is recorded here so the decision has a starting point rather than
-> a blank page.
+> **Status: ratified.** The rules in §20.2 are binding on every conformant host, the corpus pins
+> each of them with a `reject` fixture, and a host that answers differently is non-conformant. This
+> section was PROPOSED from its first appearance until the ratification recorded in §20.5; the
+> measured five-host matrix that motivated it is kept as history in §20.4 rather than deleted,
+> because a host adopting these rules late will recognise its own row there.
 
 §1 states the fundamental conformance property as byte-stable round-trip, and the corpus enforces it
 per fixture. That property is silent about a narrower question: given **the same input bytes**, do
-two conformant hosts produce **the same tree**, or the same rejection? Today, for a small set of
-inputs, they do not — and because every host is individually self-consistent, the corpus cannot see
-it. The divergences are all at the **JSON syntax layer**, below the `$type` dispatch this document
-otherwise specifies, which is why they escaped: §2 describes what a conformant *encoder* emits and
-has never constrained what a *decoder* must refuse.
+two conformant hosts produce **the same tree**, or the same rejection? For a small set of inputs they
+did not — and because every host is individually self-consistent, the corpus could not see it. The
+divergences are all at the **JSON syntax layer**, below the `$type` dispatch this document otherwise
+specifies, which is why they escaped: §2 describes what a conformant *encoder* emits and, until this
+section, never constrained what a *decoder* must refuse.
 
-The measured behaviour, across the five codec hosts:
+### 20.1 What a §20 row binds: an ENTRY POINT, not a host
+
+A row below binds every **decode entry point** through which a host admits wire bytes — not the host
+as a whole, and not one parser inside it. The distinction is not pedantry: it is the defect this
+section met first.
+
+The reference host carries **two** JSON parsers with different answers to the rows below. Its
+structural decoder has one; the substrate library its secondary readers use — teleport bundles,
+elicitation envelopes, op-stream entries, theme manifests, chart specs, contract cards — has another,
+stricter one. A host-level claim ("this host refuses a leading `+`") is therefore not even
+well-formed: it was true at one entry point and false at the other, and the matrix in §20.4 measured
+whichever entry point the person taking the measurement reached for.
+
+So, normatively:
+
+1. A host **MUST** apply every §20.2 rule at **every** entry point that decodes wire bytes into a
+   tree, an op, or a rule-12 structured payload — not merely at its primary `decodeNode` / `decodeOp`.
+2. Where a host cannot route all of them through one parser — a vendored substrate package, a
+   platform-supplied parser it does not own — it **MUST DECLARE** the divergent entry point and the
+   rows on which it diverges, in its own conformance documentation, and the declaration is read as a
+   **conformance gap** rather than as a second dialect. There is no profile under which two entry
+   points of one host may answer a §20 row differently.
+3. A conformance claim naming a host without naming its entry points is unfalsifiable, and this
+   specification does not recognise one.
+
+The reference host's own declaration is the worked example, and it is a gap rather than a design:
+its secondary parser is **stricter** than §20.2 on nothing and **stricter than its structural
+decoder** on rows 3, 4 and 5, having refused them before they were rules. The direction is
+fortunate rather than planned, and the gap closes when the substrate and the structural decoder are
+one parser.
+
+### 20.2 The rules
+
+Each row is `INVALID_JSON` in the §6 envelope unless stated otherwise, with `Path` naming the
+position at which the rule was breached. None of them can be reached by a conformant **encoder**:
+every input class below is one no host can emit, which is why ratifying them costs no legitimate
+document. That is the test a further row must meet.
+
+| # | Input class | Required answer | Why |
+|---|---|---|---|
+| 1 | A **repeated member** in one object (`{"id":"a","id":"b"}`) | **`INVALID_JSON`** at the object's path | see §20.3 |
+| 2 | **Content after the root value** (`{…}garbage`) | **`INVALID_JSON`** | §1: a wire artefact is a single JSON document. Requiring end-of-input closes an obvious framing ambiguity |
+| 3 | A number token outside the **RFC 8259 grammar**: leading `+` (`+1`), leading zero (`01`), no integer part (`.5`), no fractional digits after the point (`1.`), no digits after the exponent (`1e`, `1e+`) | **`INVALID_JSON`** | RFC 8259 does not permit them. A host that reaches its platform's number parser without a grammar check will accept some arbitrary subset of them, differing per platform |
+| 4 | A **bare `NaN` / `Infinity` / `-Infinity` literal** | **`INVALID_JSON`** | RFC 8259 forbids them as bare numbers. §7's quoted sentinels are the specified representation and are unaffected |
+| 5 | A **raw C0 control character** (`U+0000`–`U+001F`) unescaped inside a string | **`INVALID_JSON`** | RFC 8259 requires them escaped; §2 rule 6 requires a conformant encoder to escape them. A host that passes them through admits bytes its own encoder cannot produce |
+| 6 | An **unpaired surrogate** — a `\uD800`–`\uDBFF` escape not followed by a `\uDC00`–`\uDFFF` escape, or a `\uDC00`–`\uDFFF` escape not preceded by one | **`INVALID_JSON`** | see §20.3 |
+| 7 | An **overflowing exponent** (`1e999`) | **accepted**, decoding to the corresponding IEEE-754 infinity | ratified as-is: all five hosts already agreed, so this row was unspecified rather than divergent, and changing it would break a behaviour every host ships |
+| 8 | A **§7 sentinel string** (`"NaN"` / `"Infinity"` / `"-Infinity"`) at a typed float slot | **accepted**, decoding to the float | §7. Restated here because it was measured with the rows above; see §20.4 |
+
+Row 7 deserves its oddity called out: it is the one row that ratifies an **accept**, and it sits
+beside row 4 which refuses the same three values written as bare literals. That is not an
+inconsistency. `1e999` is a well-formed JSON number whose value is not representable, and IEEE-754
+already specifies what a finite decimal that overflows becomes; `NaN` is not a JSON token at all.
+
+**A documented REPAIR layer above the parser is not a §20 breach, and the distinction is worth
+stating because it looks like one.** A host may sit a repair pass over its strict decode — §16 is one
+such layer, and the reference host carries two more for a malformed-emission class its measurements
+identified. Ratifying row 2 changed what that host's *parser* does with a surplus closing brace: it
+refuses now, where before it stopped at the root value and silently ignored the remainder. The repair
+layer then reconstructs the document and admits it through a uniqueness gate. Same *acceptance*,
+completely different *act* — an attributed, counted, single-candidate repair instead of a silent
+truncation nothing recorded.
+
+Three obligations keep that honest, and they are §20.1's: the repair must be **documented**, it must
+be **observable** in the host's own instrumentation, and the strict path underneath it must answer
+the §20 row. A host whose repair layer is undocumented, or which cannot say which of the two accepted
+a given document, has an undeclared entry point rather than a repair layer.
+
+**Rows 3 and 6 are enforced on the way down**, per the same principle §21.2 rule 4 states for depth:
+a grammar check applied after a platform parser has already accepted the token measures that
+parser's dialect rather than this one, and a surrogate check applied after a string has been
+assembled cannot tell a pair from two lone halves.
+
+### 20.3 Why two of the rows are the serious ones
+
+Rows 2–5 and 7 differ on whether a document is *accepted*; a disagreement there is loud, and the
+stricter host simply refuses to proceed. **Duplicate keys (row 1) and unpaired surrogates (row 6)
+differ on what the document MEANS**, silently, with no error anywhere.
+
+**Duplicate keys.** A host that vets a tree and a host that renders it can be looking at two
+different trees derived from identical bytes — `{"href":"https://ok","href":"javascript:…"}` is a
+different document to a first-wins reader than to a last-wins one. That is a smuggling primitive,
+not merely an inconsistency. Rejection is the only answer that cannot silently differ: both
+first-wins and last-wins are defensible, so a host that picks the other one is wrong in a way
+nothing detects. Last-wins was the fallback had rejection proved incompatible with some host's
+parser shape; it did not. First-wins was never recommended even though the reference host did it,
+because it was the minority behaviour and it was **emergent, not designed** — its object parser
+accumulated entries in reverse and folded them into a map that lets later list entries win, so the
+reversal left the *first-parsed* key standing.
+
+**Unpaired surrogates.** A lone `\uD800` has no Unicode scalar value, so every host must invent
+something: two lower it to `U+FFFD` (losing the distinction between a lone surrogate and a genuine
+replacement character), two keep it in their UTF-16 string type (where it cannot be UTF-8 encoded),
+and one keeps it and then raises an **uncatchable-by-contract** encoding error at the first
+canonical-bytes boundary — a hash-chain append, a teleport bundle — rather than at decode. So the
+same bytes yield three different trees and one deferred crash, and the crash lands in a component
+that is not the decoder and cannot return a `DecodeError`. Refusing at decode is the only answer
+that keeps §6's promise: **every wire-shape violation surfaces as a structured, recoverable error**.
+It costs nothing legitimate — §2 rule 1 has a conformant encoder emit literal UTF-8, so a lone
+surrogate is unreachable from any valid value.
+
+Both rows are added to every host's decoder-fuzz alphabet, not only to the corpus: a stored fixture
+pins the one vector it carries, and the class is larger than its vectors.
+
+### 20.4 The measured matrix, kept as history
+
+The behaviour that motivated this section, across the five codec hosts, before ratification. It is
+retained because a host adopting §20 later will recognise its own shape here, and because the
+`(ref)` column is the record of a reference implementation being the outlier.
 
 | Input | F# (ref) | TypeScript | Python | Go | Rust |
 |---|---|---|---|---|---|
@@ -4645,55 +4802,50 @@ The measured behaviour, across the five codec hosts:
 | Overflowing exponent (`1e999`) | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` | → `Infinity` |
 | Leading `+` on a number (`+1`) | accepted → `1` | accepted → `1` | **rejected** | **rejected** | accepted → `1` |
 | Bare `NaN` / `Infinity` literal | rejected | rejected | **accepted** | rejected | rejected |
+| Raw C0 control character in a string | accepted | **rejected** | **rejected** | **rejected** | **rejected** |
+| Unpaired `\uD800` escape | kept | kept | kept, crashes on encode | → `U+FFFD` | → `U+FFFD` |
 | §7 sentinel string at a typed float slot | accepted | accepted | accepted | accepted | accepted |
 
-**Why the first row is the serious one.** The other rows differ on whether a document is *accepted*;
-a disagreement there is loud, and the stricter host simply refuses to proceed. Duplicate keys differ
-on **what the document means**, silently, with no error anywhere. A host that vets a tree and a host
-that renders it can therefore be looking at two different trees derived from identical bytes — which
-is a smuggling primitive, not merely an inconsistency. It is also the only row where the reference
-host is the outlier: it is first-wins because its object parser accumulates entries in reverse and
-then folds them into a map that lets later list entries win, so the reversed order leaves the
-*first-parsed* key standing. That is emergent, not designed.
+**The last row WAS a round-trip hole, and every host's CODEC closed it before this ratification.**
+§7 requires a decoder to accept the quoted `"NaN"` / `"Infinity"` / `"-Infinity"` sentinels at a
+float slot, and every host *emits* them. Two hosts did not accept them at every such slot, so a
+non-finite value encoded by one host did not decode on those hosts at all — a host emitting bytes
+its own decoder refused. Unlike the rows above this was a §7 conformance defect rather than an open
+question, and it needed no spec decision, which is why it closed on its own while the rest stayed
+open.
 
-**The last row WAS a round-trip hole, and every host's CODEC now closes it.** §7 requires a decoder
-to accept the quoted `"NaN"` / `"Infinity"` / `"-Infinity"` sentinels at a float slot, and every host
-*emits* them. Two hosts did not accept them at every such slot, so a non-finite value encoded by one
-host did not decode on those hosts at all — a host emitting bytes its own decoder refused. Unlike the
-rows above this was already a §7 conformance defect rather than an open question, and it needed no
-spec decision, which is why it could close on its own while rules 1–5 below stayed open.
+That row is a re-measurement, taken per **slot class** rather than at one slot, because the two
+lagging hosts each accepted the sentinels at *some* float slots and not others — a fix designed from
+one slot would have been a fix for one slot. The classes measured on all five hosts, with all three
+sentinels: a typed float scalar, a typed float nested in a shape, an optional typed float, a float
+inside a coordinate pair, a float behind a `Binding`'s `Static` envelope, and an element of a float
+**sequence**. All five hosts accept at every one of them, `decode → encode → decode` closes, and the
+canonical bytes agree.
 
-The row above is the re-measurement, taken per **slot class** rather than at one slot, because the
-two lagging hosts each accepted the sentinels at *some* float slots and not others — a fix designed
-from one slot would have been a fix for one slot. The classes measured on all five hosts, with all
-three sentinels: a typed float scalar, a typed float nested in a shape, an optional typed float, a
-float inside a coordinate pair, a float behind a `Binding`'s `Static` envelope, and an element of a
-float **sequence**. All five hosts now accept at every one of them, `decode → encode → decode`
-closes, and the canonical bytes agree across all five.
+Two properties of that fix are worth stating, because a later host will have to reproduce them:
 
-Two properties of the fix are worth stating, because a later host will have to reproduce them:
-
-- **A float slot widens; an integer slot does not.** §7 truncates at an integer slot and says nothing
+- **A float slot widens; an integer slot does not.** §7 constrains an integer slot and says nothing
   about sentinels there, so `"Infinity"` at an integer slot stays a `WRONG_TYPE` on every host. Both
   lagging hosts reached their integer slots through a separate gate, so the widening could not leak
   into them — worth checking rather than assuming, in a host where one function serves both. A
-  non-sentinel string (`"banana"`) at a float slot stays a `WRONG_TYPE` everywhere too: the accept set
-  widens by exactly three strings.
-- **The decoded value is the FLOAT, not the sentinel string.** §7 says `JString "NaN"` → NaN, and the
-  distinction is observable: the bare overflowing literal `1e999` already decodes to an infinity
-  (row 3), so a host that answered a re-decode of its own canonical output with a string would hand a
-  consumer a float the first time and a string the second. Byte-stability alone does not catch that.
+  non-sentinel string (`"banana"`) at a float slot stays a `WRONG_TYPE` everywhere too: the accept
+  set widens by exactly three strings.
+- **The decoded value is the FLOAT, not the sentinel string.** §7 says `JString "NaN"` → NaN, and
+  the distinction is observable: the bare overflowing literal `1e999` already decodes to an infinity
+  (row 7), so a host that answered a re-decode of its own canonical output with a string would hand
+  a consumer a float the first time and a string the second. Byte-stability alone does not catch
+  that.
 
-**The corpus now pins it, and it takes three fixtures rather than one.** The natural pin is an
-accept-case `node-round-trip` fixture carrying a sentinel — not a reject fixture: the defect was a
-*conformant* document being refused, so what needs pinning is that it decodes. Three, because the
-per-slot-class measurement above found the lagging hosts accepting at some float slots and not
-others, so "this host accepts the sentinels" was never a well-formed claim. One per distinct decoder
-path: `drawing-nonfinite-sentinels` (all three sentinels at typed float scalars, plus one at a
-coordinate nested inside a shape), `spark-nonfinite-sentinel` (elements of a float **sequence**,
-among finite neighbours), and `metric-nonfinite-sentinel` (behind a `Binding`'s `Static` envelope —
-the one class every host already handled, pinned so that stays a fact rather than an assumption).
-The integer boundary keeps its own pins: the corpus's integer controls must go on refusing.
+The corpus pins it with three fixtures rather than one, and they are ACCEPT cases rather than
+rejects: the defect was a *conformant* document being refused, so what needs pinning is that it
+decodes. Three, because the per-slot-class measurement found the lagging hosts accepting at some
+float slots and not others, so "this host accepts the sentinels" was never a well-formed claim. One
+per distinct decoder path: `drawing-nonfinite-sentinels` (all three sentinels at typed float
+scalars, plus one at a coordinate nested inside a shape), `spark-nonfinite-sentinel` (elements of a
+float **sequence**, among finite neighbours), and `metric-nonfinite-sentinel` (behind a `Binding`'s
+`Static` envelope — the one class every host already handled, pinned so that stays a fact rather
+than an assumption). The integer boundary keeps its own pins: the corpus's integer controls go on
+refusing.
 
 Landing them needed the reference host's **IDL-generated structural layer** first, which is a second
 decoder inside that host and one a codec fix does not reach: every node fixture must also decode and
@@ -4701,44 +4853,69 @@ re-encode byte-identically through it, and its float primitive modelled a finite
 both directions. So a fixture pinning §7 would have failed the reference host's build on a defect in
 a different layer from the one it was pinning — the same shape the corpus met when a UI vocabulary
 addition reached the fixtures ahead of the IDL. The order that worked then worked again: IDL first,
-fixture second. The generated float slot now emits the sentinel and reads it back, and the generated
+fixture second. The generated float slot emits the sentinel and reads it back, and the generated
 JSON schema admits it at a float slot and still refuses it at an integer one. The hosts' generative
 decoder-fuzz legs — where the hole was found in the first place — keep running beside the fixtures
 rather than in place of them.
 
-**Proposed rules, for the decision to accept, amend or reject:**
+### 20.5 The ratification, and why it takes no version step
 
-1. **Duplicate keys — reject** as an `INVALID_JSON` syntax error at the object's path. Rejection is
-   the only option that cannot silently differ: both first-wins and last-wins are defensible, so a
-   host that picks the other one is wrong in a way nothing detects. It also costs nothing legitimate,
-   since no conformant encoder can emit a duplicate key. Last-wins is the fallback if rejection
-   proves incompatible with a host's parser shape; first-wins is not recommended even though the
-   reference host does it, because it is the minority behaviour and was not a decision.
-2. **Trailing content — reject.** A wire artefact is a single JSON document (§1); requiring
-   end-of-input after the root value makes that explicit and closes an obvious framing ambiguity.
-3. **Leading `+` — reject**, per RFC 8259, which does not permit it.
-4. **Bare `NaN` / `Infinity` literals — reject**, per RFC 8259. §7's quoted sentinels are the
-   specified representation for non-finite values and are unaffected.
-5. **Overflowing exponent — specify the existing behaviour** (`1e999` → the corresponding infinity)
-   rather than change it. All five hosts already agree; it is unspecified, not divergent.
-6. **§7 sentinels — bring the two hosts into line with §7** at *every* float-valued slot, including
-   float sequences, independently of rules 1–5. **The five codecs are DONE** (see the
-   round-trip-hole note above); the corpus fixture and the reference host's generated structural
-   layer are not. Kept here rather than struck out, because it is not finished until it is pinned.
+**What ratification changed.** Rows 1–6 moved from proposed to binding, rows 7 and 8 from
+unspecified-but-agreed to specified. Rows 5 and 6 are **new** rows, not present in the proposal:
+they were found by a later scan measuring the same entry points against a wider input set, and they
+belong here because they have the shape rows 1–4 have — an input no conformant encoder can produce,
+on which the hosts silently disagree. §20.1 is likewise new, and is the correction of a framing
+error in the proposal rather than an addition to it.
 
-**What landing the REST requires.** Rules 1–4 are each a decoder-visible **breaking change** for at
-least one host, so they need a version/profile decision under §15 as well as a coordinated §11 change
-across encoder, decoder, corpus and every host. Fixtures pinning them are deliberately **not** in the
-corpus yet: the corpus is a shared gate that every host runs, so a fixture landing ahead of the hosts
-turns their builds red for a rule none of them has adopted. The fixtures land with the hosts, not
-before them.
+**No profile step, and no language-revision step.** §15.4 classifies a change by what it does to the
+**authoring vocabulary**: an added kind/case/field is a minor step, a removed or renamed one a
+major. A §20 row narrows the **decode accept set** and touches the authoring vocabulary not at all.
+Concretely: the set of documents a conformant **encoder** can produce is byte-for-byte unchanged, so
+every existing artefact, fixture, op-stream record and teleport digest is unaffected, and profile
+negotiation — which asks what an emitter *authored* — has nothing to negotiate. Bumping `core@1.0`
+to `core@1.1` would assert a capability that does not exist and would silently invalidate the
+implicit profile every un-enveloped artefact carries; bumping the 0.2.x language revision would
+assert a canonical-bytes change that did not happen. The wire stays **`core@1.0`, language rev
+0.2.0**.
 
-Rule 6 is the exception that shows the shape of that constraint rather than a breach of it. It widens
-an ACCEPT set, so no document that decoded before is refused now, and it restates an obligation §7
-already imposed rather than proposing a new one — which is why it could move ahead of the other five
-without a version decision. What it could NOT move ahead of is a host's own build, which is exactly
-the constraint this paragraph states, arriving from an unexpected direction: the blocker was not a
-host that had refused the rule, but a layer inside a host that has no way to express it yet.
+That is a decision rather than an omission, and it is worth stating what *would* have needed a step:
+a row that refused an input a conformant encoder CAN emit. There is no such row here, and §20.2's
+preamble makes that the admission test for a further one — which is also why a row cannot be added
+by a host discovering it is stricter than its peers.
+
+**What the corpus carries.** Fourteen `reject` fixtures, and every one of them is a one-character
+corruption of a fixture the corpus ALREADY certifies as canonical — `nodes/markdown-1.json` or
+`nodes/skel-1.json`. That is deliberate: each vector's "corrected twin decodes" is then pinned by an
+existing round-trip fixture rather than by a near-duplicate added beside it, and the twin is named in
+each fixture's description so repairing the named defect visibly reproduces those bytes.
+
+| fixture | row |
+|---|---|
+| `reject-json-duplicate-key` | 1 |
+| `reject-json-trailing-content` | 2 |
+| `reject-json-number-leading-plus`, `-leading-zero`, `-no-integer-part`, `-trailing-point`, `-empty-exponent` | 3 |
+| `reject-json-bare-nan` | 4 |
+| `reject-json-raw-control-char` | 5 |
+| `reject-json-lone-high-surrogate`, `-lone-low-surrogate`, `-surrogate-pair-split` | 6 |
+| `reject-int-slot-fractional`, `reject-int-slot-out-of-range` | §7.1 |
+| `lenient-1521-int-slot-integral-float`, `lenient-1521-payload-integer-beyond-int53` | §7.1, §2 rule 5 (the ACCEPT sides) |
+| `custom-nonascii-keys`, `metric-float-1e17` | §2 rules 2 and 5 (round-trips) |
+
+Note that five of those go beyond one vector per row. Rows 3 and 6 are CLASSES, not examples: a
+grammar check that refuses `+1` and admits `01` is a different implementation from one that refuses
+both, and a surrogate check written as "a high must be followed by a low" passes a lone LOW and
+passes a pair whose halves are separated. A family of refusals is also silent about the accept side,
+which is where the two `lenient-` vectors and the two round-trips come in — §7.1 refuses `2.5` and
+must still accept `2.0`, and §2 rule 5's boundary is only observable from a document that sits on it.
+
+**What ratification cost each host.** Rows 1–6 are each a decoder-visible **breaking change** for at
+least one host, in the narrow sense that a document some host used to accept is now refused. The
+§11 coordination is therefore the ordinary one — spec, corpus, encoder, decoder, every host, one
+change-set — with one deliberate ordering: the fixtures land **with** the reference hosts and are
+reported by name as pending on the remaining hosts until those hosts adopt, rather than landing
+ahead of every host and turning five builds red for a rule none of them had yet. A fixture the
+corpus carries and a host has not adopted is a named, dated, tracked gap; a fixture nobody carries
+is not a rule at all.
 
 ---
 
@@ -4766,9 +4943,10 @@ typed error.
 |---|---|---|
 | **max node depth** | **24** | NODE nesting – the longest root-to-leaf chain of `Node` objects, the root counting as 1. |
 | **max JSON depth** | **256** | SYNTACTIC nesting – the depth of the underlying JSON document; every `{` and `[` counts, whether it carries a node, a spec, or a rule-12 payload. |
-| **max string length** | **1 048 576** | Characters in a single decoded JSON string. |
+| **max string length** | **1 048 576** | **Unicode code points** in a single decoded JSON string — see §21.6. |
 | **max array length** | **100 000** | Elements in a single JSON array, and members in a single JSON object. |
 | **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
+| **max document bytes** | **33 554 432** | UTF-8 bytes of the whole input document — see §21.7. |
 
 **Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
 other in either direction. One tree level costs several JSON levels — a `Box` costs three (the node
@@ -4785,10 +4963,12 @@ together still admit a document that is hostile by being **wide**: 24 levels of 
 within every other limit. Its cost is linear in the input, but the constant is not — a decoded tree
 is far larger in memory than the bytes that produced it.
 
-**What these limits do not bound.** They bound *structure*, not total payload size, and a host still
-owns the transport-level size limit (a request-body cap) separately. The two are complementary: a
-size limit cannot express "not more than 24 levels deep", and a structural limit cannot express "not
-more than 8 MB".
+**What these limits do not bound.** The first five bound *structure*; **max document bytes** bounds
+size, and §21.7 records why the format needed both. A host still owns its transport-level cap (a
+request-body limit) separately and MAY set it tighter, per rule 6. The two remain complementary: a
+size limit cannot express "not more than 24 levels deep", and a structural limit could not express
+"not more than 8 MB" — which is exactly the gap §21.7 closes, at the value this paragraph had been
+naming rhetorically since the section was written.
 
 ### 21.2 Host obligations
 
@@ -4860,7 +5040,9 @@ by §21.2 rule 5 rather than propose a smaller wire limit.
 
 ### 21.5 Conformance status
 
-The reference (F#) host enforces all five limits. Specifically: its JSON parser enforces the
+The reference (F#) host enforces all six limits — the document-bytes ceiling of §21.7 at the parse
+entry point, before any allocation, and the string bound in §21.6's code-point unit. Specifically:
+its JSON parser enforces the
 syntactic-depth, string-length and array-length bounds; its structural decoder enforces the
 node-depth and total-node bounds; its **op** decoder enforces the same node-depth figure over
 `TreeOp.Batch` nesting, counted on its own axis; and — per rule 5 — its pre-emit validator, its
@@ -4990,6 +5172,93 @@ SHAPE error, not a limit breach — so a host whose bound sits one level too tig
 `LIMIT_EXCEEDED` there and fails. That is rule 1 expressed in the only form the reject machinery can
 express it for a syntactic bound, and a family of refusals alone would not have caught either
 version of the off-by-one.
+
+### 21.6 The string-limit UNIT is Unicode code points (normative)
+
+§21.1's max-string-length row said "characters", and **"character" is not a unit**. Measured, the
+five hosts counted in three: two counted UTF-16 code units, one counted Unicode code points, one
+counted UTF-8 bytes, and one did not enforce the bound at all. A 600 000-character CJK string is
+600 000 code points, 600 000 UTF-16 units and 1 800 000 UTF-8 bytes, so three hosts accepted it and
+one refused it — rule 1 and rule 2 breached simultaneously, by hosts each of which believed it was
+enforcing the same number.
+
+**The unit is the Unicode code point** — a Unicode scalar value, since §20.2 row 6 makes an unpaired
+surrogate a decode error, so every code point in a conformant document is a scalar value. A
+surrogate **pair** counts as **one**. Neither of the other two candidates survives the requirement
+that a limit be a property of the format:
+
+- **UTF-16 code units** make the bound depend on a host's internal string representation. An astral
+  character would cost twice what a BMP character costs, on the two hosts whose strings happen to be
+  UTF-16 and on no others, so the *same document* would sit inside the limit on three hosts and
+  outside it on two.
+- **UTF-8 bytes** make the bound depend on the alphabet the author writes in. A Latin document and a
+  CJK document of identical length would get different allowances — the limit would refuse a
+  Japanese string a third the length of the English one it accepts, which is not a defensible
+  property for a protocol number.
+
+Code points are the only unit that is a property of the *text*. The cost is that a host whose native
+length is UTF-16 units must count rather than ask, which is one branch in the accumulation loop it
+already runs, and a host whose native length is bytes must do the same.
+
+**Count it on the way down**, per rule 4: the bound exists to refuse a hostile string before it is
+built, and a check on the finished string has already paid the allocation it exists to refuse. A
+host counting after the fact is enforcing a different limit from the one specified, on an input the
+specification says it must never have assembled.
+
+**The boundary is pinned from both sides, and the vectors are host-local.** Per the fixture note
+above, the two linear limits stay host-local tests rather than corpus fixtures — a megabyte of
+`"aaaa…"` committed to a shared repository to assert one integer comparison is a poor trade. Each
+host asserts four cases in its own suite: a string of exactly `max` BMP code points **decodes**; one
+of `max + 1` is refused with `LIMIT_EXCEEDED`; a string of exactly `max` astral code points (each
+two UTF-16 units, four UTF-8 bytes) **decodes**, which is the case a UTF-16-counting or byte-counting
+host fails; and one of `max + 1` astral code points is refused. A host that ports only the first two
+has not changed its unit and will not notice.
+
+### 21.7 Max document bytes (normative)
+
+The five structural limits **compose multiplicatively**, and a document that respects every one of
+them can still be arbitrarily large: 100 000 array elements each holding a 1 048 576-code-point
+string is inside every bound in §21.1 and is a hundred gigabytes. Each individual check refuses
+nothing, because each individual check is satisfied. The structural limits bound the *shape* of the
+walk; nothing bounded its *total*.
+
+**A conformant host MUST refuse a document whose UTF-8 encoding exceeds 33 554 432 bytes (32 MiB),
+with `LIMIT_EXCEEDED`**, and MUST do so **before parsing** — the check is one comparison on the
+input's length, so a host that defers it has chosen to allocate the document twice for no benefit.
+`Path` is `$`; the breach is a property of the document, not of a position in it.
+
+**Why 32 MiB, and why the first candidate was wrong.** This figure is constrained from BELOW by
+`max total nodes`, and getting that backwards is easy: 8 MiB looks generous beside a 1 MiB string
+bound, and it is — until you notice that a document at exactly 100 000 nodes is about 8 MB of small
+nodes. An 8 MiB ceiling would therefore have refused a document rule 1 requires every host to
+ACCEPT, quietly lowering `max total nodes` while leaving its stated value in the table above. (Found
+by the reference host's own at-the-limit node test, which is the shape of evidence a protocol number
+should be chosen against; the *inverse* of this constraint is why §21.5's at-the-limit fixtures
+exist.) 32 MiB leaves about 335 bytes per node at the node ceiling — comfortable for a real tree —
+while still refusing the multiplicative blow-up this limit exists for by three orders of magnitude.
+Like every other figure in §21.1 it is a **protocol number**: a host that measures a tighter budget
+bounds its own transport under rule 6 and does not propose a smaller wire limit.
+
+**The vector is HOST-LOCAL, not a corpus fixture**, for exactly the reason the other two linear
+limits are: committing 32 MiB of padding to a shared repository to assert one integer comparison is
+a poor trade, and unlike the depth bounds it is not a recursion hazard. Each host asserts the pair in
+its own suite — a document one byte over is refused with `LIMIT_EXCEEDED`, and the at-the-node-limit
+document above decodes.
+
+**It is measured in UTF-8 bytes, not in code points or in the host's string length**, and that is
+the one place this limit's unit differs from §21.6's — deliberately. §21.6 bounds a *value* the
+author wrote, so it is measured in the units of text. This bounds the *carriage*, which is what an
+attacker actually sends and what a host actually allocates, and carriage is bytes. A host receiving
+the document as bytes measures them directly; a host handed an already-decoded string measures the
+UTF-8 length that string would encode to, and must not substitute its native length — on a UTF-16
+host that would under-count a CJK document threefold, which is the direction that admits rather than
+refuses.
+
+**It does not replace a transport cap and does not claim to.** A request-body limit runs before the
+host has a document at all and protects against inputs this bound never sees. This is the limit that
+makes "within §21" a statement about total size as well as shape, so that a host with no transport
+layer — a library handed a string, a CLI handed a file — has the same guarantee as one behind a
+gateway.
 
 ---
 
