@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["revenue"],"title":"Revenue against target","stacked":false,"annotations":[{"$type":"ReferenceLine","label":"<b>target</b> & \"stretch\", a label comfortably past the clamp","value":160}],"data":[{"quarter":"Q1","revenue":120},{"quarter":"Q2","revenue":150},{"quarter":"Q3","revenue":90},{"quarter":"Q4","revenue":175}]}
