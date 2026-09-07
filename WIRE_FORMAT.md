@@ -3384,6 +3384,96 @@ implemented one and not the other is distinguishable), `lenient/lenient-navigate
 
 ---
 
+### 3.6.22 `Action.Confirm` and `Action.Focus` — the question and the caret (Phase 1537)
+
+Two additive `Action` cases. **`Confirm`** asks the reader a question and dispatches one of two
+actions depending on the answer; **`Focus`** moves keyboard focus to an addressed node.
+
+```json
+{"$type":"Confirm","onConfirm":{"$type":"Call","endpoint":"/orders/delete"},"prompt":"Delete this order?"}
+{"$type":"Confirm","onCancel":{"$type":"SetState","key":"banner","value":"Kept."},"onConfirm":{"$type":"Print"},"prompt":{"$type":"Bound","binding":{"$type":"State","key":"question"}}}
+{"$type":"Focus","nodeId":"search-field"}
+```
+
+**`Confirm` members.** `prompt` is a **`TextSource`** — so the question may name what the reader has
+selected, and a literal prompt is the bare JSON string exactly as at every other text slot (§3.6,
+§16). `onConfirm` is a **required** nested `Action`. `onCancel` is an **optional** nested `Action`,
+omitted when absent; an absent cancel branch means *nothing happens*, which is what the language
+already spells by having no action, so a host MUST NOT substitute one. A `Confirm` with no
+`onConfirm` is `MISSING_FIELD` at the action's own path
+(`reject/reject-confirm-missing-onconfirm.json`).
+
+**`Confirm` is the second RECURSIVE case in this union.** `Chain` is the first, and it recurses
+into a LIST; this one recurses into two NAMED members, which is the shape a host that special-cased
+`ops` will not have. Both fixtures below exercise it.
+
+**Confirmation is bounded at ONE question (normative).** A `Confirm` reachable from either
+continuation MUST be refused at decode with `WRONG_TYPE` at the nested action's own path, and the
+check MUST walk the **decoded** continuation rather than only its immediate `$type` — a `Chain` is
+otherwise a hiding place. Vector: `reject/reject-confirm-nested.json`, which nests through a chain
+for exactly that reason. A dialogue that answers a dialogue is a modal stack a reader cannot escape,
+and it expresses no intent a single question does not. The JSON Schema does **not** carry this bound:
+both continuations are `$ref`s back to `Action` there, and the decoder is the authority — the same
+relationship §16's field aliases already have with the schema, read the other way round.
+
+**Host obligation — ONE dispatch path, gated TWICE (normative).** `Confirm` itself is a gated
+action: a host rendering untrusted trees MUST be able to refuse an unbidden dialogue, on §3.6.14's
+reasoning for `Print`, because a modal question steals focus and blocks the page. On acceptance the
+continuation MUST re-enter the host's ORDINARY action dispatch entry — the same one a top-level
+action enters — so a `Navigate` inside it meets the §19 scheme floor and the destination policy, a
+`SetState` meets whatever key guard the host applies, and a `Call` meets its own check. A host MUST
+NOT perform a continuation's effect directly from the confirm branch. A refusal of the confirm itself
+performs NEITHER branch: the reader was never asked, so neither answer happened.
+
+**What a confirmation is NOT (normative, and the thing most likely to be assumed).** It is a courtesy
+to the reader and never an authorisation. The answer comes from the client; a hostile client answers
+yes without showing anyone a dialogue, and a server-driven host cannot tell the difference. Anything
+that must not happen without permission is refused by the dispatch gate, never by the question.
+
+**Server-driven hosts resolve before they lower, and MUST NOT ship the continuations.** The prompt is
+resolved server-side (§3.6.16's rule — the shim holds no resolver), and the instruction that crosses
+carries the resolved prompt and an opaque token naming which confirm is being asked. The branches
+stay on the server: a shim told what a yes will do is a shim that can do it. The answer returns as
+the originating event re-delivered with the token and a boolean, is re-validated in full exactly as
+the first delivery was, and the continuation then meets the gate described above. An unresolved
+prompt lowers to no instruction at all — a yes/no with no subject is not a question.
+
+**A zero-JS resume interpreter MUST NOT show a non-literal prompt.** It holds no binding sources, so
+it would put the declaration on screen as the question and then act on the answer; the node's
+disposition should have routed it to hydration.
+
+**`Focus` carries a bare `nodeId` string, never a `TextSource`** — it addresses a node in this
+document, which the author wrote, so there is nothing here for the tree to compute. It is gated on
+the same reasoning: moving the reader's caret, and on most engines scrolling the element into view,
+is host-observable. A node id that addresses nothing MUST report on the host's diagnostic channel
+and move nothing; it is not an error, because a `Switch` branch may legitimately have removed the
+target from the flow. On a server-driven host it lowers to the client-focus instruction that channel
+has carried since Phase 152.
+
+**What `Focus` does NOT claim.** Nothing about scrolling — a host may scroll as a consequence of
+focusing, and this member neither asks it to nor prevents it. Nothing about selection — focus is not
+a caret position, a text range, or a grid cell selection. And nothing about WHICH node: *focus the
+first invalid field* is this case naming a node the author chose, and choosing the first invalid one
+is a renderer-owned affordance under the form-validation contract, not an argument here.
+
+**A static, script-free host renders neither.** There is no question to ask without a dialogue and no
+caret to move without a document that responds; both are silently absent, which is the same answer
+`Print` gets there.
+
+**Wire survivability: survivable** (§5.1) for both — a `TextSource` is data in all three arms, a node
+id is a string, and a continuation is as survivable as its own case, which its own row states.
+
+**Host adoption.** Recorded here on the §11.0 convention. A pending host is unchanged: both cases are
+new discriminators, so a host without them refuses the two documents outright rather than
+mis-handling them, which is the loud failure mode this section prefers.
+
+Fixtures: `nodes/action-confirm.json` (a bound prompt, no cancel branch), `nodes/action-confirm-cancel.json`
+(a literal prompt and both branches — the two axes exercised apart, so a host that implemented one
+and not the other is distinguishable), `nodes/action-focus.json`,
+`reject/reject-confirm-missing-onconfirm.json` and `reject/reject-confirm-nested.json`.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -3683,7 +3773,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->146<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->148<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4121,10 +4211,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->501<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->211<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->506<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->214<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->146<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->148<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->69<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
