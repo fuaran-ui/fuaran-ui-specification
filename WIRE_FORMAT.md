@@ -455,7 +455,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -1607,6 +1607,7 @@ read-compat):
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
+| `stacked` | `bool` | `false` | `ChartSpec` |  |
 | `target` | `NavigateTarget` | `Self` | `Action.Navigate` |  |
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
 | `tracks` | `TrackEntry[]` | `[]` | `MediaSpec` |  |
@@ -4095,7 +4096,12 @@ One field exists on the typed surface but is **not part of the wire format**: th
 
 - `ButtonSpec.Tooltip` – optional `TextSource`; decodes to `None`.
 
-**Closed by Phase 126** (previously listed here as dropped – now carried, so these round-trip losslessly): `ChartSpec.Stacked` (`bool`, carried as `stacked`), `TabsSpec.ActiveIndex` (`Binding<int>`, carried as `activeIndex`). `TabsSpec.OnSelect` is a closure – it is now carried as the `"<closure>"` sentinel (§4) and decodes to a no-op action (its behaviour cannot round-trip, but the slot is no longer silently dropped). A decoder still tolerates the absence of `stacked` / `activeIndex` (legacy wire predating the change), defaulting to `false` / `Binding.Static 0`.
+**Closed by Phase 126** (previously listed here as dropped – now carried, so these round-trip losslessly): `ChartSpec.Stacked` (`bool`, carried as `stacked`), `TabsSpec.ActiveIndex` (`Binding<int>`, carried as `activeIndex`). `TabsSpec.OnSelect` is a closure – it is now carried as the `"<closure>"` sentinel (§4) and decodes to a no-op action (its behaviour cannot round-trip, but the slot is no longer silently dropped).
+
+**Amended by Phase 1585 – the two absences are no longer the same statement.** Until 1585 both members were required of an encoder and tolerated on absence by every decoder, which made the tolerance a courtesy the hosts happened to share rather than a stated rule, and left the one reader that followed the declaration literally refusing what all the others accepted.
+
+- `stacked` is now an ordinary **omit-at-default** member (§3.6; identity default `false`, and the generated table there is authoritative). A conformant encoder MUST omit it when it is `false` and MUST emit it when it is `true`; a conformant decoder MUST restore `false` on absence. Absence is the **contract**, not a legacy allowance, and the corpus's chart fixtures carry the omitted form as their canonical bytes. A document carrying an explicit `"stacked": false` still decodes identically – §3.6's scope note governs, so it normalises to the omitted form on re-encode; the `reject/` and `lenient/` fixtures that spell the member out are the standing read-compat evidence.
+- `activeIndex` stays **required of the encoder and tolerated on absence by the decoder**: a conformant encoder MUST emit it, and a conformant decoder MUST restore `Binding.Static 0` when it is absent. It did not join `stacked` because its identity default is a union case carrying a payload, and the generated codec has a literal form only for a payload-free case – so declaring it omit-at-default would state a rule the generated encoder and decoder would not follow. A host MUST NOT start omitting it.
 
 ### 10.2 Other v1 limitations
 
