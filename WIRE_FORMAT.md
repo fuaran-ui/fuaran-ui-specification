@@ -4325,6 +4325,48 @@ A missing case is an `UNKNOWN_DU_CASE` defect at runtime (the decoder consumes J
 
 Step 6 is pinned by three further gates in the same repo test run: the C# and VB conformance suites' **coverage-vs-corpus** tests (every node fixture's `kind.$type` must have a C# authoring factory / a VB XML element – they fire the moment step 4's fixture lands), and the VB analyzer **vocabulary-pin** test (`Vocabulary.Kinds == FuaranXml.KnownElements()`). Mind the pin's blind spot: a kind missing from **both** the VB translator and the analyzer keeps the pin green (the two lists agree on the gap) – it is the corpus anchor that surfaces the omission, which is one more reason step 4's fixture must land in the same commit as the kind. `Mount` and then `Switch` both shipped without step 6 and left the repo test gate red for every subsequent session until a follow-up closed each gap; the step is named here so that class of drift dies at authoring time instead.
 
+### A `lenient-accept` fixture lands with its classification
+
+The numbered steps above are stated over a **discriminator family**. Adding a shorthand to the §16
+accept set is a *different* act with its own forward coupling, and it is easy to read as finished
+one artefact too early: the fixture lands, every codec host's lenient-accept leg goes green, and the
+obligation looks discharged. It is not, because a leniency is never only something a decoder must
+accept — it is something an emitting surface must decide whether to **teach**. §16.1 states that
+accepted is not the same as preferred; a new leniency is a new place where that distinction has to
+be drawn, and drawing it is part of landing the fixture rather than a later tidy-up.
+
+So: **a new `lenient-accept` fixture MUST, in the same change-set, be classified in the teaching
+table of every surface that derives an emission dialect from this corpus.** For each such surface:
+
+1. **Classify it** against that surface's own class vocabulary. The question is the emitter's, not
+   the decoder's: is the shorthand taught as the preferred emission, accepted but deliberately not
+   taught, or already the *canonical* side of the pair with nothing to teach beyond the rule the
+   surface states anyway?
+2. **Record what the judgement rests on** — the rule of this document the leniency follows, and the
+   property that decides it: is the normalisation total, is it loss-free for every legal input the
+   accept set admits, and is the shorthand actually cheaper than the canonical form. This evidence
+   is **not optional prose**. A classification with no stated ground cannot be reviewed, and cannot
+   be re-examined when the rule it depends on moves — which is the case the evidence exists for, and
+   the only one in which nobody can reconstruct the reasoning from the class name alone.
+
+A leniency whose normalisation cannot be shown loss-free for every legal input is **not taught**;
+that default is a floor rather than an answer, and a classification taking it says so.
+
+The corpus side of this coupling is the fixture's `description` in `manifest.json`. It is the
+statement of *what the leniency pins*, in the corpus author's own words, and it is the first input
+to every downstream classification — so it names the rule, the accepted spelling, and the boundary
+of the accept set (what stays refused), rather than restating the fixture id.
+
+An unclassified fixture is the same class of defect as step 6's missing veneer: everything still
+decodes, every conformance leg stays green, and the surface that teaches *authors* goes quietly out
+of date. Where a teaching table's partition over this family is asserted mechanically, the fixture
+fails that surface's build until it is claimed, which is the posture to prefer — the reference host
+does this in
+[`fuaran-dotnet/docs/tools/authoring-pack.fsx`](../fuaran-dotnet/docs/tools/authoring-pack.fsx),
+whose classification table is asserted total over the manifest's `lenient-accept` family and whose
+generated `docs/prompt-pack/DIALECT-APPENDIX.md` publishes the result. A host with no teaching
+surface owes nothing here; a host with one owes the classification, not merely the decode.
+
 ### 11.1 Cross-implementation conformance gate (step 5 enforced mechanically)
 
 Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate + stale-schema guard). Step 5 – *keep every non-reference codec host in the §11.0 roster byte-identical* – is enforced by pinning **each codec host to the committed corpus**, so a divergence between any two conformant hosts is caught rather than discipline-maintained. The committed corpus **is** the F# encoder's canonical output (`Corpus.emit` writes `CanonicalJson.encode*` into the `expectedFile` payloads and the `DecodeError` code/path into `manifest.json`); each codec host's leg asserts its own canonical output is byte-identical to that corpus, and `X == corpus` for every host `X` proves `X == Y` byte-for-byte across the roster.
