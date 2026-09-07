@@ -428,7 +428,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `SplitPanel` | _Layout_ | `children`, `weight` |  |
 | `Stepper` | _Layout_ | `activeStep`, `children`, `onSelect?` |  |
 | `SummaryList` | _Layout_ | `children`, `heading?` |  |
-| `Tabs` | _Layout_ | `activeIndex`, `activeTag?`, `children`, `onSelect?`, `onSelectTag?`, `orientation?=Horizontal`, `tabHeaders?`, `tabTags?` |  |
+| `Tabs` | _Layout_ | `activeIndex?=Static{value=0}`, `activeTag?`, `children`, `onSelect?`, `onSelectTag?`, `orientation?=Horizontal`, `tabHeaders?`, `tabTags?` |  |
 | `Badge` | _Display_ | `label`, `variant` |  |
 | `Callout` | _Display_ | `body`, `dismissable?=false`, `heading?`, `icon?`, `tone?=Default` |  |
 | `CodeBlock` | _Display_ | `code`, `copyable`, `highlightLines`, `language`, `lineNumbers` | The parity-checked render is a deterministic `<pre><code>`; syntax highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
@@ -1573,6 +1573,7 @@ read-compat):
 | Field | Type | Identity default | Sites | Notes |
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
+| `activeIndex` | `Binding<int>` | `Static{value=0}` | `TabsSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
@@ -4098,10 +4099,12 @@ One field exists on the typed surface but is **not part of the wire format**: th
 
 **Closed by Phase 126** (previously listed here as dropped – now carried, so these round-trip losslessly): `ChartSpec.Stacked` (`bool`, carried as `stacked`), `TabsSpec.ActiveIndex` (`Binding<int>`, carried as `activeIndex`). `TabsSpec.OnSelect` is a closure – it is now carried as the `"<closure>"` sentinel (§4) and decodes to a no-op action (its behaviour cannot round-trip, but the slot is no longer silently dropped).
 
-**Amended by Phase 1585 – the two absences are no longer the same statement.** Until 1585 both members were required of an encoder and tolerated on absence by every decoder, which made the tolerance a courtesy the hosts happened to share rather than a stated rule, and left the one reader that followed the declaration literally refusing what all the others accepted.
+**Amended by Phase 1585 – both absences are now the SAME statement, and it is a contract rather than a tolerance.** Until 1585 both members were required of an encoder and tolerated on absence by every decoder, which made the tolerance a courtesy the hosts happened to share rather than a stated rule, and left the one reader that followed the declaration literally refusing what all the others accepted. Both are ordinary **omit-at-default** members now (§3.6; the generated table there is authoritative for the identity default of each).
 
-- `stacked` is now an ordinary **omit-at-default** member (§3.6; identity default `false`, and the generated table there is authoritative). A conformant encoder MUST omit it when it is `false` and MUST emit it when it is `true`; a conformant decoder MUST restore `false` on absence. Absence is the **contract**, not a legacy allowance, and the corpus's chart fixtures carry the omitted form as their canonical bytes. A document carrying an explicit `"stacked": false` still decodes identically – §3.6's scope note governs, so it normalises to the omitted form on re-encode; the `reject/` and `lenient/` fixtures that spell the member out are the standing read-compat evidence.
-- `activeIndex` stays **required of the encoder and tolerated on absence by the decoder**: a conformant encoder MUST emit it, and a conformant decoder MUST restore `Binding.Static 0` when it is absent. It did not join `stacked` because its identity default is a union case carrying a payload, and the generated codec has a literal form only for a payload-free case – so declaring it omit-at-default would state a rule the generated encoder and decoder would not follow. A host MUST NOT start omitting it.
+- `stacked` – identity default `false`. A conformant encoder MUST omit it when it is `false` and MUST emit it when it is `true`; a conformant decoder MUST restore `false` on absence.
+- `activeIndex` – identity default the `Static` binding carrying `0`, i.e. `{"$type":"Static","value":0}`. A conformant encoder MUST omit it when it is exactly that value and MUST emit it for every other binding – including a `Static` carrying any other index, and including a `State` / `Filter` / `Selection` / `Query` binding. A conformant decoder MUST restore that value on absence. It reached this posture one step behind `stacked` and for a reason about the VALUE MODEL rather than the rule: its identity default is a union case carrying a payload, and the generated codec had a literal form only for a payload-free case, so until that literal existed the declaration would have stated a rule the generated encoder and decoder did not follow.
+
+For both members absence is the **contract**, not a legacy allowance, and the corpus's chart and tabs fixtures carry the omitted form as their canonical bytes. A document carrying the explicit identity default still decodes identically – §3.6's scope note governs, so it normalises to the omitted form on re-encode; the `reject/` and `lenient/` fixtures that spell either member out are the standing read-compat evidence.
 
 ### 10.2 Other v1 limitations
 
