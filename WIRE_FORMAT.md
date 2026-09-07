@@ -649,7 +649,7 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
 
 **Filter chips are `FormFieldKind` controls (0.2.0 filters-unification; superseding the Phase 423 `FilterKind` DU).** A `Filters` item is `{"kind":<FormFieldKind>,"label":<TextSource>,"name":<string>}` – one control vocabulary for forms and filter strips; the retired `FilterKind` discriminators (`TextFilter` / `ChoiceFilter` / `RangeFilter` / `SegmentedFilter`) are a hard `UNKNOWN_DU_CASE`. Two chip-specific rules: (a) **auto-binding** – a chip control with **no `value` key** decodes to `{"$type":"Filter","name":<the chip's own name>}` (the item's declared name IS the store key), and the encoder symmetrically **omits** a `value` that is exactly that auto binding, so the canonical minimal chip is `{"kind":{"$type":"Choice","options":…},"label":…,"name":"status"}`; (b) the Phase 423 handler mechanics carry over unchanged – an omitted `onChange` writes `$filters.<name>` through the host's filter seam, a present `"<closure>"` wins. Since **0.2.1** the synthesis is symmetric: in a **Form**, an absent `value` auto-binds `State(<field id>, <typed placeholder>)` (see the §1.1 addendum) – the context decides the store, never whether omission is legal. See `nodes/filters-1.json` / `nodes/filters-declarative.json` / `nodes/filters-segmented.json`.
 
-**Control write-back default – optional event handlers over writable value bindings (Phase 426).** Every value-carrying event handler on the covered controls is an OPTIONAL wire field, generalising the Phase 423 filter-chip `onChange` mechanics: the `FormFieldKind` handlers (`onChange` / `onToggle`), `SelectSpec.onChange` + `onChangeMulti`, `TabsSpec.onSelect` + `onSelectTag`, `DisclosureSpec.onToggle`, and `ModalSpec.onDismiss` (the one wire-survivable `Action` in the set – the rest are `"<closure>"` sentinels). A present handler encodes exactly as before (closure → sentinel; modal action → the action value) and **wins at run time**; an omitted handler – the shape an AI author emits, and the shape every decoded handler-free control takes – arms the **write-back default**: when the control's own value binding is *directly* `{"$type":"State"}` (→ the renderer's reactive StateStore) or `{"$type":"Filter"}` (→ the FilterStore, Phase 423), the renderer writes the typed change back to that slot – text/textarea/date → string, number/ranged → number, checkbox → bool, choice/segmented/select → the chosen option (a cleared choice clears the slot), multi-select → the value list (against `values`), tabs → the clicked index (against `activeIndex`; with a populated tag overlay, the clicked tag against `activeTag`), modal → `false` on dismiss (against `open`), disclosure → the new open bool (against `open`). Any other binding shape (`Static` / `Query` / `Local` / `Format` / …) means **no write** – the FUARAN069 inert-control check warns at validate time (`Binding.Local` is exempt: its Phase 62 commit pipeline carries the change). Every pre-426 fixture is byte-unchanged (`Some` handlers keep their sentinels; `onSelectTag` / `onToggle` / `onChangeMulti` were previously never encoded and only appear for closure-authored specs). Decoders restore `Some placeholder` from a present sentinel and `None` from an absent key; the `State` binding's `defaultValue` is now decoded through the typed static parser (previously discarded for a typed placeholder – a decoded field reads its own authored default). See `nodes/form-declarative.json` + `nodes/controls-declarative.json` (handler-free) and `nodes/controls-closure.json` (the new closure-authored sentinel keys) vs the byte-unchanged `nodes/form-1.json` / `nodes/tabs-1.json` / `nodes/select-1.json` / `nodes/modal-1.json`.
+**Control write-back default – optional event handlers over writable value bindings (Phase 426).** Every value-carrying event handler on the covered controls is an OPTIONAL wire field, generalising the Phase 423 filter-chip `onChange` mechanics: the `FormFieldKind` handlers (`onChange` / `onToggle`), `SelectSpec.onChange` + `onChangeMulti`, `TabsSpec.onSelect` + `onSelectTag`, `DisclosureSpec.onToggle`, and `ModalSpec.onDismiss` (the one wire-survivable `Action` in the set – the rest are `"<closure>"` sentinels). A present handler encodes exactly as before (closure → sentinel; modal action → the action value) and **wins at run time**; an omitted handler – the shape an AI author emits, and the shape every decoded handler-free control takes – arms the **write-back default**: when the control's own value binding is *directly* `{"$type":"State"}` (→ the renderer's reactive StateStore) or `{"$type":"Filter"}` (→ the FilterStore, Phase 423), the renderer writes the typed change back to that slot – text/textarea/date → string, number/ranged → number, checkbox → bool, choice/segmented/select → the chosen option (a cleared choice clears the slot), multi-select → the value list (against `values`), tabs → the clicked index (against `activeIndex`; with a populated tag overlay, the clicked tag against `activeTag`), modal → `false` on dismiss (against `open`), disclosure → the new open bool (against `open`). Any other binding shape (`Static` / `Query` / `Local` / `Format` / …) means **no write** – the FUARAN069 inert-control check warns at validate time (`Binding.Local` is exempt only when it carries a commit destination — an `onCommit` closure or a declared `commitTo`, Section 3.3.3 — or re-syncs from a writable binding; one carrying none of the three buffers a value with nowhere to put it and warns like any other inert control). Every pre-426 fixture is byte-unchanged (`Some` handlers keep their sentinels; `onSelectTag` / `onToggle` / `onChangeMulti` were previously never encoded and only appear for closure-authored specs). Decoders restore `Some placeholder` from a present sentinel and `None` from an absent key; the `State` binding's `defaultValue` is now decoded through the typed static parser (previously discarded for a typed placeholder – a decoded field reads its own authored default). See `nodes/form-declarative.json` + `nodes/controls-declarative.json` (handler-free) and `nodes/controls-closure.json` (the new closure-authored sentinel keys) vs the byte-unchanged `nodes/form-1.json` / `nodes/tabs-1.json` / `nodes/select-1.json` / `nodes/modal-1.json`.
 
 **`Toast` vs `Action.Notify` – the decided split (Phase 289).** Both ship; they are complementary, not redundant. `Toast` is the **declarative, in-tree, SSR-rendered** notification surface – a real node bound to an `open` `Binding<bool>` that hydrates cleanly and participates in the overlay render-fidelity contract (§ below / `docs/SSR.md`). `Action.Notify` (a wire-survivable `Action` that carries `{channel, payload}` with no rendered node) remains the **imperative** trigger a host maps to ephemeral chrome. Reach for `Toast` when the notification is model-driven and must survive SSR + replay; reach for `Action.Notify` for fire-and-forget host chrome. Adding `Toast` did **not** change `Action.Notify`.
 
@@ -1176,6 +1176,84 @@ See `nodes/expr-scalar.json` (the param-free constant-fold form) and
 `nodes/expr-params-state-selection.json` (params from `State` / `Selection` / `Query` / `Filter` /
 `Now`, including an `in` / `param` membership test), with `reject/reject-expr-col-reference.json` and
 `reject/reject-expr-unbound-param.json` for the two refusals.
+
+#### 3.3.3 The edit buffer — `Binding.Local`, its codec and its commit target
+
+`Binding.Local` is a controlled input's buffer: a value re-synced from `initialFrom`, held locally
+while the reader types, and flushed at the boundary `flushOn` names. Three of its slots are
+functions — `format` (value -> the text shown), `parse` (the text typed -> a value) and `onCommit`
+(what the flush runs) — so all three encode as `"<closure>"` and none of them arrives at a decoding
+host. `flushOn` and `initialFrom` ride the wire in full.
+
+**A decoded `Local` uses the IDENTITY codec.** `format` restores to the value's own text rendition
+and `parse` to reading that text back at the slot's type: a string slot takes the string verbatim, a
+numeric slot takes the number the text denotes (the JSON number grammar, ASCII whitespace trimmed;
+no leading `+`, no bare `.5`, no grouping separator), a boolean slot takes `true` / `false`. Text a
+host cannot read back at the slot's type is a parse failure the control surfaces, exactly as an
+authored `parse` returning `Error` is.
+
+This is normative, and it is a **change of behaviour** from 0.2.x, where `format` restored to a
+function returning `""` and `parse` to one that always returned an error. Those were not
+conservative defaults; they were broken ones — a wire-authored debounced input rendered empty and
+could never commit a keystroke. Every fixture's BYTES are unchanged; what changed is what a
+conforming host does with them.
+
+```json
+{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"}}
+```
+
+**`codec` (optional) declares the buffer's own codec.** It is a `Format` value, and it REPLACES the
+identity on both sides: `format` renders through it, `parse` inverts it.
+
+It is **not a display formatter, and the difference is the whole of its design.** `Binding.Format`
+carries a `LocaleSource` because it renders for READING — a grouping separator, a locale decimal
+mark, a currency symbol. A `Local` codec carries none, because whatever it renders it must also
+parse back from what the reader typed, and a buffer that writes `1,234.5` where the reader types
+`1.234,5` is precisely the round-trip hole the case exists to close. So the admitted set is the
+`Format` cases with a **total, locale-independent inverse**, and today that is `Number` alone:
+
+- `{"$type":"Number"}` — the canonical number rendition (Section 5), read back by the JSON number
+  grammar.
+- `{"$type":"Number","decimals":d}` — sign, integer part and EXACTLY `d` fraction digits, `.` as the
+  point, no grouping; rounding is half-away-from-zero on the absolute value. `-0` is not written: a
+  negative that rounds to zero renders as zero.
+
+Every other case is a **decode refusal** (`WRONG_TYPE` at the `codec` path), and each for a stated
+reason rather than by omission. `Currency` prepends a locale-chosen symbol. `Date`'s four
+`DateStyle` cases are all locale renditions with no parse. `RelativeTime`, `Since` and `Duration`
+render a phrase, not a number. `Percent` is refused for a narrower reason worth recording, since it
+looks admissible: its inverse needs a x100 / /100 scale whose IEEE round-trip is not exact
+(`0.42 * 100` is `42.000000000000004`), so specifying it would mean specifying a rounding to the bit
+on every host — a durable specification liability bought for one formatting convenience.
+
+The declared codec is total on the TEXT it produced (`parse` after `format` is the identity on any
+text this codec wrote), not on VALUES: `Number` with `decimals: 2` renders `3.14159` as `3.14`, and
+re-seeding the buffer after a commit therefore shows the rounded text. That is a display decision the
+document made, and it is stated here so it is not discovered as a defect.
+
+**`commitTo` (optional) declares where the flush WRITES.** It is a State key, and the flush writes
+the parsed value to it through the same path `Action.SetState` and the write-back default use — so it
+inherits their scope routing and their refusal of host-reserved keys. It is the wire-carried
+alternative to the `onCommit` closure, on the `SetState` `value` / `valueFrom` model.
+
+**`onCommit` and `commitTo` are mutually exclusive**, and carrying both is a decode refusal
+(`WRONG_TYPE` at the `commitTo` path) rather than a precedence rule. The wire cannot carry the
+closure — it is `"<closure>"` and nothing more — so a host honouring `onCommit` and a host honouring
+`commitTo` would write to different places from identical bytes.
+
+A `Local` that declares NEITHER, over an `initialFrom` that is not itself writable, buffers a value
+and has nowhere to put it. That is the FUARAN069 inert-control condition and it warns at validate
+time (see the declarative floor); it is not a decode refusal, because a tree may legitimately carry a
+read-only buffer that a host closure will attach to in process.
+
+**A host-authored closure still wins.** `codec` and `commitTo` are what a DECODING host uses; a tree
+built in process keeps whatever functions its author supplied, which is the Phase 426 posture applied
+to the buffer.
+
+See `nodes/form-local-declared.json` (codec + commitTo, no closure) beside the byte-unchanged
+`nodes/form-local-debounce.json` and `nodes/form-local-1.json` (the closure-authored shape), with
+`reject/reject-local-codec-no-inverse.json` and `reject/reject-local-oncommit-and-committo.json` for
+the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
@@ -3308,7 +3386,7 @@ Every function-typed payload the encoder cannot observe renders as the sentinel 
 - `CellKindErased.*` handlers (`onEdit` / `onToggle` / `onClick` / `get` / `labelFn` / `hrefFn` / `toneFn` / `fractionFn` / `fn`).
 - `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`. (There is no separate table spec record: a static table is the `staticRows` mode of `GridSpec` (§3.2) and is non-interactive, so it contributes no closure slot.)
 - `Binding.Query` / `Binding.Selection` accessors – 0.2.0: **OFF the wire entirely** (the encoder omits the `accessor` key; no decoder ever read it). A decoded case synthesises the **identity projection** (Phases 421/427), so the host-fed `queryResults` / store-written selection flows through. `Binding.Computed` `fn`, `Column.Value`, `GridSpec.RowKey` keep their `"<closure>"` sentinels.
-- `Binding.Local` `onCommit` / `format` / `parse` (the `flushOn` DU and `initialFrom` binding ARE encoded).
+- `Binding.Local` `onCommit` / `format` / `parse` (the `flushOn` DU and `initialFrom` binding ARE encoded, and so are the optional `codec` and `commitTo` — the declarative twins of the three closures). A decoded `format` / `parse` is the IDENTITY codec, or the declared `codec` when one is present — **not** a value-discarding placeholder; see Section 3.3.3.
 - `StateBehaviour.OnError` (the whole `ErrorPayload -> Node` callback).
 
 The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`. **The decoder is structural; type recovery is the host's responsibility.**
@@ -3514,10 +3592,10 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Binding.Filter` | survivable | – |
 | `Binding.Selection` | partial | – |
 | `Binding.State` | survivable | – |
-| `Binding.Computed` | **host-only** | Binding.Expr for scalar logic over bound values (AND/OR/NOT, concat, arithmetic, null tests, membership – Section 3.3.2); Binding.State / Binding.Filter for reactive values; Binding.Transform for ROW derivation; Binding.Format for formatting |
+| `Binding.Computed` | **host-only** | Binding.Expr for scalar logic over bound values (AND/OR/NOT, concat, arithmetic, null tests, membership – Section 3.3.2); Binding.State / Binding.Filter for reactive values; Binding.Transform for ROW derivation; Binding.Format for formatting. **A decoded `Computed` resolves to an ERROR naming those alternatives, never to a value** – the `fn` is the whole payload of the case, so a decoded one has nothing to compute with, and a host that answered the slot's zero (`0` / `""` / `false`) would render a wrong answer indistinguishable at the slot from a right one |
 | `Binding.Now` | survivable | – (the instant is a HOST input, never wire content — §3.3.1; only the declared `grain` rides the wire) |
 | `Binding.I18n` | survivable | – |
-| `Binding.Local` | partial | Binding.Format is the declarative twin of the Local format/parse closures |
+| `Binding.Local` | partial | survivable with a declared codec / commit target: `codec` (a locale-free edit-buffer codec) and `commitTo` (the State key the flush writes) are the declarative twins of the format/parse/onCommit closures, and a decoded Local without them uses the IDENTITY codec and commits nowhere. Host closures remain host-only – Section 3.3.3 |
 | `Binding.Format` | survivable | – |
 | `Binding.Transform` | survivable | – |
 | `Binding.Expr` | survivable | – (expression and params are data through the `ColExpr` codec; no closure – Section 3.3.2) |
@@ -3592,7 +3670,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->145<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->147<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4030,10 +4108,10 @@ wire-format-fixtures/
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->497<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->209<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->500<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->210<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->145<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->147<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->68<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
