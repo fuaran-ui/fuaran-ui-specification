@@ -4277,6 +4277,11 @@ declared posture excludes the obligation has answered it. Reading the Go row as 
 a gap that closing would VIOLATE its posture — so the row says which it is, and names the test that
 holds it.
 
+**Teleport adoption (§17).** A SEVENTH bar, and the only one that is not about a slot inside the node
+vocabulary at all: the teleport bundle is an additive TOP-LEVEL artefact (§17), so a host can be
+byte-perfect on every node and op fixture and hold no bundle codec. Its table lives with the family it
+records, in [§17.6](#176-conformance), beside the corpus family that certifies it.
+
 A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
 the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
 so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
@@ -4449,12 +4454,25 @@ wire-format-fixtures/
 ├── lenient/ *.json   # §16 shorthand inputs + their canonical twins
 ├── envelope/*.json   # §15 profile-envelope negotiation cases
 ├── elicitation/*.json# §18 elicitation envelopes, outcomes + answer documents
+├── teleport/*.json   # §17 teleport bundles + their decoded envelopes
 └── reject/  *.json   # malformed inputs
 ```
 
+**One caveat about that command, and it is load-bearing for the `teleport/` family.** `--emit-corpus`
+rewrites `manifest.json` **wholesale** from the reference emitter's own fixture list — it does not
+merge. Every family the emitter constructs survives a regeneration by being re-emitted; a family whose
+entries the emitter does not yet construct is *dropped* by one, silently, leaving its payload directory
+orphaned on disk. The teleport family is in that state today: its payloads and its nine manifest entries
+are hand-maintained, because the reference emitter builds no teleport fixtures. So **a regeneration must
+restore the `teleport-decode` / `teleport-reject` entries**, and the durable repair is for the reference
+emitter to construct them like every other family — the same change-set that gives the F# host its own
+corpus decode leg (§17.6). Until then the guard is downstream and deliberate: the TypeScript host's
+teleport suite **fails**, rather than skipping, when the corpus it can see carries no teleport family,
+so a regeneration that dropped it turns a gate red instead of quietly un-certifying a format.
+
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->515<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->524<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->219<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->152<!-- /fuaran:count --> `reject`,
@@ -4464,12 +4482,14 @@ the counts drift where the manifest cannot. The current tallies, projected from 
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
 <!-- fuaran:count kind=elicitation-reject -->15<!-- /fuaran:count --> `elicitation-reject`,
 <!-- fuaran:count kind=elicitation-answer-accept -->3<!-- /fuaran:count --> `elicitation-answer-accept`,
-and <!-- fuaran:count kind=elicitation-answer-reject -->7<!-- /fuaran:count -->
-`elicitation-answer-reject`.
+<!-- fuaran:count kind=elicitation-answer-reject -->7<!-- /fuaran:count --> `elicitation-answer-reject`,
+<!-- fuaran:count kind=teleport-decode -->1<!-- /fuaran:count --> `teleport-decode`,
+and <!-- fuaran:count kind=teleport-reject -->8<!-- /fuaran:count --> `teleport-reject`.
 
 A conformant host's test harness loads `manifest.json` and, per entry:
 - `kind: "node-round-trip"` / `"op-round-trip"` → decode `inputFile` with the `decoder`-named entry point, re-encode, assert byte-equal to `expectedFile`.
 - `kind: "reject"` → decode `inputFile`; assert the error's code == `expectedErrorCode` and its path starts with `expectedPath`. **Matching stays a PREFIX, with one ruled exception: where `expectedPath` does not end in `.$type`, the emitted path MUST NOT either** (§6). The latitude is deliberate — a host may legitimately name a position *deeper* than the corpus's stated slot, and is then more precise rather than divergent: the corpus records the author-facing `$.kind.trend` where a decoder reports the wrong-typed `$.kind.trend.value` (the four `reject-binding-*` fixtures), and records `$` for the whole refused document where §21 licenses naming the position at which the limit was breached (`reject-limit-node-depth`, `reject-limit-op-depth`). Tightening to equality would red those six on arrival and buy nothing. What the exception forbids is different in kind — a suffix naming a position that does not exist in the document **at all**, which is precisely the defect that survived undetected until Phase 1073 because a prefix match cannot see it.
+- `kind: "teleport-decode"` / `"teleport-reject"` → read `inputFile` as a document, not as a payload: it carries `encoded` (the `FT1.` string) and, optionally, `limits` (`maxEncodedChars` / `maxDecodedBytes`) naming the ceilings this vector is to be run under. Run the `teleport` entry point under those limits — the host's own defaults when the document names none — then either re-render the verified envelope byte-equal to `expectedFile`, or assert the refusal exactly as a `reject` entry does. The vocabulary is §17.4's, not §6's (see §17.6).
 
 ### 12.1 Third-party certification kit
 
@@ -4950,7 +4970,116 @@ Measured on the reference exemplar (an onboarding wizard: heading + 3-step stepp
 
 ### 17.6 Conformance
 
-Round-trip is byte-exact at the string level: `encode(decode(s)) == s` for every valid bundle (closures re-encode to their sentinels, §4). The executable fixtures live with the F# reference implementation (`Fuaran.UI.OpStream.Tests/TeleportTests.fs`: byte-exact round-trip, determinism, tampered-chain-head and tampered-state rejects, oversize/bomb rejects, version/envelope rejects, the budget pin). Cross-host certification (a TS teleport leg in the shared corpus) follows when a second host adopts the bundle format; the Node/TreeOp payloads inside the envelope are already corpus-certified.
+Round-trip is byte-exact at the string level: `encode(decode(s)) == s` for every valid bundle (closures re-encode to their sentinels, §4). That law is an **encoder** obligation and is exercised where an encoder lives — the F# reference implementation's own suite (`Fuaran.UI.OpStream.Tests/TeleportTests.fs`) builds an exemplar, round-trips it, and pins the budgets. What follows is the **decoder** obligation, and it is a corpus family, because a decoder that is only ever fed bundles its own encoder made has not been shown to decode anything.
+
+#### The `teleport-decode` / `teleport-reject` family
+
+The corpus carries the family in `teleport/`, registered in the root `manifest.json` under the two
+kinds above — root kinds, not a self-enumerated sub-corpus, because teleport decode is an obligation
+every conformant host's loader should *see* rather than opt into. Each entry's `inputFile` is a
+document rather than a payload:
+
+```json
+{ "encoded": "FT1.…",
+  "limits":  { "maxEncodedChars": 256 } }
+```
+
+`encoded` is the bundle string. `limits` is **optional** and names the ceilings that vector is to be
+run under; a host runs its own defaults when the document omits it. Limits are a fixture member here
+and a fixed table in §21 for a reason that is not an inconsistency: §21's bounds are *part of the
+format*, so every host must agree on the number, whereas §17.1 fixes only that a decoder MUST cap
+both the input length and the inflate output, and leaves the values to the deployment. A vector can
+therefore assert that the **gate exists** without asserting a threshold no host owes.
+
+**What a conformant decoder MUST accept.** Every `teleport-decode` entry: unwrap the string, verify
+the integrity digest, decode the payload through the ordinary §§3–7 decoder, and render the resulting
+envelope canonically (§2) to bytes byte-identical to `expectedFile`.
+
+**`expectedFile` is the DECODE EXPECTATION, not the carried bytes** — the same relation
+`lenient-accept` has to its input, and for the same reason. A bundle's payload is an ordinary wire
+document, so every §16 normalisation applies to it: the reference bundle in this family carries
+`TextSource.Literal` in its decode-accepted `{"$type":"Literal","text":…}` envelope, and the expected
+tree spells it as the bare string §3.5 makes canonical. Two consequences worth stating, because each
+is a trap:
+
+- **A decoder that treats the payload as opaque JSON fails this family**, and that is deliberate. It
+  is the difference between resuming a bundle and merely relaying one.
+- **The integrity digest is over the envelope AS CARRIED, never over `expectedFile`.** §17.3's
+  preimage is the bytes that arrived, minus the digest member; re-canonicalising a *decoded* payload
+  and hashing that would refuse every bundle whose payload used any accepted spelling but the
+  canonical one. `expectedFile` keeps its `digest` member so a host can compare what it verified, and
+  that member does **not** verify against `expectedFile`'s own bytes.
+
+Three further properties of the accept obligation are the point of the family rather than incidental
+to it:
+
+1. **Any RFC 1951 stream.** The reference *encoder* emits one fixed-Huffman block with deterministic
+   greedy LZ77, so its output is reproducible — but a *decoder* MUST accept stored, fixed and dynamic
+   blocks alike (§17.1), which is what lets a host produce bundles with a stock deflate library. The
+   reject vectors in this family are re-compressed with an ordinary library precisely to exercise it.
+2. **The expectation is the envelope, not a host's tree type.** A host certifies by comparing bytes it
+   renders against bytes in the corpus, with no access to any other host's tests and no shared type
+   model. That is the whole difference between corpus-governed conformance and a golden constant
+   pasted into one host's test file.
+3. **Version and digest are refusals, not repairs.** An unrecognised `bundle` version is refused *by
+   name*; a digest that does not recompute is refused *before* any payload is decoded. Neither may be
+   downgraded to a warning, and neither may be skipped because the payload "looks fine".
+
+**What it MUST refuse**, and with which error — the `teleport-reject` entries' `expectedErrorCode`
+draws on §17.4's vocabulary (`Oversize`, `InvalidFormat`, `InvalidJson`, `InvalidEnvelope`,
+`UnsupportedVersion`, `DigestMismatch`, `TreeDecode`, `HistoryDecode`, `TreeInvalid`), **not** the eight
+§6 `DecodeError` codes. The two vocabularies are deliberately disjoint: a bundle is a *container*, and
+the §6 decoder runs inside it, so `TreeDecode` is the case that carries a §6 error rather than being
+one.
+
+A §17.4 error is a typed *case*, not a `(code, path)` pair like §6's, so the position each case
+concerns is fixed **here** rather than left to each host's harness to invent — otherwise `expectedPath`
+would be decorative and two conformant hosts could disagree about a fixture while both passing:
+
+| Case | `expectedPath` | Why there |
+|---|---|---|
+| `Oversize` | `$` | a limit on the string or the inflate output; no envelope has been read |
+| `InvalidFormat` | `$` | tag, base64url, deflate or UTF-8 — all before any JSON exists |
+| `InvalidJson` | `$` | the inflated bytes are not a JSON document at all |
+| `InvalidEnvelope` | the case's own `path` | it names the offending member (`$.digest`, `$.tree`, …) |
+| `UnsupportedVersion` | `$.bundle` | the member whose value is unrecognised |
+| `DigestMismatch` | `$.digest` | the member that failed to verify, whatever was tampered with |
+| `TreeDecode` / `HistoryDecode` | the carried §6 `DecodeError.Path` | the container defers to the payload decoder's own position |
+| `TreeInvalid` | `$.tree` | node identity is a property of the decoded tree as a whole |
+
+Matching is a **prefix**, on the same terms §12 sets out — a host naming a position deeper than the
+corpus's stated slot is more precise, not divergent.
+
+The family covers §17.4 steps 1–4 — the size gate at both ends (an over-long input and a deflate bomb),
+the unwrap (a missing tag, a non-alphabet payload), the envelope shape and version, and the digest.
+Steps 5–7 — payload decode, pre-emit validation, state re-seat — are **not** vectored here: their
+obligations are §§3–7 and §8, already certified by the node and reject families, and re-asserting them
+through a bundle would measure the same decoder twice while pretending to measure the container.
+`TreeDecode` / `HistoryDecode` / `TreeInvalid` are therefore in the vocabulary and not in the corpus,
+which is a scope boundary rather than a gap.
+
+#### Teleport adoption
+
+The **seventh** bar of §11.0, and the only one not about a slot inside the node vocabulary:
+teleport is an additive top-level artefact, so a host can be byte-perfect on the whole node and op
+vocabulary and hold no bundle codec at all. Adoption is therefore recorded per host rather than
+inferred, and a host that has not adopted is listed as such rather than omitted.
+
+| Host | Teleport adoption |
+|---|---|
+| `fuaran` (F#) | **encode + decode**, and it is the reference encoder — every bundle in this family came from it. Its suite round-trips its own exemplar; the corpus **decode** leg is pending, as is emitting this family from the corpus generator (see the regeneration caveat in §12) |
+| `fuaran-ts` | **decode adopted** — certifies `decodeTeleport` against this family, accept and reject, with no golden constant of its own. It holds no bundle encoder, so it owes the decode leg alone |
+| `fuaran-py` | pending — decode leg only unless it grows an encoder |
+| `fuaran-go` | pending — headless, so the decode leg only |
+| `fuaran-rs` | pending — decode leg, plus resume in its WASM-client role |
+| `fuaran-swift` | pending — a render projection over the Rust core, so a bundle reaching it is already decoded; were it to accept a bundle string directly, the obligation would be its own |
+| `fuaran-kt` | pending — as above |
+
+**A pending host is unchanged, not broken.** Nothing in §§1–16 requires a bundle codec, so a host
+without one is conformant on every bar it has taken. What it cannot say is that a bundle minted
+elsewhere resumes on it. Each pending host's leg is its own phase, on the host's own repo and its own
+rhythm — the same shape every other bar uses; nothing here dispatches work into a host from this
+document.
 
 ---
 
