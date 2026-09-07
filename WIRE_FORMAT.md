@@ -138,7 +138,7 @@ Every DU position on the wire is a JSON object carrying a `"$type"` string + tha
 
 ### 3.1 Node envelope
 
-A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, `accessibility` and `tooltip` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
+A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, `accessibility`, `tooltip` and `visible` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
 
 ```json
 { "id": "<non-empty string>",
@@ -146,7 +146,8 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   "state": <StateBehaviour>,         // optional — omitted when empty
   "style": <SemanticStyle>,          // optional — omitted when all-default
   "accessibility": <Accessibility>,  // optional — omitted when None
-  "tooltip": <TextSource>            // optional — omitted when None
+  "tooltip": <TextSource>,           // optional — omitted when None
+  "visible": <Binding<bool>>         // optional — omitted when None
 }
 ```
 
@@ -172,6 +173,78 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   > additive-minor question does not arise.
 
 - `tooltip` (`TextSource`) is a supplementary **hint** about the node — the text a reader is shown on hover or focus, and which assistive technology receives as the node's description. Omitted entirely when absent. It takes every `TextSource` arm, and note that the CANONICAL encoding of a literal hint is a BARE STRING (`"tooltip": "Updated nightly."`) rather than an object: `Literal` is `TextSource`'s transparent case wherever it appears, and `Bound` / `I18n` are the arms that carry a `$type` envelope. The `{"$type":"Literal","text":…}` spelling is decode-accepted and normalises to the bare form on re-encode, exactly as at every other `TextSource` slot.
+- `visible` (`Binding<bool>`) decides whether the node is **present in the rendered output at all**. A resolved `false` removes it — no element, no layout, no accessibility-tree entry; any other outcome, including an unresolved or errored predicate, renders it. Omitted entirely when absent. It is NOT `accessibility.hidden`, which is `aria-hidden` over a node that IS rendered; the two are set out side by side below.
+
+#### Conditional presence — `visible` (Phase 1535)
+
+**It is a node-level TRAIT, on the envelope beside `accessibility` and `tooltip`, for the reason the
+trait tier exists**: "should this be here at all" is uniform across every kind, and forty-odd
+per-spec spellings of it would be forty-odd independently driftable decisions about one concept.
+
+**`visible` and `accessibility.hidden` are DIFFERENT, and the difference is the whole of this
+section.** They are adjacent optional `Binding<bool>` slots on one envelope, they have opposite
+polarity, and a host that treats either as the other produces a rendering the document did not ask
+for:
+
+| | `visible: false` | `accessibility.hidden: true` |
+|---|---|---|
+| The element | not emitted | emitted |
+| Layout | occupies nothing | occupies its space |
+| Accessibility tree | absent | present but `aria-hidden="true"` |
+| Reader with assistive technology | nothing is there | nothing is announced |
+| Reader without | nothing is there | the content is visible |
+
+**The one-line rule for which to emit: is the node CONTENT the reader should not have now, or
+DECORATION the reader should never hear?** Content the reader should not have now — a panel for a
+step they have not reached, an empty-state message while there are rows, a badge that only applies to
+a full basket — takes `visible`. Decoration a reader should never hear — a purely ornamental glyph
+beside a label that already says the same thing, a spacer character, a duplicate of adjacent text —
+takes `accessibility.hidden`. A node that must be *seen and not announced* is the only case for
+`hidden`; every "not now" is `visible`.
+
+**Normative render obligations.** A conformant rendering host, given a node carrying `visible`:
+
+1. MUST resolve the binding through the SCALAR path (§3.6, §3.3.2) — the same path a
+   `Binding<bool>` in any other scalar slot takes, so a `Transform` yielding one cell and an `Expr`
+   both work here.
+2. On a resolved `false`, MUST emit **nothing at all** for that node and its whole subtree: no
+   element, no placeholder, no comment marker, no `aria-hidden`, nothing in the layout and nothing
+   in the accessibility tree.
+3. On a resolved `true`, MUST render the node exactly as it would have with no `visible` at all.
+   The slot changes presence, never appearance.
+4. **On any other outcome — the binding does not resolve, or resolving it errors — MUST render the
+   node.** An unresolved predicate is not a `false`. A host MAY warn on the errored case; it MUST
+   NOT hide.
+5. A server-rendering host MUST take decisions 2–4 identically to the client host it hydrates, from
+   the same seeded sources. This follows from the rules above rather than adding to them, and is
+   stated because it is the property hydration depends on: a node one host emits and the other omits
+   is a tree-shape mismatch.
+
+**`visible` is an ORDINARY `Binding<bool>`, and the shared `Binding.State` rule applies to it
+unchanged — which has a consequence worth stating in full, because it is the one way a node can
+disappear without the rules above being broken.** Under §3.3, a `State` binding carrying no
+`defaultValue` on a key nothing has written resolves to the slot's default representation, which at
+`bool` is `false`. So `"visible": {"$type":"State","key":"banner.shown"}` on a key nothing writes does
+not FAIL to resolve — it resolves `false`, and rule 2 removes the node. This is the same rule
+`Modal.open` and `Disclosure.open` already follow (an unwritten `open` key is closed, not open), and
+carving `visible` out of it would make one slot the exception to a position-independent rule.
+
+**The spelling for "visible unless something says otherwise" is therefore an explicit default** —
+`{"$type":"State","key":"banner.dismissed","defaultValue":true}` — and the reference host reports the
+omission as **FUARAN148** (Warning), which stands down under a declared default, under a writer
+anywhere in the tree, and under any opaque writer. `nodes/node-visible.json` carries both spellings on
+sibling nodes.
+
+**Why an unresolved predicate renders, rather than hiding.** Hiding on absence is the one failure a
+reader cannot see, cannot report and cannot work around — the content is simply not there, and
+nothing anywhere says a source was missing. Rendering leaves the failure visible to somebody. This is
+the opposite default from a predicate `case` (§3.6, `SwitchCase`), and deliberately: a case that
+falls through lands on a `default` branch the author wrote, so nothing disappears; a node with no
+verdict has no fallback to land on.
+
+**A `false` is not a smaller document.** The subtree is still decoded, still counts against every
+§21 limit, and its node ids still participate in the §8 uniqueness rule. `visible` is a rendering
+decision, not a decode-time prune — an author who wants the bytes gone removes them.
 
 #### The declared direction (Phase 1472)
 
@@ -415,6 +488,50 @@ The four container near-synonyms (`Stack` / `GridLayout` / `Dashboard` / `Card`)
 The four canonical corners (byte-exact): `stack` → `{layout:{$type:Flex,direction,wrap},role:"Group"}`; `gridLayout` → `{layout:{$type:Grid,cols},role:"Group"}`; `dashboard` → `{layout:{$type:Auto},role:"Dashboard"}`; `card` → `{layout:{$type:Flex,Vertical,false},heading,role:"Card"}`. See `nodes/stack-1.json`, `nodes/glayout-1.json`, `nodes/dash-empty.json`, `nodes/card-1.json`.
 
 **Retired container tags are rejected, as are `Spacer` / `Divider`.** The four superseded container `$type` tags (`Stack` / `GridLayout` / `Dashboard` / `Card`) and the superseded `Table` tag are **hard-retired (Phase 673)**: a bare `"$type":"Stack"` is a decode error, not an upgrade. They briefly decode-upgraded to `Box` / `DataGrid` for permalink and op-stream compatibility; that seam was removed once measurement showed nothing depended on it (no persisted artefact carried the tags, and across 6,561 eval runs no model emitted one without being taught it). This restores §1.1's stated 0.2.0 posture — *retired vocabulary is a hard decode error, not a deprecation* — which the upgrade seam had quietly contradicted. The two leaf display primitives `Spacer` and `Divider` were **hard-retired (Phase 459) with no legacy seam**: `Spacer` → the container `gap`; `Divider` → a childless `Box` with `role:"Separator"` (`<hr>`/`role="separator"`; `DividerSpec.Orientation` → the box's `layout` axis, `DividerSpec.Label` → the box's `heading`). A bare `"$type":"Spacer"` / `"Divider"` is rejected (`UNKNOWN_DU_CASE`), and the corpus carries no Spacer/Divider fixtures.
+
+#### Selecting a case — `match` and `when` (Phases 392, 768, 1535)
+
+A `SwitchCase` is `{"child": <Node>, "match": <string>?, "when": <Binding<bool>>?}`. **Exactly one of
+`match` and `when` is present.** Both together and neither at all are decode errors
+(`reject/reject-switch-case-match-and-when`, `reject/reject-switch-case-neither`) — this is the same
+shape, and the same reasoning, as `SetState`'s `value` / `valueFrom` pair (§3.4).
+
+- **`match`** compares the switch's resolved selector — `on`, or the compact `stateKey` spelling of
+  it — against a literal string.
+- **`when`** (Phase 1535) evaluates a `Binding<bool>` and takes the case on a resolved `true`. It
+  consults no selector at all, so a switch whose cases are ALL predicates needs no `on` and has no
+  state key for anything to write.
+
+The two interleave freely in one ordered `cases` array, and **first-match-wins is unchanged and runs
+over the array in authored order**: a host MUST evaluate case *n* fully — comparing its `match`, or
+resolving its `when` — before considering case *n+1*, and MUST NOT batch all the matches ahead of all
+the predicates or the reverse. `nodes/switch-predicate.json` mixes the two forms in one switch for
+exactly this reason.
+
+**Normative selection obligations.** A conformant rendering host:
+
+1. MUST resolve the switch's selector through the SCALAR path (§3.6) — the same path any other
+   `Binding<string>` slot takes. This matters because a computed selector is the whole point of the
+   feature: a `Transform` yielding one cell, or an `Expr` (§3.3.2), is how a document says "count
+   > 3 ⇒ `busy`". Before Phase 1535 the reference host resolved this slot through the row-shaped
+   path and such a switch silently rendered its `default`; `nodes/switch-on-transform-scalar.json`
+   pins the corrected behaviour.
+2. MUST take a `when` case on a **resolved `true`** only. A resolved `false`, an unresolved binding
+   and an errored one all fall through to the next case, and ultimately to `default`.
+3. MUST NOT treat a non-boolean cell as a predicate. There is no truthiness rule here: `0`, `""` and
+   `"false"` are refused by the coercion, not read as `false`, because every language that has
+   guessed at this has guessed differently and five hosts agreeing on a rendering is the point of the
+   corpus. The vocabulary already carries the total spellings (`isNull`, `=`, `not`).
+4. MUST NOT advance a predicate case on the timed carousel (`autoAdvanceMs`, below). Advancing writes
+   a string into the switch's own selector key, which a predicate case does not consult; the rotation
+   is over the `match` values alone, and a when-only switch does not advance.
+
+**Why "neither" is refused rather than skipped.** A case that names no condition is not a case that
+never matches — it is a document whose author meant something the wire cannot say, and no rendering
+of it could be right. A host that silently skipped it would render the `default` and report nothing,
+which is exactly the class of silence this feature was added to remove. **Why "both" is refused
+rather than resolved by precedence:** a precedence rule would have to be specified, agreed on every
+host and remembered by every author, for a document nobody meant to write.
 
 #### Timed advance — the carousel behaviour on `Switch` (Phase 1122)
 
