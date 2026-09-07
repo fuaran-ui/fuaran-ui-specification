@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.4",
+  "dir": "response",
+  "id": "c-42",
+  "type": "refusal",
+  "payload": {
+    "class": "CAPABILITY_ABSENT",
+    "requestType": "read.nodeJson",
+    "message": "This peer does not hold the tree and does not currently offer read.nodeJson.",
+    "detail": {
+      "capability": "read.nodeJson"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$relay": "relay@1.4",
+  "dir": "response",
+  "id": "c-43",
+  "type": "refusal",
+  "payload": {
+    "class": "UPSTREAM_UNAVAILABLE",
+    "requestType": "read.nodeJson",
+    "message": "The request was not dispatched: no channel to the side holding the tree.",
+    "detail": {
+      "reason": "no-channel"
+    }
+  }
+}
