@@ -1414,6 +1414,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `MathDisplay`: `"Inline"` / `"Block"`
 - `ModalityKind`: `"Modal"` / `"Popover"`
 - `Motion` (a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9): `"None"` / `"PulseDuringLoad"` / `"FadeInOnMount"` / `"SlideInFromBelow"` / `"ShakeOnError"` / `"RotateOnRefresh"` / `"SlideInFromRight"` / `"ExpandCollapse"` / `"CrossFade"` / `"SlideBetween"`
+- `NavigateTarget`: `"Self"` / `"Blank"`
 - `Orientation`: `"Vertical"` / `"Horizontal"`
 - `RelativeTimeUnit` (inside `Format.RelativeTime.unit` and the optional `Format.Since.unit`): `"Second"` / `"Minute"` / `"Hour"` / `"Day"` / `"Week"` / `"Month"` / `"Year"`
 - `ScrollOrientation`: `"Vertical"` / `"Horizontal"` / `"Both"`
@@ -1489,6 +1490,7 @@ read-compat):
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
+| `target` | `NavigateTarget` | `Self` | `Action.Navigate` |  |
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
 | `tracks` | `TrackEntry[]` | `[]` | `MediaSpec` |  |
 | `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
@@ -3371,6 +3373,95 @@ coercion refused rather than the near miss).
 
 ---
 
+### 3.6.21 `Action.Navigate` — the route is a `TextSource`, and the target is closed (Phase 1536)
+
+`Action.Navigate`'s `route` member is a **`TextSource`**, not a bare string, and the case carries an
+optional **`target`** naming the browsing context. A tree can therefore say *open the selected order*
+— a destination computed from what the reader is looking at — where before it could only name a
+route the author typed.
+
+```json
+{"$type":"Navigate","route":"/orders/42"}
+{"$type":"Navigate","route":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}}}
+{"$type":"Navigate","route":"/docs/orders","target":"Blank"}
+```
+
+**All three are canonical, and the first is not a legacy spelling.** `TextSource.Literal`'s canonical
+form is the bare JSON string (§3.6's first 0.2.0 exception), so every document written before this
+member widened carries bytes the encoder still emits and the decoder still reads — the widening is
+source-breaking for a host's own construction sites and **wire-neutral**. The §16 field aliases
+(`href` / `url` / `to` → `route`) are resolved before the value is decoded and are unaffected, so
+there is still exactly one canonical field a router can be reached through. The explicit
+`{"$type":"Literal","route":…}` envelope normalises down to the bare string here as at every other
+text slot (§16).
+
+**`target` is `Self` | `Blank`, omitted at `Self`.** A document that says nothing says `Self`, which
+is the pre-1536 behaviour, so the member appears on the wire only when it means something; an
+explicit `"Self"` is accepted and normalises away (§16;
+`lenient/lenient-navigate-target-self.json`). An unrecognised token is `UNKNOWN_DU_CASE` at
+`$.…​.target` and a host MUST NOT coerce it. Vector:
+`reject/reject-navigate-target-invalid.json`, which carries `"_blank"` — the single likeliest wrong
+guess, because it is HTML's token for this exact concept.
+
+**Why that token is refused rather than aliased**, when §16 aliases the web-prior spelling elsewhere:
+the vocabulary it comes from also contains `_parent` and `_top`, which are frame-busting gestures a
+hosted tree must not be able to ask for, and named frames, which are an addressing scheme this format
+does not have. Accepting the two harmless HTML tokens would teach an emitter that the HTML vocabulary
+is the one in force here, and the next guess would be one of the other three. This is also why
+`target` is a closed enum where `Link.target` is a free string — the two members look alike and are
+not.
+
+**Host obligation — RESOLVE, THEN GATE, in that order.** A bound route is resolved when the reader
+raises the action, through the same binding resolution the host renders text slots with; the
+renderer URL-scheme floor (§19) and any host destination policy are then applied to the **resolved**
+string, and only then is the navigation performed. Checking the declaration would consult the policy
+about a template nobody navigates to while the string the router actually receives went unexamined —
+which is not a weaker check but a check of the wrong subject.
+
+**An unresolved route performs NO navigation**, and this is where the obligation differs from
+§3.6.16's. At an ordinary text slot an unresolvable binding resolves to the empty string and a
+missing i18n key to the loud `[i18n:<key>]` sentinel; both are wrong here, because `""` is a real
+navigation — the current document with its query and fragment stripped — and `[i18n:route]` is a
+relative path a permissive policy would fetch. A host MUST report the failure on whatever diagnostic
+channel it has and navigate nowhere.
+
+**A `Blank` target MUST be opened with `noopener` and `noreferrer`.** Without the first, the opened
+document holds a live handle back into the host page through `window.opener`; without the second, the
+destination is told where the reader came from. This is a normative obligation on the RENDERER rather
+than on a host-supplied navigation seam, because a property that every host must remember to apply is
+owned by nobody — and because a seam wired to an SPA router or `location.hash` cannot open a second
+context at all, so delegating a `Blank` to it would silently navigate in place.
+
+**A server-driven host resolves BEFORE it lowers**, exactly as §3.6.16 requires for the clipboard,
+and for the same reason: the client shim holds no resolver. The effect that crosses carries the
+resolved, floor-checked route, and carries `target` only when it is `Blank`.
+
+**A zero-JS resume interpreter holding no binding sources MUST NOT navigate a non-literal route.** It
+cannot resolve, and a coerced declaration is not a destination; the node's disposition should have
+routed it to hydration, so reaching that path with a bound route means the envelope and the
+interpreter disagree, and the honest response is a diagnostic and nothing else.
+
+**What this does NOT do.** It does not make a row-click declarative: a grid's `onRowClick` remains a
+host closure, and the wire spelling of *open the selected order* is a `Navigate` on a control whose
+route binds the grid's selection — which is what `nodes/action-navigate-bound.json` shows. A
+per-row action slot is a separate admission, not something to reach by stretching this one.
+
+**Wire survivability: survivable** (§5.1) — a `TextSource` is data in all three arms, and `target` is
+an enum.
+
+**Host adoption.** Recorded here on the §11.0 convention. Note what a pending host owes and what it
+does not: the **legacy-accept obligation is discharged by construction** — a host that decoded the
+bare string before this phase decodes it still, because those bytes did not change — so what is
+pending is the bound route and the `target` member, which a host typing `route` as `string` will
+refuse outright rather than mis-handle. That is the loud failure mode, and it is the one to prefer.
+
+Fixtures: `nodes/action-navigate-bound.json` (the bound route), `nodes/action-navigate-target.json`
+(the `Blank` target over a literal route — the two members exercised apart, so a host that
+implemented one and not the other is distinguishable), `lenient/lenient-navigate-target-self.json`
+(the explicit default normalising away) and `reject/reject-navigate-target-invalid.json`.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -4783,6 +4874,8 @@ own shape is normative here. F# (`Fuaran.UI.OpStream.Abstractions`) and TypeScri
 
 URL-valued slots – `DisplayKind.Image.src`, `InteractiveKind.Link.href`, the `Action.Navigate`
 destination, and every other slot documented as carrying a URL – are **opaque strings on the wire**.
+Since Phase 1536 the `Action.Navigate` destination is a `TextSource` rather than a string, and the
+floor below applies to the string it RESOLVES to at dispatch time, never to the declaration (§3.6.21).
 The decoder does not validate them, and this section does not change that: a URL that fails the
 floor below is still a *valid wire document*, and a decoder MUST NOT reject it.
 
