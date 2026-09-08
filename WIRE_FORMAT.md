@@ -4461,17 +4461,31 @@ wire-format-fixtures/
 └── reject/  *.json   # malformed inputs
 ```
 
-**One caveat about that command, and it is load-bearing for the `teleport/` family.** `--emit-corpus`
-rewrites `manifest.json` **wholesale** from the reference emitter's own fixture list — it does not
-merge. Every family the emitter constructs survives a regeneration by being re-emitted; a family whose
-entries the emitter does not yet construct is *dropped* by one, silently, leaving its payload directory
-orphaned on disk. The teleport family is in that state today: its payloads and its nine manifest entries
-are hand-maintained, because the reference emitter builds no teleport fixtures. So **a regeneration must
-restore the `teleport-decode` / `teleport-reject` entries**, and the durable repair is for the reference
-emitter to construct them like every other family — the same change-set that gives the F# host its own
-corpus decode leg (§17.6). Until then the guard is downstream and deliberate: the TypeScript host's
-teleport suite **fails**, rather than skipping, when the corpus it can see carries no teleport family,
-so a regeneration that dropped it turns a gate red instead of quietly un-certifying a format.
+**One rule about that command, and it is load-bearing for every family the reference emitter does not
+build.** `--emit-corpus` **merges** into `manifest.json`. It rewrites every row whose `kind` it
+authors, and returns every other row exactly as it found it — original property set, original order,
+original bytes — because the emitter cannot know what a family it does not construct needs to carry.
+The `teleport-*` vectors are the standing instance: their bundles come from the reference encoder and
+their payloads and manifest rows are checked in by hand, so a regeneration leaves all of them
+untouched. The emitter's `description` names them alongside the families it builds, so the harness
+contract survives with the rows rather than one level above them.
+
+It did not always, and the failure is worth recording because nothing about it was visible. Until this
+rule landed the command rewrote the manifest **wholesale** from the emitter's own fixture list, so a
+regeneration deleted every hand-maintained family in passing: silently, leaving the payload directory
+orphaned on disk and every host that certified against it quietly un-certified. It happened twice on
+2026-09-07 to the nine `teleport-*` rows, and both times a person put them back. Two guards hold the
+rule now, on either side of the boundary. The reference host's emit suite regenerates the committed
+corpus into a scratch copy and **fails** when any row it did not author comes back missing or changed
+— including when the document as a whole comes back differently, since a row can keep its own bytes
+and still land in the wrong place. And the F# and TypeScript teleport suites **fail**, rather than
+skipping, when the corpus they can see carries no teleport family, so a regeneration that dropped it
+anyway turns a gate red in some other repo instead of quietly un-certifying a format.
+
+**What the merge does not do is make the emitter authoritative for a family it does not build.** A
+preserved row is preserved, never validated: adding a family still means adding its payloads, its
+manifest rows and its sentence in the manifest's `description` by hand, and what certifies the family
+is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
@@ -5070,7 +5084,7 @@ inferred, and a host that has not adopted is listed as such rather than omitted.
 
 | Host | Teleport adoption |
 |---|---|
-| `fuaran` (F#) | **encode + decode**, and it is the reference encoder — every bundle in this family came from it. Its suite round-trips its own exemplar; the corpus **decode** leg is pending, as is emitting this family from the corpus generator (see the regeneration caveat in §12) |
+| `fuaran` (F#) | **encode + decode adopted**, and it is the reference encoder — every bundle in this family came from it. Its suite round-trips its own exemplar as the ENCODER obligation, and certifies `Teleport.decodeWith` against this family, accept and reject, as the decoder one. The family is still hand-maintained rather than emitted by the corpus generator, which is a deliberate boundary and no longer a hazard: the generator MERGES (§12), so a regeneration preserves it |
 | `fuaran-ts` | **decode adopted** — certifies `decodeTeleport` against this family, accept and reject, with no golden constant of its own. It holds no bundle encoder, so it owes the decode leg alone |
 | `fuaran-py` | pending — decode leg only unless it grows an encoder |
 | `fuaran-go` | pending — headless, so the decode leg only |
