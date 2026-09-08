@@ -34,7 +34,7 @@ which states which of the accepted forms to write.
 
 ## The DevTools relay contract
 
-[`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) specifies the **page ↔ extension relay** (`relay@1.1`): a
+[`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) specifies the **page ↔ extension relay** (`relay@1.4`): a
 `postMessage` envelope that carries a host's in-page introspection surface across the page/extension
 boundary, so a browser extension — or any same-page peer — can inspect a live Fuaran UI and, where
 the host permits, edit it.
@@ -44,8 +44,9 @@ it borrows the profile-id grammar and negotiation table (WIRE_FORMAT.md §15), t
 envelope (§6), and canonical `TreeOp` JSON for its one mutating entry point — and nothing else. The
 two profiles version independently.
 
-What it covers: a detection handshake with capability advertisement, five read entry points, a
-capability-gated `apply(op)`, change subscription, a closed set of ten machine-readable refusal
+What it covers: a detection handshake with capability advertisement — including, since `relay@1.4`,
+a peer's declaration of whether the tree it reads lives in the page or upstream — the read entry
+points, a capability-gated `apply(op)`, change subscription, a closed set of machine-readable refusal
 classes (three of them mandated and deliberately distinct for `apply` — not-opted-in, validator
 reject, and policy denied), a defined unknown-message posture, and a normative security section
 (opt-in default-off, origin discipline, and why the relay has no side door around a host's own

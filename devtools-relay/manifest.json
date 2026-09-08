@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "profile": "relay@1.3",
+  "profile": "relay@1.4",
   "spec": "../DEVTOOLS_RELAY.md",
-  "description": "Fuaran DevTools relay conformance corpus. Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. The profile above is the HIGHEST minor these fixtures reach, not a claim that every minor below it is covered: a minor's fixtures land when a SECOND host serves that minor's addition, and minors do not reach their second host in order (section 12.1 keeps the waiting list). The relay@1.0 fixtures stay at relay@1.0 deliberately — answering them unchanged is the only evidence in this corpus that profile selection kept every minor bump backward-compatible. See ../DEVTOOLS_RELAY.md section 12.",
+  "description": "Fuaran DevTools relay conformance corpus. Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. The profile above is the HIGHEST minor these fixtures reach, not a claim that every minor below it is covered: a minor's fixtures land when a SECOND host serves that minor's addition, and minors do not reach their second host in order (section 12.1 keeps the waiting list). The relay@1.0 fixtures stay at relay@1.0 deliberately — answering them unchanged is the only evidence in this corpus that profile selection kept every minor bump backward-compatible. An entry MAY carry an optional \"peer\" (\"page\" or \"upstream\"; absent means \"page\") naming the PEER SHAPE the fixture addresses — since relay@1.4 the contract describes two, and a page-tree peer can never answer an \"upstream\" fixture at any version. A runner that cannot present the declared shape reports that fixture as out of reach WITH A REASON, never as a pass and never as a failure, and asserts its partition is total so a fixture added upstream cannot go silently unexercised (section 12.2, 12.3). See ../DEVTOOLS_RELAY.md section 12.",
   "fixtures": [
     {
       "id": "hello-read-only",
@@ -24,6 +24,22 @@
       "requestFile": "hello-node-json.request.json",
       "responseFile": "hello-node-json.response.json",
       "description": "Detection handshake at relay@1.3: the session profile is the highest the client accepts and the peer can serve, and read.nodeJson is advertised at it. The companion to the two relay@1.0 handshakes, which keep their 1.0 envelopes and must NOT name this capability — a capability introduced after the session profile is absent from that session by DEVTOOLS_RELAY 6.3. The pair is the backward-compatibility evidence."
+    },
+    {
+      "id": "hello-treeless",
+      "kind": "relay-exchange",
+      "peer": "upstream",
+      "requestFile": "hello-treeless.request.json",
+      "responseFile": "hello-treeless.response.json",
+      "description": "Detection handshake at relay@1.4 against a peer whose tree lives upstream: treeSource is \"upstream\" and the advertised set is read.renderedDom alone (DEVTOOLS_RELAY 6.5). That set is not an abbreviation but the honest one for a peer with no correlated response leg — read.renderedDom is the one read that asks the DOM a question rather than asking the tree, so it is servable where every tree read is not. A peer that later serves the proxied reads advertises more, which is the growth 5.3 and 6.3 are built to absorb."
+    },
+    {
+      "id": "hello-treeless-1-3-client",
+      "kind": "relay-exchange",
+      "peer": "upstream",
+      "requestFile": "hello-treeless-1-3-client.request.json",
+      "responseFile": "hello-treeless-1-3-client.response.json",
+      "description": "The same upstream-tree peer, an older client. Three things to read off it: the session profile is relay@1.3, because 6.3 selects the highest profile both listed and serveable and a 1.4 peer keeps speaking to a 1.3 client; the response's $relay is the PEER's own relay@1.4, not the fixture's, and must be compared against the peer's id (section 12.1); and treeSource is still emitted into a relay@1.3 session, because unlike a capability it is not withheld at an older profile (6.5 rule 4) and the older client drops it by 10.2. Note what does NOT happen: nothing is refused. Under this design there is no relay@1.4-only capability for an older client to collide with, so the \"1.3 client meets a 1.4-only capability\" reject vector cannot exist — its absence is the compatibility evidence, and refusal-capability-absent-treeless is the nearest true form of it."
     },
     {
       "id": "read-node-state",
@@ -208,6 +224,24 @@
       "responseFile": "refusal-encode-failed.response.json",
       "expectedClass": "ENCODE_FAILED",
       "description": "The node exists and the host cannot produce its canonical wire encoding (DEVTOOLS_RELAY 7.7, 9.3). Distinct from NODE_NOT_FOUND, which would be a lie about a node that is plainly there and would send the client to look somewhere else — the one remedy that cannot help. No shipped host can raise this from its own surface: sentinels make the canonical encoder total over live trees. So a runner answers this fixture from a host whose SURFACE is made to return the encode-failed outcome, which tests the peer's mapping from that outcome onto the class — the part a host with a wider local vocabulary than the wire's would depend on, and the technique refusal-decode-failed and refusal-validator-reject already use."
+    },
+    {
+      "id": "refusal-capability-absent-treeless",
+      "kind": "relay-refusal",
+      "peer": "upstream",
+      "requestFile": "refusal-capability-absent-treeless.request.json",
+      "responseFile": "refusal-capability-absent-treeless.response.json",
+      "expectedClass": "CAPABILITY_ABSENT",
+      "description": "A relay@1.3 client, having negotiated with the upstream-tree peer above, asks it for read.nodeJson. It was not advertised, so the answer is CAPABILITY_ABSENT — a relay@1.0 class doing the job it has always done (6.4: a peer MUST refuse a request whose capability it did not advertise, and MUST NOT respond UNKNOWN_MESSAGE, which would wrongly tell the client the type does not exist). The type does exist; this peer does not offer it. That distinction is 10.1's."
+    },
+    {
+      "id": "refusal-upstream-unavailable",
+      "kind": "relay-refusal",
+      "peer": "upstream",
+      "requestFile": "refusal-upstream-unavailable.request.json",
+      "responseFile": "refusal-upstream-unavailable.response.json",
+      "expectedClass": "UPSTREAM_UNAVAILABLE",
+      "description": "A relay@1.4 client asks a LATER-STAGE upstream-tree peer — one that advertises the proxied reads — for read.nodeJson, and the peer cannot reach the side that holds the tree (DEVTOOLS_RELAY 6.5, 9.3). Read detail.reason carefully: \"no-channel\". The class is raised ONLY where the peer can assert the request was never dispatched, because 8.3's \"a refused op MUST leave the tree unchanged\" is a promise a peer that dispatched and heard nothing cannot make; that case gets no response at all and the client's own timeout governs. No shipped host advertises the proxied reads yet, so a runner answers this fixture from a peer whose upstream is made unreachable — the surface-stubbing technique refusal-encode-failed already uses, testing the peer's mapping from that outcome onto the class."
     }
   ]
 }

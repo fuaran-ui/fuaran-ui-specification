@@ -1,4 +1,4 @@
-# Fuaran DevTools relay contract (`relay@1.3`)
+# Fuaran DevTools relay contract (`relay@1.4`)
 
 The **page ↔ extension relay**: a `postMessage` envelope that carries a Fuaran host's already-shipped
 in-page introspection surface across the page/extension boundary, so a browser extension (or any
@@ -21,6 +21,10 @@ browser tab:
   that rendered the tree; and
 - the **client peer** — code running in an extension content script (or any other same-page script)
   that wants to read or edit that tree.
+
+Since `relay@1.4` a page peer's tree need not be **in** the page: a peer whose host holds the tree on
+the far side of a channel declares that in its handshake and is fully conformant. §6.5 is what it
+says about itself; everything else in this document is unchanged for it.
 
 The protocol carries seven reads, one gated mutation, a change subscription, and a detection
 handshake. Every message is a JSON-compatible object passed through the browser's structured-clone
@@ -62,7 +66,7 @@ not an extension of it. It borrows three things and nothing else:
 | Canonical `TreeOp` JSON | §2, §3 | The `apply` request's `op` payload (§8.2) |
 | Canonical `Node` JSON | §2, §3 | The `read.nodeJson` response's `node` payload (§7.7) |
 
-The relay profile is `relay@1.3`. It versions **independently** of the wire profile `core@1.0`: a
+The relay profile is `relay@1.4`. It versions **independently** of the wire profile `core@1.0`: a
 host may advance its wire profile without advancing its relay profile, and the reverse. The two
 profile names are distinct namespaces, so a peer that confuses them negotiates `Foreign` and refuses
 — which is the correct outcome.
@@ -94,6 +98,8 @@ responsibility and is invisible to the client.
 | **Opted in** | The host has explicitly enabled its introspection surface *and* relay exposure (§11.1). |
 | **Capability** | A named entry point the page peer offers, advertised in `hello.ok` (§6.3). |
 | **Tree revision** | An opaque token identifying the current tree state (§5.4). |
+| **Tree source** | Where the tree a session reads lives — `"page"` or `"upstream"`; declared by the peer, absent meaning `"page"` (§6.5, since `relay@1.4`). |
+| **Upstream** | The side holding the tree, for a peer that does not. Deliberately unqualified: the contract does not know what it is, how far away it is, or what carries the question (§6.5). |
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted
 as described in RFC 2119.
@@ -219,7 +225,7 @@ The one event type is `changed` (§8.4).
 ### 5.1 Grammar
 
 `<name>@<major>.<minor>`, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §15.1 defines it. The relay
-namespace is `relay`; the profile defined by this document is **`relay@1.3`**.
+namespace is `relay`; the profile defined by this document is **`relay@1.4`**.
 
 A peer's profile id is the **highest** profile it can serve. Within one major, a peer is a superset
 of every earlier minor of that major, so a peer MUST be able to serve any minor at or below its own —
@@ -328,6 +334,7 @@ the page peer may install its listener after the client's first probe.
 | `surfaceVersion` | string | The version of the host's underlying in-page surface shape. Informational; the relay contract's own version is `profile`. |
 | `profile` | string | The **session profile** — the profile the page peer will speak for the rest of the session. Selected per the rule below. MUST be one the client listed in `accepts`, or the page peer MUST refuse with `FOREIGN_PROFILE` instead of responding `hello.ok`. |
 | `capabilities` | array of string | The request types this peer will serve **at the session profile**, from the §4.2 closed set (excluding `hello`). MAY be empty. |
+| `treeSource` | string | **Optional, since `relay@1.4`.** Where the tree this session reads lives: `"page"` or `"upstream"`. **Absent means `"page"`** — what every peer before `relay@1.4` meant — so a peer whose tree is in the page SHOULD omit it, keeping its handshake byte-identical to one an earlier peer would have sent. §6.5. |
 | `treeRevision` | string | §5.4. |
 
 **Selecting the session profile.** A page peer MUST answer with the **highest** profile that is both
@@ -368,6 +375,51 @@ Consequently:
 - A page peer MAY advertise a capability and still refuse individual requests to it. Advertising
   `apply` promises that the entry point exists, **never** that any particular op will be accepted.
   Per-op decisions are §8.3.
+
+### 6.5 A peer whose tree is not in the page *(since `relay@1.4`)*
+
+A **page peer** is defined in §1.1 as running alongside the host that rendered the tree. There is a
+deployed shape for which that is not true: the tree lives on the server, and the page holds only a
+renderer applying pushed patches. Such a peer is conformant, and this subsection is what it says
+about itself.
+
+`treeSource: "upstream"` declares that this peer does not hold the tree. It obliges four things and
+permits nothing.
+
+1. **It is a declaration, not a capability.** It changes no entry point, adds none, and gates none.
+   `capabilities` remains the whole authorisation surface (§6.4), and a client checks it exactly as
+   before. A peer that declares `"upstream"` and advertises only `read.renderedDom` (§7.4) — the one
+   read that asks the DOM rather than the tree — is fully conformant, in the same sense §6.4 makes a
+   read-only host fully conformant.
+2. **Every tree read it advertises is proxied, never reconstructed.** §7.7 rule 1's "the host's own
+   encoder, and no second projection" is binding here and is the whole reason this subsection is
+   normative rather than advisory. A peer MUST NOT answer a tree read by encoding a tree it derived
+   from the patches it has applied. It relays the question to the side that holds the tree and
+   returns that side's own encoder output, unchanged. A patch-derived reconstruction is a second
+   projection, and a client has no way to detect that it received one.
+3. **The fact is stable for the session.** A peer MUST NOT change `treeSource` within a session. A
+   client that needs to re-establish it re-handshakes.
+4. **It is reported regardless of the session profile.** Unlike a capability (§6.3), this field is
+   emitted whatever profile the session settled on. A `relay@1.3` client ignores it by §10.2, at no
+   cost; withholding it from that client would buy nothing and would leave a `relay@1.4` client that
+   happened to negotiate down unable to tell two genuinely different peers apart.
+
+What it does **not** say: nothing about *what* is upstream, *how far* away it is, or *what protocol*
+carries the question. §1.2's exclusions are unchanged — a relay message that has left the tab is no
+longer governed by §3's origin rules, and how a peer reaches its host is that implementation's own
+concern. `"upstream"` is deliberately not `"server"` for this reason: the contract does not know, and
+should not appear to.
+
+**Why a declaration rather than a second vocabulary.** Two other answers were available and were
+weighed: advertise the existing reads over a server-resolved tree and say nothing, or introduce a
+parallel set of capability tokens for the proxied reads. The first leaves a client unable to learn a
+fact it would act on — the reads are network round trips, and their failure has no class — while
+§6.3 forbids the one channel (`host`) by which it might have guessed. The second partitions the
+client population permanently, because §6.3 forbids advertising a capability introduced after the
+session profile, and it doubles the vocabulary for entry points whose payloads are identical by
+construction under §7.7 rule 1 — or, in its single-token form, breaks §4.2's capability ≡
+request-type invariant. A declaration costs a `relay@1.3` client one ignored field (§10.2) and costs
+this document one row and one subsection.
 
 ---
 
@@ -713,6 +765,27 @@ gate is independent:
 
 A host that stops at gate 1 or 2 is fully conformant (§6.4).
 
+**Where the three gates run, for an upstream-tree peer** *(since `relay@1.4`)*. A peer declaring
+`treeSource: "upstream"` (§6.5) does not hold the tree, and therefore does not hold the decode,
+validate or policy stages either: all three are performed by the host at the other end of the
+channel, and the page peer relays the op to it and reports the outcome it receives. **This changes
+nothing about §8.3's ordering, its refusal classes, or which class means what.** It is stated
+because §8.3 reads as though the page peer performs the sequence, and for this peer it does not.
+
+Two consequences, and they are both strengthenings rather than relaxations:
+
+- §11.3's "the relay has no side door" holds *more* firmly here, not less. The page holds no tree
+  and no policy, so there is nothing in the page for a relay client to reach past; the op crosses
+  the host's own decode → validate → policy path because that path is the only thing on the far side
+  of the channel.
+- §1.2's "not an authorisation mechanism — the relay reports a host's decision, it never makes one"
+  becomes literal rather than a posture. The peer's entire contribution is transport.
+
+`treeRevision` in `apply.ok` (§8.3) is the upstream tree's revision after the op, and is opaque under
+§5.4 exactly as any other revision is. A `changed` event caused by a server push carries
+`cause: "host"` (§8.5) — a push is the host changing its own tree — and no new `cause` value is
+needed.
+
 ### 8.2 Request
 
 ```json
@@ -924,6 +997,7 @@ Every refusal is a `response` with `type: "refusal"`, echoing the request's `id`
 | `NODE_NOT_FOUND` | No node with the requested id (or, for `read.renderedDom`, no rendered element). | `{ "nodeId": "<id>", "reason": "not-rendered" }` — `reason` optional |
 | `SLOT_NOT_DECLARED` | The named slot is not a binding slot on that node's kind. Distinct from the `noOverride` **status** (§7.3). | `{ "nodeId": "<id>", "slot": "<name>", "kind": "<kind>" }` |
 | `ENCODE_FAILED` *(since `relay@1.3`)* | The node exists but the host cannot produce its canonical wire encoding (§7.7). | `{ "nodeId": "<id>" }` |
+| `UPSTREAM_UNAVAILABLE` *(since `relay@1.4`)* | The peer declares `treeSource: "upstream"` (§6.5) and **could not dispatch** the request to the side that holds the tree. Raised **only** when the peer can assert the request was not delivered — see the note below. | `{ "reason": "no-channel" }` or `{ "reason": "timeout-before-dispatch" }` — a closed set; §10.3 governs an unrecognised value. A peer SHOULD NOT put upstream diagnostics here (§11.4). |
 | `DECODE_FAILED` | The `apply` op is not decodable as a `TreeOp`. | The wire format's `DecodeError` verbatim: `{ "Code", "Path", "Message", "ExpectedShape"? }` (§6 of `WIRE_FORMAT.md`) |
 | `VALIDATOR_REJECT` | The op decoded but the host's validator / apply engine rejected it. | `{ "code": "<host diagnostic code>" }` — optional |
 | `POLICY_DENIED` | The host's policy layer refused the operation. | — (see §11.5: `detail` SHOULD stay empty here) |
@@ -944,6 +1018,23 @@ Sentinel-bearing nodes are emphatically **not** this class: §7.7 rule 2 require
 and a host that refuses them here has misread the rule. `ENCODE_FAILED` mirrors `DECODE_FAILED` in
 name and role — one per direction, each saying that this host could not put the wire format's
 representation and its own into correspondence.
+
+**On `UPSTREAM_UNAVAILABLE` specifically, and on the case it deliberately does NOT cover.** §8.3
+states that "a refused op MUST leave the tree unchanged", with no partial application and no silent
+no-op. A peer that dispatched a request and then heard nothing **cannot assert that**, so reporting
+it as a refusal would put a promise on the wire that the peer is not in a position to make — which
+is the same defect, in the other direction, that the `ENCODE_FAILED` note above describes.
+
+So the class is restricted to the case the peer *does* know: the request never left. No channel is
+established, or the channel rejected the send. A request that was dispatched and not answered gets
+**no response at all**, and the client's own timeout governs — which is not a gap but the posture
+§6.1 already takes for a peer that does not answer, and the only honest report available when the
+op's fate is genuinely unknown. A client SHOULD render that outcome differently from any refusal,
+because a refusal promises the tree is unchanged and a timeout promises nothing.
+
+The restriction applies to reads as well as to `apply`. A read has no such invariant to protect, but
+one rule is easier to implement correctly than two, and a client branching on the class should not
+have to know which entry point it came from.
 
 ---
 
@@ -1150,10 +1241,17 @@ addition still served by one host — so the honest reading of `profile` is "the
 fixtures reach", never "every minor up to this one is covered". §12.3 states the coverage obligation
 in those terms; the list of what is waiting is kept here, because a number cannot carry it.
 
-**Waiting on a second implementation, at `relay@1.3`:** `read.affordances` (§7.6, added at 1.1) is
+**Waiting on a second implementation, at `relay@1.4`:** `read.affordances` (§7.6, added at 1.1) is
 specified and served by one host. `attribution.actorClass` (§8.2.1, added at 1.2) is an optional
 field a host reads for nothing, so a fixture for it would pin a client's behaviour rather than a
 host's; it lands with the second client that emits it.
+
+`treeSource` and `UPSTREAM_UNAVAILABLE` (§6.5, §9.3, added at 1.4) are **not** on that list: two
+hosts serve them, which is why the family's `profile` moved to `relay@1.4` with their fixtures. What
+is still waiting behind them is the PROXIED half — a treeless peer that advertises a tree read and
+answers it from upstream. That needs a correlated response on the channel carrying the question, and
+until such a channel ships the `"upstream"` fixtures pin a peer advertising `read.renderedDom` only.
+A capability set growing later is exactly what §5.3 and §6.3 are built to absorb.
 
 **And the `relay@1.0` fixtures stay at `relay@1.0`, deliberately.** They are not stale envelopes
 awaiting a refresh. Answering an unchanged `relay@1.0` corpus, handshakes included, is precisely the
@@ -1204,14 +1302,43 @@ Three fixture kinds:
 | `relay-refusal` | `requestFile` + `responseFile` + `expectedClass` | As above, and the response MUST be `type: "refusal"` with `payload.class == expectedClass`. |
 | `relay-event` | `eventFile` | An unsolicited `event` envelope shape a client MUST accept. |
 
+**And one optional entry field, `peer`** *(since `relay@1.4`)*. Values `"page"` and `"upstream"`;
+**absent means `"page"`**, so every fixture written before 1.4 is unaffected and no entry had to be
+edited when the field was introduced — the same default-for-the-existing-population reasoning as
+§6.5's `treeSource` and §8.2.1's `actorClass`.
+
+It names the **peer shape** a fixture addresses, and it exists because §6.5 made the family describe
+two of them. The second-host rule above answers "not served *yet*"; this answers something else,
+which that rule cannot: a page-tree peer can never answer an `"upstream"` fixture, at any version,
+because §6.5's declaration is by construction absent from its `hello.ok` and a runner asserting
+"every field the fixture declares is present" is right to fail it. Without this field, adding the
+first treeless fixture would turn every page-tree host's gate red permanently — which is precisely
+the outcome the profile-advances-with-the-fixtures rule exists to prevent, arriving by another
+route.
+
 ### 12.3 What a runner asserts
 
-A relay implementation is conformant when, for every fixture:
+A relay implementation is conformant when, for every fixture **whose declared `peer` shape it can
+present** (§12.2):
 
 - the response's `type` is the request's `type` + `.ok`, or `refusal`;
 - the response's `id` echoes the request's `id` verbatim;
 - for `relay-refusal`, `payload.class` equals `expectedClass`;
 - every field the fixture's payload declares is present with the stated JSON type.
+
+**A fixture whose `peer` shape a runner cannot present is reported as OUT OF REACH, with a reason —
+never as a pass, and never as a failure** *(since `relay@1.4`)*. A host that holds its tree in the
+page has no `"upstream"` peer to drive, and never will; a host that is only ever server-driven has no
+`"page"` peer. Silently skipping is the one thing forbidden — a conformance run whose coverage can
+shrink without anyone noticing is not a conformance run — so a runner enumerates what it declines and
+why, and asserts the partition is total, so that a fixture added upstream that falls into neither
+list fails the suite rather than passing unexercised.
+
+Two things follow, and both are the point rather than a concession. A runner MUST NOT read an unknown
+`peer` value as "page" and drive the fixture anyway (§10.3: an unrecognised enumerated value is not a
+licence to guess) — it reports it out of reach with the unrecognised value as its reason. And a
+host's conformance claim is now naturally read per peer shape: "conformant, page-tree" and
+"conformant, upstream" are different claims, and a host that serves both makes both.
 
 Runners MUST compare **shapes and enumerated values**, not bytes: `treeRevision` values, geometry
 numbers, resolved binding `value`s, and `message` strings are environment-specific and will legitimately
