@@ -451,7 +451,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `multiple`, `onSelect?` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
@@ -3671,6 +3671,109 @@ and not the other is distinguishable), `nodes/action-focus.json`,
 
 ---
 
+### 3.6.23 `FileUpload` — the declared ceilings (Phase 1548)
+
+`FileUploadSpec.maxBytes` and `.maxFiles` declare **how large a file, and how many of them, this
+control accepts**. They are the fifth and sixth things §3.6.10, §3.6.18 and §3.6.20 have added to
+this control, and the first two that constrain the SELECTION rather than routing it.
+
+```json
+{"$type":"FileUpload",
+ "accept":["application/pdf"],
+ "label":"Attach a scan",
+ "maxBytes":5242880,
+ "multiple":false,
+ "onSelect":"<closure>"}
+```
+
+**The limit is on the NODE because every deployment already has one, and nowhere else can see it.**
+A host that accepts uploads bounds them — in its transport, its sink, its proxy — and none of that is
+visible to the document, to the renderer that draws the control, or to any other host that reads the
+tree. So the ceiling exists and cannot be enforced by the one tier that meets the selection first:
+the server-driven gate has nothing to refuse a body read against, and a client renderer has nothing
+to check a pick against at all. Declared here it travels with the document, and every host that reads
+the tree enforces the same bound. That is the same move `destination` made for egress — default-deny
+by shape, where it was default-deny by configuration.
+
+**`maxBytes` is PER FILE, not per selection.** It bounds each file the reader picks, which is what
+makes it the quantity the `file-read` route can be measured against — that route reads one file — and
+what makes it meaningful on a single-file upload. A control that wants to bound a whole multiple
+selection states both members; the total it declares is `maxBytes × maxFiles`. A per-selection sum
+would be a different quantity wearing the same name, and a host that read it that way would refuse
+picks this one admits.
+
+**`maxFiles` is meaningful only alongside `multiple`.** A single-file upload admits one file by
+construction, so a `maxFiles` beside `"multiple":false` is INERT — not refused, and deliberately not:
+the bytes describe a control every host renders identically with or without the member, so there is
+nothing for a decoder to be right about. It is stated here so an author is not misled into thinking
+the pair does something, and so a host does not invent an interaction between them.
+
+**Both are OPTIONAL, POSITIVE, and 32-bit.** Absent — the default — declares no ceiling, which is the
+pre-1548 control exactly: every upload document written before this revision is byte-identical and
+means what it always meant, and the only bound on it is whatever its host already enforced. A present
+value must be a **positive integer**: `0` and below are `WRONG_TYPE` at `$.…maxBytes` / `$.…maxFiles`,
+on the same line as an `SrcSetEntry` whose `width` is not positive and a `Rating` whose `max` is below
+one — a ceiling of zero is not a small ceiling, it is a control that can accept nothing, so the
+document describes a control that cannot exist. An author who means "no ceiling" omits the member; that
+is how this wire spells it. The floor is a DECODE RULE rather than a type, because this format has no
+refined-integer type, and it is mirrored by `minimum: 1` in the published JSON Schema so the two
+expressions of the contract agree.
+
+**The width is §7.1's, and it is a property of the FORMAT rather than of this member.** Every typed
+integer slot this format declares is a signed 32-bit integer, so the largest declarable `maxBytes` is
+`2147483647` — a little under 2 GiB — and a larger value is a `WRONG_TYPE` naming the slot's range,
+never a number silently wrapped into one the author did not write. A ceiling above that is not
+expressible today, and making it so would be a new slot width for the whole format, ratified against
+§7.1 and §20; it is not a member on one node. A document needing a larger bound states none and leaves
+the transport ceiling to the host, which is where a bound that large belongs anyway.
+
+**Render obligations (normative, both tiers).**
+
+1. **A client renderer applies the ceilings at SELECTION time, and REFUSES rather than truncating.**
+   A pick outside a declared ceiling is refused whole: no handler runs, no body is read, nothing is
+   streamed. A host MUST NOT take the first `maxFiles` files, or the ones under `maxBytes`, and
+   proceed — the reader chose a set, and silently uploading a subset of it is a failure with no
+   symptom, since the control accepts the pick and never says which half was dropped.
+2. **A refusal is REPORTED.** The reader is told that the selection was refused and which ceiling it
+   missed, on §3.6.20's reading: "nothing happened" and "this was refused" are different facts and
+   only one of them is actionable. A host MAY tell the reader less than it tells its operator.
+3. **A server-driven host refuses a body read outside the ceilings, before the continuation runs.**
+   Where a `file-read` event carries the selected file's size and the selection's count, a host
+   measures them against the declared ceilings and refuses the event as it refuses any other
+   out-of-bounds payload — the body reaches no handler, no message loop and no durable record.
+   **What that check claims is bounded, and stating the bound is part of the obligation**: the
+   figures are the client's report, and a forged event may understate them. The gate makes the
+   document's own bound enforceable at the boundary rather than left to the renderer's good
+   behaviour; it does not make it verifiable. An event carrying NEITHER figure is not refused — a
+   shim older than this revision sends neither, and refusing on absence would turn an additive
+   declaration into a breaking one.
+4. **A static (no-script) host emits the plain control.** This floor degrades entirely, as
+   §3.6.20's does and for a plainer reason: HTML has no attribute for a byte ceiling, and `multiple`
+   is a boolean rather than a count, so there is nothing a zero-JS document could enforce. A host MAY
+   record that each declaration was READ — the §3.6.10 read-marker shape — and if it does, it records
+   only THAT a ceiling was declared and never its value, because nothing on that path can act on the
+   number and publishing it would invite a reader to believe otherwise.
+5. **The ceilings do not replace the host's own bounds.** They are a floor the document can state, not
+   a licence: a host remains free to enforce a stricter limit of its own, and MUST NOT relax an
+   existing one because a document declared a larger ceiling. A declaration says what the control
+   accepts at most, never what the host must accept.
+
+**Host adoption.** Recorded on the §11.0 convention. A pending host is unchanged, not broken: both
+members are optional, so a host that has not adopted them decodes every pre-1548 document exactly as
+before and renders one carrying the keys as the unbounded control it was. What it cannot say is that
+it enforces a declared ceiling.
+
+Fixtures: `nodes/upload-max-bytes-1.json` (a per-file byte ceiling on a single-file upload, with
+`maxFiles` OMITTED) and `nodes/upload-max-files-1.json` (a count ceiling on a `multiple` upload, with
+`maxBytes` OMITTED) — the two carried apart, so no host can read either member as implying the other;
+`nodes/upload-1.json` unchanged, which pins the polarity of both; and the four refusals
+`reject/reject-upload-maxbytes-nonint.json`, `reject/reject-upload-maxbytes-nonpositive.json`,
+`reject/reject-upload-maxfiles-nonint.json` and `reject/reject-upload-maxfiles-nonpositive.json`
+(`WRONG_TYPE` at each member's own path — a wrong shape and a non-positive value for each, vectored
+separately because they are four decoder arms).
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -3970,7 +4073,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->152<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->156<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4280,7 +4383,25 @@ declared posture excludes the obligation has answered it. Reading the Go row as 
 a gap that closing would VIOLATE its posture — so the row says which it is, and names the test that
 holds it.
 
-**Teleport adoption (§17).** A SEVENTH bar, and the only one that is not about a slot inside the node
+**Upload-ceiling adoption (`FileUploadSpec.maxBytes` / `.maxFiles`, Phase 1548).** A SEVENTH bar, and
+the one where the codec leg is smallest and the ENFORCEMENT leg is owed by the most different kinds of
+host. Decoding is two optional positive integers with a shared floor, and every host owes it. What a
+host owes beyond that depends on what it does with a selection: a client renderer owes the
+selection-time refusal and its report (§3.6.23 obligations 1–2), a server-driven host owes the body-read
+refusal (obligation 3), and a static emitter owes only the read-markers if it records them at all
+(obligation 4). A codec-only or headless host owes the decode leg alone — it meets no selection.
+
+| Host | Upload-ceiling adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: decode + the positivity floor, the client renderer's selection-time refusal and its report, the server-driven G1 refusal on the reported size and count, and the static tier's two read-markers |
+| `fuaran-ts` | **decode adopted** — the two members and the positivity floor, plus the static floor's read-markers. The selection-time refusal is not claimed: this host has a client tier and therefore owes it |
+| `fuaran-py` | **decode adopted** — the two members and the positivity floor. It meets no selection, so it owes the decode leg alone |
+| `fuaran-go` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers |
+| `fuaran-rs` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers. The WASM-client role's selection-time refusal is not claimed |
+| `fuaran-swift` | pending — a render projection owes the selection-time obligations for what it renders, and owes no codec leg |
+| `fuaran-kt` | pending — as above |
+
+**Teleport adoption (§17).** An EIGHTH bar, and the only one that is not about a slot inside the node
 vocabulary at all: the teleport bundle is an additive TOP-LEVEL artefact (§17), so a host can be
 byte-perfect on every node and op fixture and hold no bundle codec. Its table lives with the family it
 records, in [§17.6](#176-conformance), beside the corpus family that certifies it.
@@ -4489,10 +4610,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->524<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->219<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->530<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->221<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->152<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->156<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->69<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
