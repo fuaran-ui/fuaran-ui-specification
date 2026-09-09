@@ -4394,7 +4394,7 @@ refusal (obligation 3), and a static emitter owes only the read-markers if it re
 | Host | Upload-ceiling adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** — the reference: decode + the positivity floor, the client renderer's selection-time refusal and its report, the server-driven G1 refusal on the reported size and count, and the static tier's two read-markers |
-| `fuaran-ts` | **decode adopted** — the two members and the positivity floor, plus the static floor's read-markers. The selection-time refusal is not claimed: this host has a client tier and therefore owes it |
+| `fuaran-ts` | **adopted** — the two members and the positivity floor, the client renderer's selection-time refusal and its report, and the static floor's read-markers. It drives no server-driven session, so it owes no body-read refusal |
 | `fuaran-py` | **decode adopted** — the two members and the positivity floor. It meets no selection, so it owes the decode leg alone |
 | `fuaran-go` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers |
 | `fuaran-rs` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers. The WASM-client role's selection-time refusal is not claimed |
