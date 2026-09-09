@@ -4447,7 +4447,7 @@ exists to end.
 3. update the **JSON Schema generator** ([`SchemaGen.fs`](../fuaran-dotnet/src/Fuaran.UI.Ops/SchemaGen.fs)) – add the new `$type` branch / `$def` so the schema keeps describing the wire shape exactly,
 4. add a fixture to [`Fixtures.fs`](../fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests/Fixtures.fs) (or a reject case to `RejectFixtures.fs`) **and regenerate the `wire-format-fixtures/` corpus + `schema.json`** (`dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <workspace-root>/wire-format-fixtures` – the same command writes the corpus payloads *and* the schema), and
 5. **bump every non-reference codec host in the §11.0 roster** to match – the F# reference is covered by steps 1–4; each *other* codec host gets the same encoder/decoder (+ schema-shape) update: the TypeScript host's `@fuaran-ui/schema` shape + `@fuaran-ui/ui` smart-ctor (when applicable) + TS encoder/decoder, and the equivalent codec update in the Python (`fuaran-py`), Go (`fuaran-go`), and Rust (`fuaran-rs`) hosts. The render-projection surfaces (Swift/Kotlin) take a renderer arm, **not** a codec change – see §11.0, and
-6. **update the in-repo authoring veneers + analyzer vocabulary** (applies to `NodeKind` cases – ops/bindings have no veneer surface): the C# fluent-factory facade ([`src/Fuaran.UI.CSharp/`](../fuaran-dotnet/src/Fuaran.UI.CSharp/) – a factory + options record for the new kind, plus its conformance expectations), the VB XML-literal mapping ([`src/Fuaran.UI.VisualBasic/Mapping/`](../fuaran-dotnet/src/Fuaran.UI.VisualBasic/Mapping/) – an element registration driving that factory), and the VB analyzer's embedded vocabulary ([`src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs`](../fuaran-dotnet/src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs) – the kind name, any new structural sub-elements, and their attribute rows).
+6. **update the in-repo authoring veneers + analyzer vocabulary** (applies to **any admission the VB vocabulary pin covers** – every `NodeKind` case, and every FIELD added to a record the XML dialect maps; ops/bindings have no veneer surface). _This said "applies to `NodeKind` cases" until 2026-09-09. The shipped `AuthoringSurfacePin` was always wider — it fires on the mapped records' fields too — so the rule under-described the gate a session actually meets, and the text was widened to the gate rather than the gate narrowed to the text._ The surfaces: the C# fluent-factory facade ([`src/Fuaran.UI.CSharp/`](../fuaran-dotnet/src/Fuaran.UI.CSharp/) – a factory + options record for the new kind, plus its conformance expectations), the VB XML-literal mapping ([`src/Fuaran.UI.VisualBasic/Mapping/`](../fuaran-dotnet/src/Fuaran.UI.VisualBasic/Mapping/) – an element registration driving that factory), and the VB analyzer's embedded vocabulary ([`src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs`](../fuaran-dotnet/src/Fuaran.UI.Analyzers/VisualBasic/Vocabulary.cs) – the kind name, any new structural sub-elements, and their attribute rows).
 
 **Native render surfaces (roster render projections).** A `NodeKind` addition also obliges a renderer
 arm in every render-projection surface – the Swift/Kotlin native tiers
@@ -4610,9 +4610,9 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->530<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->531<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->221<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->23<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->156<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->69<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
