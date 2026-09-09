@@ -4398,8 +4398,8 @@ refusal (obligation 3), and a static emitter owes only the read-markers if it re
 | `fuaran-py` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers. It drives no selection, so it owes no selection-time refusal |
 | `fuaran-go` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers |
 | `fuaran-rs` | **decode adopted** — the two members, the positivity floor, and the SSR read-markers. The WASM-client role's selection-time refusal is not claimed |
-| `fuaran-swift` | pending — a render projection owes the selection-time obligations for what it renders, and owes no codec leg |
-| `fuaran-kt` | pending — as above |
+| `fuaran-swift` | **decode adopted** — the two members and the positivity floor as a decode rule, each reject vector asserted beside a corrected twin, and the static floor's value-free read-markers; the selection-time obligations are a declared exemption (`FileUpload/ceiling-recorded-never-enforced` in `conformance-residue.txt`), since the projection opens no picker and owes no codec leg. Landed `a2f01d5` (PR #4) |
+| `fuaran-kt` | **decode adopted** — as above, on the Compose floor; landed `e5aebd8` (PR #7) |
 
 **Teleport adoption (§17).** An EIGHTH bar, and the only one that is not about a slot inside the node
 vocabulary at all: the teleport bundle is an additive TOP-LEVEL artefact (§17), so a host can be
