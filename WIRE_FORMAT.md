@@ -6745,6 +6745,215 @@ host that has adopted, in the same change-set.
 ---
 
 
+## 27. Host capability manifest (Phase 1582)
+
+A harness that runs a host against this corpus meets two kinds of shortfall, and they have opposite
+remedies. A fixture may exercise a construct the **host** does not model — a kind, a union case, a
+slot its type model has no spelling for — in which case nothing the harness can do will make the
+fixture pass, and the honest outcome is to hold it aside until the host grows the construct. Or the
+fixture may exercise a construct the host models perfectly well and the **harness** does not emit, in
+which case holding it aside hides the harness's own lag.
+
+Telling the two apart has, until now, been done by hand: a list of fixture ids beside the harness,
+each with a sentence naming a construct. Such a list is exactly as honest as its last
+re-measurement, and it decays silently in both directions — an entry outlives the release that
+closed its gap, and a shortfall nobody listed reads as a pass. This section specifies the mechanism
+that replaces it. A conformant host **publishes a capability manifest**, generated from its own type
+model, enumerating the wire constructs it can author; a harness **computes** its expected-unmodelled
+fixture set as *corpus minus manifest*. A wrong entry then cannot exist, because there are no
+entries — there is a projection.
+
+The manifest is a **host-side declaration**, like a §23 admission policy and unlike everything else
+in this document: it never appears on the wire, is not negotiated with a peer, and does not narrow
+the format. §11's forward-coupling rule is untouched.
+
+### 27.1 The generation rule (normative)
+
+- A manifest **MUST be generated from the host's own type model** — the declarations that decide what
+  the host can author — and **MUST NOT be hand-written**, in whole or in part. A hand-maintained
+  token list is the artefact this section exists to remove, and one embedded inside a generator is
+  the same artefact with a longer path to it.
+- The generation **MUST run in the host's own gate**, and the gate **MUST fail** when the published
+  artefact differs from what the generator now produces. A manifest that is only regenerated when
+  someone remembers is a hand-written list with extra steps.
+- The generation **MUST be falsifiable**: removing a construct from the host's type model removes
+  exactly that construct's tokens from the manifest, and nothing else. A host's gate is expected to
+  prove this against its own model rather than assert it.
+- A host **MUST NOT declare a token it cannot author.** The two directions of error are not
+  symmetric. **Under-declaration is recoverable** — a consumer holds a fixture aside that would have
+  passed, and §27.4's self-clearing rule names it on the next run. **Over-declaration is a defect**:
+  a consumer reads a genuine host gap as its own lag and is sent to fix code that is not wrong.
+  Where a host cannot decide a family mechanically, it declares that family **not covered** (§27.3)
+  rather than guessing at it.
+
+### 27.2 Token grammar
+
+A **construct token** names one position in the wire vocabulary, keyed to the §4b vocabulary as
+`idl.json` renders it — `kinds[].tag`, `unions[].name`, `unions[].cases[].tag`, `records[].name` and
+the `fields[].name` wire keys. It is a dotted path:
+
+```
+token          := kindTok | fieldTok | caseTok | hostedTok
+kindTok        := "Kind" "." Tag                            ; Kind.Drawing
+caseTok        := Union "." Tag                             ; Binding.Expr
+fieldTok       := "Kind" "." Tag "." wireField              ; Kind.Chart.annotations   (kindFields)
+                | Union "." Tag "." wireField               ; Binding.Transform.params (caseFields)
+                | Record "." wireField                      ; Accessibility.liveRegion (recordFields)
+hostedTok      := fieldTok "." HostedTag                    ; Binding.Transform.source.State
+Tag            := [A-Z][A-Za-z0-9]*                         ; a wire discriminator ($type)
+HostedTag       := [A-Za-z][A-Za-z0-9]*                     ; a discriminator inside a hosted payload
+wireField      := [a-z][A-Za-z0-9]*                         ; a wire key
+Union          := an `unions[].name`;  Record := a `records[].name`
+```
+
+Three properties of the grammar are load-bearing:
+
+- **`Kind` is the one reserved head.** `NodeKind` is not an `idl.json` union — the kinds are their own
+  top-level enumeration — so it has no name to borrow, and a reserved head is what keeps
+  `Kind.Badge` from reading as a case of a union called `Kind`.
+- **Case matters, and it is the whole disambiguation.** A discriminator is `PascalCase` and a wire key
+  is `camelCase` throughout this format, so a two-segment token whose second segment starts uppercase
+  is a union case and one that starts lowercase is a record field. A host that spells its own fields
+  differently (`snake_case`, say) maps them to the wire key when it generates: a token is a statement
+  about the *wire*, not about a host's identifiers.
+- **A `hosted` slot is addressed by extension, one level only.** `idl.json` types a few slots as
+  `hosted` — opaque to the structural vocabulary, with the payload's own discriminator inside — and a
+  host may model such a slot more narrowly than the wire allows. `hostedTok` extends the token of the
+  *field* that holds the slot with the discriminator immediately inside it, and stops there; deeper
+  structure inside a hosted payload is outside this grammar. **A hosted payload's discriminator is
+  the one place the PascalCase rule above does not hold** — the compute vocabulary those slots carry
+  spells its own tags in `camelCase` (`groupBy`, `binary`, `lit`) — so `HostedTag` admits either
+  case. It stays unambiguous because a hosted token is always one segment longer than the field token
+  it extends, and a field token's last segment is always `camelCase`.
+
+### 27.3 The document
+
+```json
+{
+  "$manifest": "fuaran.host-capability/1",
+  "host": "fuaran-py",
+  "hostVersion": "0.5.0",
+  "corpusAuthority": "87063b3b815c1c4e96eeaf25b394411c91be014a",
+  "generator": "fuaran_py.conformance.host_capability",
+  "families": {
+    "kinds":       { "covered": true },
+    "unionCases":  { "covered": true, "scope": ["Action", "Binding", "…"], "reason": "…what the scope leaves out…" },
+    "hostedCases": { "covered": false, "reason": "…one sentence…" },
+    "kindFields":  { "covered": false, "reason": "…one sentence…" }
+  },
+  "tokens": ["Binding.Static", "Kind.Badge", "…"]
+}
+```
+
+- `$manifest` is the format identifier and version. A consumer that does not recognise it **MUST
+  refuse the document** rather than read the members it happens to know.
+- `hostVersion` is **the host release this manifest describes** — see §27.4's version binding, which
+  is the whole reason the field is required.
+- `corpusAuthority` is provenance, not a dependency: the corpus commit the host's vocabulary was last
+  attested against, or `null`. A manifest is a projection of the host's type model and is generated
+  without reading this corpus at all.
+- `families` declares, per token family (`kinds`, `kindFields`, `unionCases`, `caseFields`,
+  `recordFields`, `hostedCases`), whether this manifest makes any claim about it. A family the
+  document omits is **not covered**. A `covered: false` entry carries a one-sentence `reason`, and
+  that sentence is the artefact: it is where a host says what it could not decide mechanically, in a
+  place a consumer reads rather than in a comment nobody does.
+- A covered family may narrow itself with **`scope`** — the list of *scope keys* it makes claims
+  about. Absent `scope` means the whole family. The scope key is the union name for `unionCases` and
+  `caseFields`, the record name for `recordFields`, and the `Union.Case.field` slot for
+  `hostedCases`; `kinds` and `kindFields` have no scope key and take no `scope`. A narrowed family
+  also carries a `reason` saying what the narrowing leaves out.
+
+  **`scope` is the member that keeps a partly-derivable family usable at all.** A host will typically
+  resolve most of a family from its model and one or two members not at all — a union whose
+  discriminator it computes at runtime, say, which no introspection can enumerate. Without `scope`
+  that host has two bad choices: declare the family uncovered and lose every union it *did* resolve,
+  or declare it covered and have a consumer read its unresolvable members as gaps. Neither is what it
+  knows.
+- `tokens` is the sorted, deduplicated set of tokens the host can author, in the covered families and
+  within their declared scope. A token outside that is a defect.
+
+The structural rendering is [`schemas/host-capability-manifest.v1.json`](schemas/host-capability-manifest.v1.json),
+subordinate to this text as every schema in this repository is.
+
+### 27.4 Consuming a manifest (normative for a harness)
+
+Given a manifest and a corpus, a harness derives each fixture's token set by walking the fixture's
+wire document against `idl.json`, and then:
+
+1. **The expected-unmodelled set** is every fixture exercising at least one token that is **claimed**
+   — its family is declared covered and its scope key is within that family's `scope` — and is
+   **absent** from `tokens`.
+2. **Silence outside a claim is NO CLAIM.** A harness **MUST NOT** infer that a construct is
+   unmodelled from its absence in a family the manifest does not cover, or in a scope key that family
+   does not list. This is the rule that makes §27.1's "declare it not covered rather than guess" safe
+   to obey.
+3. **A fixture that fails outside the expected set is the HARNESS's lag** and MUST fail the suite.
+   That is the entire point of computing the set: a shortfall nobody declared is now a failure rather
+   than an omission.
+4. **A fixture inside the set that PASSES MUST fail by name.** Either the host grew the construct and
+   the manifest is stale, or the manifest under-declares — both are worth knowing, and a silently
+   passing quarantined fixture is how the hand-written list decayed.
+5. **Version binding.** A consumer **MUST NOT** derive an expected set from a manifest whose
+   `hostVersion` differs from the version of the host it is actually executing. It reports the
+   mismatch **by name** — both versions — and falls back to whatever pre-manifest path it has. A
+   manifest is a statement about one release; applying it to another is precisely the stale claim
+   this section replaces, made harder to see because it looks computed.
+6. **A harness MAY keep a declared RESIDUAL beside the computed set, and every residual entry MUST
+   name the uncovered claim it stands in for.** Rule 2 leaves a hole by design: where a manifest makes
+   no claim, the harness knows nothing, and a fixture whose only host gap lies there is neither
+   computed-unmodelled nor honestly failable. A residual entry fills that hole — and, so it cannot
+   become the hand-written list again, it carries the family (and scope key, where the family has
+   one) it relies on being unclaimed. A harness **MUST fail** on a residual entry whose named family
+   and scope key the manifest *does* claim: that entry is either already computed or contradicted, and
+   either way it is stale. The residual therefore shrinks monotonically as hosts widen coverage, and
+   an entry cannot outlive the gap it names without saying so out loud.
+
+### 27.5 What is not claimed
+
+- **A manifest is not a conformance claim.** A declared token says the host has a spelling for the
+  construct — never that its bytes are right. The corpus decides that, and a host that declares
+  everything and round-trips nothing fails exactly as it did before.
+- **`hostedCases` rests on the host's own model alone.** A hosted slot is opaque to `idl.json`, so
+  there is no spec-side enumeration to check a host's correspondence against, and the
+  under/over-declaration asymmetry of §27.1 is the only protection there is. It is stated here rather
+  than left to be discovered.
+- **Decode is not covered by the token families above.** These name what a host can AUTHOR. Lenient
+  decode (§16), a §23 admission policy, and a host's decode-upgrade tags are separate declarations
+  and are not derivable from a manifest.
+- **A manifest describes one host at one version**, and nothing in it is transitive: two hosts'
+  manifests are comparable only as sets, and no host may read another's as evidence about its own.
+
+### 27.6 Adoption
+
+Each host adopts on its own phase; a host with no manifest is not non-conformant, and a consumer of
+one keeps whatever pre-manifest path it had (§27.4 rule 5).
+
+- **`fuaran-py` is the first host** (Phase 1582). Its generator reads the host's authoring model — the
+  discriminator each authoring record writes, and the union aliases that group them — and publishes
+  `conformance/host-capability-manifest.json`. It covers `kinds`, and `unionCases` narrowed by
+  `scope` to the twenty unions its aliases resolve; it declares the three field families and
+  `hostedCases` not covered, each with its reason. Its scope excludes the two unions whose host
+  spelling computes a discriminator at runtime rather than declaring it — the shape §27.3's `scope`
+  paragraph describes, met on the very first adoption.
+- **`fuaran-ts`** has the easiest adoption of the three that follow: its factory namespaces and its
+  decoder's case tables are both values, so the token set is an enumeration rather than an
+  introspection, and its `hostedCases` correspondence is explicit in the compute module.
+- **`fuaran-go`** has no sum types, so its union cases live as discriminator strings already — the
+  representation §23.2 chose for the same reason. Its manifest is closer to a projection of its
+  existing case tables than to a derivation from a type model, which satisfies §27.1 provided the
+  tables are the model rather than a copy of it.
+- **`fuaran-rs`** models the closed wire DUs as native `enum`s with exhaustive `match`, so its
+  generator can be a compile-time enumeration and its under-declaration risk is the lowest of the
+  four. The one thing to watch is the opposite error: an `enum` variant that exists for decode but
+  has no authoring path is an over-declaration, which §27.1 forbids.
+
+**Forward coupling.** A change to the token grammar or the document members in this section updates
+the normative text, `schemas/host-capability-manifest.v1.json`, every published manifest, and every
+harness that consumes one, in the same change-set.
+
+---
+
+
 ## See also
 
 - [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).

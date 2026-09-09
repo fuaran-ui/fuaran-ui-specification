@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuaran.dev/wire-format/v1/host-capability-manifest.json",
+  "title": "Fuaran host capability manifest (v1)",
+  "description": "The structural rendering of WIRE_FORMAT.md 27 — a conformant host's generated declaration of the wire constructs it can author. Subordinate to that text: where the two differ, the text governs. This schema constrains SHAPE only; the generation rule (27.1), the family semantics (27.3) and the version binding (27.4 rule 5) are obligations no schema can express.",
+  "type": "object",
+  "required": ["$manifest", "host", "hostVersion", "generator", "families", "tokens"],
+  "additionalProperties": false,
+  "properties": {
+    "$manifest": {
+      "description": "The format identifier and version. A consumer that does not recognise it refuses the document (27.3).",
+      "const": "fuaran.host-capability/1"
+    },
+    "host": {
+      "description": "The host's identifier, e.g. \"fuaran-py\".",
+      "type": "string",
+      "minLength": 1
+    },
+    "hostVersion": {
+      "description": "The host RELEASE this manifest describes. A consumer must not derive an expected-unmodelled set from a manifest whose hostVersion differs from the host it is executing (27.4 rule 5).",
+      "type": "string",
+      "minLength": 1
+    },
+    "corpusAuthority": {
+      "description": "Provenance, not a dependency: the corpus commit the host's vocabulary was last attested against, or null. A manifest is generated from the host's type model without reading the corpus.",
+      "type": ["string", "null"]
+    },
+    "generator": {
+      "description": "What produced the document — the module, script or target a reader runs to regenerate it.",
+      "type": "string",
+      "minLength": 1
+    },
+    "families": {
+      "description": "Per token family, whether this manifest makes any claim about it. An omitted family is NOT covered, and silence in an uncovered family is no claim at all (27.4 rule 2).",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "kinds": { "$ref": "#/$defs/family" },
+        "kindFields": { "$ref": "#/$defs/family" },
+        "unionCases": { "$ref": "#/$defs/family" },
+        "caseFields": { "$ref": "#/$defs/family" },
+        "recordFields": { "$ref": "#/$defs/family" },
+        "hostedCases": { "$ref": "#/$defs/family" }
+      }
+    },
+    "tokens": {
+      "description": "The sorted, deduplicated construct tokens the host can author, in the covered families only (27.2, 27.3).",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/token" }
+    }
+  },
+  "$defs": {
+    "family": {
+      "description": "Whether this manifest makes any claim about a token family, and how far. An uncovered family must say in one sentence what the host could not decide mechanically; a family narrowed by `scope` says what the narrowing leaves out. `scope` lists the family's scope keys — the union name for unionCases/caseFields, the record name for recordFields, the Union.Case.field slot for hostedCases; kinds and kindFields have no scope key and take no scope. Absent scope means the whole family.",
+      "type": "object",
+      "required": ["covered"],
+      "additionalProperties": false,
+      "properties": {
+        "covered": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "scope": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "covered": { "const": false } }, "required": ["covered"] },
+          "then": { "required": ["reason"], "not": { "required": ["scope"] } }
+        }
+      ]
+    },
+    "token": {
+      "description": "A construct token per the 27.2 grammar: Kind.Tag, Kind.Tag.field, Union.Tag, Union.Tag.field, Record.field, and any of the three field shapes extended by one hosted-payload discriminator. PascalCase segments are wire discriminators, camelCase segments are wire keys, and the alternation of the two is what tells the shapes apart. `Kind` is the reserved head for the NodeKind enumeration; a hosted token's final segment admits either case, because a hosted payload's own vocabulary need not be PascalCase.",
+      "type": "string",
+      "pattern": "^(Kind\\.[A-Z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)?)?|[A-Z][A-Za-z0-9]*\\.([A-Z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)?)?|[a-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)?))$"
+    }
+  }
+}

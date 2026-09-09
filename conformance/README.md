@@ -88,6 +88,20 @@ node property-cross-host.mjs                                                    
 dotnet run --project ..\..\fuaran-dotnet\src\Fuaran.UI.JsonDecode.Tests\Fuaran.UI.JsonDecode.Tests.fsproj -c Release -- --check-fuzz-samples $s   # Leg D (TS → F#)
 ```
 
+## Host capability manifests (Phase 1582)
+
+A host may additionally **publish a capability manifest** — a generated declaration of the wire
+constructs it can author — so that a harness computes its expected-unmodelled fixture set as *corpus
+minus manifest* rather than hand-listing it. The normative rule, the token grammar, the document
+members and the per-host adoption notes are [`WIRE_FORMAT.md` §27](../WIRE_FORMAT.md); the structural
+rendering is [`schemas/host-capability-manifest.v1.json`](../schemas/host-capability-manifest.v1.json).
+
+It is **not** part of the two-leg gate above and does not decide conformance: a host with no manifest
+is not non-conformant, and a declared token says the host has a spelling for a construct, never that
+its bytes are right — which the legs above are what decide. `fuaran-py` is the first host to publish
+one (`fuaran-py/conformance/host-capability-manifest.json`); `fuaran-ts`, `fuaran-go` and `fuaran-rs`
+each adopt on their own phase, per §27.6.
+
 ## Layout note (separate-repo CI)
 
 `fuaran-dotnet/`, `fuaran-ts/`, `fuaran-py/`, and the workspace repo (which owns `wire-format-fixtures/` + this runner + the workflow) are **separate git repos** cloned side-by-side. Leg B resolves the TS host at `../../fuaran-ts/packages/ops/dist/index.js`, Leg E resolves the corpus at `../wire-format-fixtures` from `fuaran-py/`, and both resolve the corpus at `..`, so they require the canonical workspace layout on disk. The CI workflow assembles that layout by checking out all repos into the right relative paths — see the workflow's header comment for the cross-repo checkout token requirement.
