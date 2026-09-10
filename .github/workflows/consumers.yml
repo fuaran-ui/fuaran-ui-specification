@@ -1,0 +1,620 @@
+name: Consumer conformance
+
+# Phase 1660 — the per-host consumer conformance REPORT, on the corpus's own push.
+#
+# ── The gap this closes ──────────────────────────────────────────────────────
+# This repository is the specification and the executable conformance corpus.
+# Every conformant host certifies against it, and the corpus is deliberately
+# UNPINNED in each of their CI lanes (one current spec for all hosts is the
+# point of giving it a single home). The consequence is that a corpus move
+# reaches a host only on that host's NEXT unrelated push — so the drift surfaces
+# hours later, attached to whatever commit happened to be carrying it, in a repo
+# whose author cannot attribute it. The instance that filed this phase: Phase
+# 1144 regenerated `dag/` at 19:27 UTC; the Python host went red on an unrelated
+# push, while Go and Rust stayed green only because their last runs were at
+# 19:24. Nothing was wrong with any of those three reports. They were simply
+# answers to a question nobody had asked at the moment it became answerable.
+#
+# `notify-conformance.yml` beside this file is NOT that report, and the
+# difference is the reason this workflow exists rather than an extension of it.
+# That one POSTs a `repository_dispatch` into another repository's cross-host
+# gate: fire-and-forget, so this commit's own check list records only whether
+# the POST succeeded, and the per-host verdict lands in a run history a
+# contributor to THIS repository may not be able to open at all. It is real
+# coverage and it stays; what it cannot be is a report attached to the corpus
+# commit that moved.
+#
+# ── What this workflow does ──────────────────────────────────────────────────
+# It reassembles the estate's side-by-side workspace layout on the runner — this
+# repository at the PUSHED commit, each host beside it at `main` — and runs each
+# host's OWN declared blocking test step. One job per host, so the answer is per
+# host in the check list rather than a single verdict over five of them:
+#
+#     $GITHUB_WORKSPACE/
+#     ├── wire-format-fixtures/   ← THIS repo, at ${{ github.sha }}
+#     └── <host>/                 ← the host, at `main` (+ the siblings its own CI declares)
+#
+# That layout is not invented here. Every host's `ci.yml` already checks itself
+# out into a subdirectory and this corpus in beside it, because every host
+# resolves the corpus as a sibling of its own root. So this workflow needs NO
+# change in any host repository, and no credential: all five host repositories
+# are public, so the checkouts read anonymously.
+#
+# ── The leg is the HOST's, never this repository's ───────────────────────────
+# Nothing here defines conformance. Each `gate` in the roster below is the
+# command that host's own CI blocks on — the step it labels "THE GATE" / "Test
+# (gated)" / "The repo gate" — preceded only by that gate's prerequisites
+# (install, build). Style and lint steps are deliberately NOT run: a formatting
+# nit in a host says nothing about this corpus, and reporting it as drift would
+# be exactly the misattribution this workflow exists to remove. The one wrinkle
+# is the reference host, whose own gate is a single build-script target that
+# chains format → build → test → validate; a subset of another repository's
+# build script is not this repository's to carve, so it runs whole.
+#
+# ── What a leg here does NOT assert, and why that is deliberate ──────────────
+# Each host is measured in the arrangement ITS OWN CI uses: itself, this corpus,
+# and only the extra siblings its own workflow checks out. So a suite that skips
+# for want of another host's sources skips here exactly as it skips there — the
+# class-vocabulary and stylesheet-parity oracles two of these hosts carry are
+# the standing instance, and each of those repositories prints its own
+# disclosure of them on every run.
+#
+# That is a floor, not an oversight, and checking a reference host out beside
+# every host would NOT raise it uniformly: at least one host's suite escalates
+# from "not run" to "FAILED" the moment a second host appears beside it, because
+# a cross-host checkout missing a corpus it would otherwise skip is a silently
+# disabled oracle rather than a standalone clone. Adding that checkout would
+# therefore buy two hosts' oracles at the price of reporting drift on a third
+# for a corpus this workflow cannot supply — a false report, which is worse than
+# a disclosed floor.
+#
+# So this report says what each host's own gate says, and no more. It is NOT a
+# cross-host parity check; that claim belongs to the cross-host gate (§11.1),
+# which assembles every host together for exactly that reason.
+#
+# ── It reports; it does not gate ─────────────────────────────────────────────
+# A `push`-triggered workflow cannot block a push — the commit is already on
+# `main` by the time it starts. So "never fails the corpus push" means something
+# precise: this commit must not carry a red mark because a HOST is behind. A
+# drifted host is that host's obligation, and this workflow's whole job is to
+# make it VISIBLE, not to make it this repository's problem. Each host job is
+# therefore `continue-on-error: true`.
+#
+# What DOES fail the run is a host that could not be MEASURED — a checkout that
+# did not arrive, a toolchain that would not install, a job cancelled at the
+# timeout. That is not a report about the corpus's content; it is the mechanism
+# admitting it produced no answer, and the estate's standing rule is that a leg
+# which did not run has not passed. A workflow that stayed green over five
+# missing verdicts would be worse than no workflow, because it would look like
+# evidence.
+#
+# ── Triggers, and the two that are deliberately absent ───────────────────────
+# `push` is the trigger the phase is about. `workflow_dispatch` takes a host +
+# ref override so the mechanism's go-red can be re-proved at will against a
+# deliberately drifted branch, rather than having been proved once.
+#
+# No `pull_request`: this repository lands changes by direct push, so a PR
+# trigger would double the cost of every corpus change to produce a report the
+# push already produces. No `schedule`: the cross-host gate this repository
+# dispatches into already carries the nightly drift catch, and a second nightly
+# over the same five hosts would measure the same thing twice.
+#
+# No `concurrency` group either, and that is a choice rather than an omission: a
+# report is per COMMIT and is read for attribution, so coalescing two corpus
+# pushes into one run would discard the answer for the earlier commit — which is
+# the very thing this workflow exists to supply.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      host:
+        description: 'Measure one host only (its §11.0 roster id), or every host.'
+        type: choice
+        default: all
+        options:
+          - all
+          - fuaran
+          - fuaran-ts
+          - fuaran-py
+          - fuaran-go
+          - fuaran-rs
+      ref:
+        description: 'Measure that ONE host at this git ref instead of `main` (the go-red input; requires a single host).'
+        type: string
+        default: ''
+
+# Least privilege, stated rather than inherited. Every checkout below is of a
+# public repository and reads anonymously; nothing here writes anywhere.
+permissions:
+  contents: read
+
+jobs:
+  # ── The roster ─────────────────────────────────────────────────────────────
+  #
+  # One job whose only product is the effective host list, so the matrix below
+  # and the report at the end read the SAME list. Adding a host is then one
+  # entry here — the property §11.0 names explicitly when it says adding a host
+  # should be a one-line edit rather than a sweep.
+  #
+  # And the list is CHECKED against the specification rather than trusted: the
+  # last step asserts that the set of `**codec host**` rows in WIRE_FORMAT.md
+  # §11.0 is exactly the set of ids below. §11.0 is authoritative prose today
+  # (it says so itself, and names a machine-readable mirror in `manifest.json`
+  # as the intended anchor), so a host added to the table and not to this file
+  # would otherwise be a silent omission in the one artefact that claims to
+  # cover every host. Failing HERE is correct: it is an unmeasurable roster, not
+  # a host's drift, and the report treats those differently.
+  roster:
+    name: Roster (WIRE_FORMAT.md §11.0 codec hosts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      hosts: ${{ steps.build.outputs.hosts }}
+    steps:
+      - name: Checkout the specification (this repo, at the commit under report)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Build the effective roster
+        id: build
+        env:
+          INPUT_HOST: ${{ inputs.host || 'all' }}
+          INPUT_REF: ${{ inputs.ref || '' }}
+        run: |
+          set -euo pipefail
+
+          # `id`       — the host's §11.0 roster token (the reference host is `fuaran`,
+          #              whose repository is `fuaran-dotnet`; the two differ, so both are carried).
+          # `dir`      — the checkout path, which is also the host's own working directory.
+          #              It is the DIRECTORY NAME that is the interface here, never the repo name.
+          # `siblings` — the extra checkouts that host's OWN ci.yml declares, so a suite that
+          #              would otherwise skip-when-absent gates here as it does there.
+          # `gate`     — that host's own declared blocking test step, prerequisites included.
+          cat > roster.json <<'JSON'
+          [
+            {
+              "id": "fuaran",
+              "language": "F#",
+              "repo": "fuaran-ui/fuaran-dotnet",
+              "dir": "fuaran-dotnet",
+              "toolchain": "dotnet",
+              "siblings": [],
+              "gate": "dotnet run --project Build.fsproj -- Check"
+            },
+            {
+              "id": "fuaran-ts",
+              "language": "TypeScript",
+              "repo": "fuaran-ui/fuaran-ts",
+              "dir": "fuaran-ts",
+              "toolchain": "node",
+              "siblings": [
+                { "repo": "Fuaran-Core/fuaran-model-execution-spec", "dir": "fuaran-model-execution-spec" }
+              ],
+              "gate": "pnpm install --frozen-lockfile\npnpm build\npnpm test"
+            },
+            {
+              "id": "fuaran-py",
+              "language": "Python",
+              "repo": "fuaran-ui/fuaran-py",
+              "dir": "fuaran-py",
+              "toolchain": "python",
+              "siblings": [
+                { "repo": "fuaran-ui/fuaran-dotnet", "dir": "fuaran-dotnet" }
+              ],
+              "gate": "python -m pip install --upgrade pip\npython -m pip install \".[dev]\"\npython -m pytest -q -rs"
+            },
+            {
+              "id": "fuaran-go",
+              "language": "Go",
+              "repo": "fuaran-ui/fuaran-go",
+              "dir": "fuaran-go",
+              "toolchain": "go",
+              "siblings": [],
+              "gate": "go run ./cmd/conformance-residue"
+            },
+            {
+              "id": "fuaran-rs",
+              "language": "Rust",
+              "repo": "fuaran-ui/fuaran-rs",
+              "dir": "fuaran-rs",
+              "toolchain": "rust",
+              "siblings": [],
+              "gate": "cargo test --no-fail-fast"
+            }
+          ]
+          JSON
+
+          # The §11.0 codec-host set, read from the authoritative table. Scoped to
+          # the section so a future table elsewhere cannot widen it by accident.
+          awk '/^### 11\.0 /,/^### 11\.1 /' WIRE_FORMAT.md \
+            | grep -F '**codec host**' \
+            | sed -n 's/^| *`\([^`]*\)`.*/\1/p' \
+            | sort > spec-hosts.txt
+
+          jq -r '.[].id' roster.json | sort > roster-hosts.txt
+
+          if ! diff -u spec-hosts.txt roster-hosts.txt > roster.diff; then
+            echo '::error title=Roster out of step with WIRE_FORMAT.md §11.0::the codec-host table and this workflow name different host sets'
+            echo 'WIRE_FORMAT.md §11.0 codec hosts (-) vs this workflow roster (+):'
+            cat roster.diff
+            echo
+            echo 'Add the host to the roster in .github/workflows/consumers.yml, or correct §11.0.'
+            exit 1
+          fi
+          echo "Roster agrees with WIRE_FORMAT.md §11.0:"
+          sed 's/^/  /' roster-hosts.txt
+
+          # The dispatch override. A single ref cannot mean anything applied to five
+          # different hosts, so asking for one over `all` is refused rather than
+          # silently ignored — an ignored input is how a go-red run gets mistaken for
+          # a report about `main`.
+          if [ "$INPUT_HOST" = 'all' ]; then
+            if [ -n "$INPUT_REF" ]; then
+              echo '::error title=ref override needs a single host::a ref applies to ONE host; select it in the `host` input'
+              exit 1
+            fi
+            jq -c 'map(. + { ref: "main" })' roster.json > effective.json
+          else
+            if ! jq -e --arg h "$INPUT_HOST" 'any(.[]; .id == $h)' roster.json > /dev/null; then
+              echo "::error title=Unknown host::\`$INPUT_HOST\` is not in the roster"
+              exit 1
+            fi
+            jq -c --arg h "$INPUT_HOST" --arg r "$INPUT_REF" \
+              'map(select(.id == $h) | . + { ref: (if $r == "" then "main" else $r end) })' \
+              roster.json > effective.json
+          fi
+
+          echo "Effective roster:"
+          jq -r '.[] | "  \(.id) @ \(.ref)"' effective.json
+          echo "hosts=$(cat effective.json)" >> "$GITHUB_OUTPUT"
+
+  # ── One job per host ───────────────────────────────────────────────────────
+  #
+  # `continue-on-error: true` at JOB level is what keeps a drifted host from
+  # marking this corpus commit red. `fail-fast: false` is what keeps one red
+  # host from cancelling the other four — the failure mode the cross-host gate
+  # recorded on 2026-08-29, where a leg's state was unknowable because an
+  # earlier leg had already stopped the job, and "we do not know" is
+  # indistinguishable in a run history from "it was fine".
+  #
+  # Each job's verdict is published as an artifact rather than left to be read
+  # off the job's own conclusion, because `continue-on-error` rewrites that
+  # conclusion to `success`: a report that read it would call every drifted host
+  # green. The artifact is written under `if: always()`, so a job that died in
+  # its checkout still says so, and its ABSENCE is what the report treats as
+  # unmeasured.
+  hosts:
+    name: ${{ matrix.id }} (${{ matrix.language }})
+    needs: roster
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # A hung leg must cost minutes, not the runner's six-hour ceiling. The
+    # heaviest host here (the reference host's whole gate — around thirty test
+    # projects plus a validator sweep) sets the bound; its own CI uses the same
+    # number.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.roster.outputs.hosts) }}
+    steps:
+      - name: Checkout the specification (this repo, at the commit under report)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: wire-format-fixtures
+
+      - name: Checkout ${{ matrix.id }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repo }}
+          ref: ${{ matrix.ref }}
+          path: ${{ matrix.dir }}
+
+      # The siblings the host's own CI declares. A shell clone rather than more
+      # checkout steps because the list is data — a host that grows a second
+      # sibling is a roster edit, not a workflow edit. Public repositories, so
+      # anonymous and shallow.
+      - name: Checkout the siblings ${{ matrix.id }}'s own CI declares
+        env:
+          SIBLINGS: ${{ toJSON(matrix.siblings) }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          count=$(jq -r 'length' <<< "$SIBLINGS")
+          if [ "$count" -eq 0 ]; then
+            echo "None declared."
+            exit 0
+          fi
+          jq -r '.[] | "\(.repo)\t\(.dir)"' <<< "$SIBLINGS" | while IFS=$'\t' read -r repo dir; do
+            echo "Cloning $repo -> $dir"
+            git clone --quiet --depth 1 "$SERVER_URL/$repo.git" "$dir"
+          done
+
+      # The layout assert every host's own CI carries, for the same reason it
+      # carries it: several corpus-driven suites skip-when-absent so a bare
+      # single-repo clone still runs the rest, and in an assembled layout that
+      # same tolerance is the failure mode — a drifted path would silently
+      # re-enable the skips and this job would report a verdict about fixtures
+      # it never opened.
+      - name: Assert the corpus is where ${{ matrix.id }} resolves it
+        run: |
+          set -euo pipefail
+          test -f wire-format-fixtures/manifest.json
+          test -f wire-format-fixtures/render-fidelity.json
+          test -d wire-format-fixtures/nodes
+          echo "Corpus present at wire-format-fixtures/ (sibling of ${{ matrix.dir }}/)."
+
+      - name: Setup .NET
+        if: matrix.toolchain == 'dotnet'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: ${{ matrix.dir }}/global.json
+
+      # NU1301: the reference host's nuget.config declares a `local` folder
+      # source three levels above its root for inner-loop iteration, and NuGet
+      # hard-errors on a missing folder source rather than treating it as empty,
+      # so restore dies before it can fall through to nuget.org. Minting the
+      # empty directory is what that nuget.config itself prescribes.
+      - name: Create the empty local NuGet feed dir (NU1301 workaround)
+        if: matrix.toolchain == 'dotnet'
+        run: mkdir -p "${{ github.workspace }}/../../local-nuget-feed"
+
+      # The host's gate begins at its Format stage, which runs through a local
+      # dotnet tool.
+      - name: Restore .NET tools
+        if: matrix.toolchain == 'dotnet'
+        working-directory: ${{ matrix.dir }}
+        run: dotnet tool restore
+
+      - name: Setup pnpm
+        if: matrix.toolchain == 'node'
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ matrix.dir }}/package.json
+
+      - name: Setup Node
+        if: matrix.toolchain == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.dir }}/pnpm-lock.yaml
+
+      # One interpreter, not the host's whole version matrix. This is a report
+      # about the CORPUS, and a corpus move that breaks a host breaks it on
+      # every interpreter; the version floor is the host's own gate to hold.
+      - name: Setup Python
+        if: matrix.toolchain == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup Go
+        if: matrix.toolchain == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.dir }}/go.mod
+
+      - name: Setup Rust
+        if: matrix.toolchain == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      # THE LEG. The host's own gate, run against the corpus commit under
+      # report. `continue-on-error` on the STEP as well as the job, so the
+      # verdict step below always runs and always has an `outcome` to read.
+      - name: "${{ matrix.id }}'s own gate"
+        id: gate
+        continue-on-error: true
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.gate }}
+
+      # The verdict, in three values and no others:
+      #   pass       — the host's own gate passed against this corpus commit.
+      #   drift      — it ran and failed. The host does not certify against this
+      #                revision. Reported, never a gate on this repository.
+      #   unmeasured — it did not run, or was cancelled. No answer was produced,
+      #                and this is the one outcome the report fails on.
+      - name: Record the verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.gate.outcome }}
+          HOST: ${{ matrix.id }}
+          LANGUAGE: ${{ matrix.language }}
+          REPO: ${{ matrix.repo }}
+          HOST_REF: ${{ matrix.ref }}
+          GATE: ${{ matrix.gate }}
+          CORPUS_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          case "$OUTCOME" in
+            success) status=pass ;;
+            failure) status=drift ;;
+            *)       status=unmeasured ;;
+          esac
+          host_sha=$(git -C "${{ matrix.dir }}" rev-parse HEAD 2>/dev/null || echo unknown)
+          mkdir -p "$GITHUB_WORKSPACE/verdicts"
+          jq -n \
+            --arg host "$HOST" \
+            --arg language "$LANGUAGE" \
+            --arg repo "$REPO" \
+            --arg ref "$HOST_REF" \
+            --arg hostSha "$host_sha" \
+            --arg gate "$GATE" \
+            --arg status "$status" \
+            --arg outcome "$OUTCOME" \
+            --arg corpusSha "$CORPUS_SHA" \
+            '{ host: $host, language: $language, repo: $repo, ref: $ref, hostSha: $hostSha,
+               gate: $gate, status: $status, stepOutcome: $outcome, corpusSha: $corpusSha }' \
+            > "$GITHUB_WORKSPACE/verdicts/$HOST.json"
+          echo "$HOST: $status (gate step outcome: ${OUTCOME:-<did not run>})"
+
+      - name: Publish the verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verdict-${{ matrix.id }}
+          path: verdicts/${{ matrix.id }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  # ── The report ─────────────────────────────────────────────────────────────
+  #
+  # The only job that can fail this run, and it fails on exactly one thing: a
+  # rostered host with no answer. Host drift is printed, annotated as a warning
+  # and summarised — and left green, because it is the host's obligation and
+  # this repository is the specification.
+  report:
+    name: Per-host conformance report
+    needs: [roster, hosts]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # `continue-on-error` because a run in which NO host published a verdict
+      # would otherwise fail here with the action's own opaque "unable to find
+      # any artifacts" — the right verdict reached by the wrong route. Falling
+      # through lets the report below name every rostered host as unmeasured and
+      # fail with the reason, which is the same conclusion said usefully.
+      - name: Collect the verdicts
+        if: needs.roster.result == 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: verdict-*
+          path: verdicts
+          merge-multiple: true
+
+      - name: Render the report
+        env:
+          ROSTER: ${{ needs.roster.outputs.hosts }}
+          ROSTER_RESULT: ${{ needs.roster.result }}
+          CORPUS_SHA: ${{ github.sha }}
+          CORPUS_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+
+          # A roster that did not build is not a report about any host. Fail here
+          # rather than print an empty table, which would read as five silences.
+          if [ "$ROSTER_RESULT" != 'success' ]; then
+            echo "::error title=No conformance report produced::the roster job did not succeed ($ROSTER_RESULT), so no host was measured"
+            {
+              echo '## Consumer conformance — NOT PRODUCED'
+              echo
+              echo "The roster job did not succeed (\`$ROSTER_RESULT\`), so no host was measured"
+              echo 'against this corpus commit. This is a fault in the report mechanism, not a'
+              echo 'statement about any host.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          rows=$(mktemp); drifted=$(mktemp); missing=$(mktemp); overridden=$(mktemp)
+
+          while IFS= read -r id; do
+            f="verdicts/$id.json"
+            if [ ! -f "$f" ]; then
+              # No artefact at all: the job did not reach its own record step,
+              # which it runs under `always()`. So it was cancelled, or the
+              # runner died.
+              lang=$(jq -r --arg h "$id" '.[] | select(.id == $h) | .language' <<< "$ROSTER")
+              ref=$(jq -r --arg h "$id" '.[] | select(.id == $h) | .ref' <<< "$ROSTER")
+              gate=$(jq -r --arg h "$id" '.[] | select(.id == $h) | .gate' <<< "$ROSTER" | tr '\n' ';' | sed 's/;$//')
+              printf '| `%s` | %s | `%s` | `%s` | ❔ **unmeasured** | no verdict published |\n' \
+                "$id" "$lang" "$ref" "$gate" >> "$rows"
+              printf '%s (no verdict artifact — the job published nothing)\n' "$id" >> "$missing"
+              continue
+            fi
+            lang=$(jq -r '.language' "$f")
+            ref=$(jq -r '.ref' "$f")
+            hostSha=$(jq -r '.hostSha' "$f")
+            gate=$(jq -r '.gate' "$f" | tr '\n' ';' | sed 's/;$//')
+            status=$(jq -r '.status' "$f")
+            case "$status" in
+              pass)  mark='✅ pass' ;;
+              drift) mark='⚠️ **drift**'; printf '%s (gate `%s` failed at %s %s)\n' "$id" "$gate" "$ref" "${hostSha:0:12}" >> "$drifted" ;;
+              *)     mark='❔ **unmeasured**'; printf '%s (gate did not run: %s)\n' "$id" "$(jq -r '.stepOutcome // "<none>"' "$f")" >> "$missing" ;;
+            esac
+            printf '| `%s` | %s | `%s` @ `%s` | `%s` | %s | |\n' \
+              "$id" "$lang" "$ref" "${hostSha:0:12}" "$gate" "$mark" >> "$rows"
+            if [ "$ref" != 'main' ]; then
+              printf '%s measured at `%s`, NOT at `main`\n' "$id" "$ref" >> "$overridden"
+            fi
+          done < <(jq -r '.[].id' <<< "$ROSTER")
+
+          {
+            echo '## Consumer conformance — per host, against this corpus commit'
+            echo
+            echo "Corpus commit under report: [\`${CORPUS_SHA:0:12}\`]($CORPUS_URL)"
+            echo
+            if [ -s "$overridden" ]; then
+              echo '> **REF OVERRIDE — this run is not a report about `main`.**'
+              sed 's/^/> - /' "$overridden"
+              echo
+            fi
+            echo '| Host | Language | Measured at | Its own gate | Verdict | Note |'
+            echo '| --- | --- | --- | --- | --- | --- |'
+            cat "$rows"
+            echo
+            if [ -s "$drifted" ]; then
+              echo '### Hosts that do not certify against this corpus commit'
+              echo
+              sed 's/^/- /' "$drifted"
+              echo
+              echo 'This is REPORTED, not gated. The corpus is the specification, so a host that'
+              echo 'is behind is the host'"'"'s obligation — the point of this report is only that it'
+              echo 'is visible now, attached to the corpus commit, rather than surfacing later on'
+              echo 'an unrelated push in a repository whose author cannot attribute it.'
+              echo
+            else
+              echo 'Every rostered host certifies against this corpus commit.'
+              echo
+            fi
+            echo '### What this report claims, and what it does not'
+            echo
+            echo "It claims that each host, at the ref named above, was measured against corpus"
+            echo "commit \`${CORPUS_SHA:0:12}\` by that host's own gate, and that the verdict is what"
+            echo 'that gate said. It does NOT claim this corpus commit CAUSED a failing leg: a host'
+            echo 'already behind before this push fails identically. What the report gives you is the'
+            echo 'measurement at the moment it became answerable, and the corpus author as its reader.'
+            echo
+            echo 'Each host was measured in the arrangement its OWN CI uses — itself, this corpus, and'
+            echo 'only the siblings its own workflow checks out — so a suite that skips there for want'
+            echo 'of another host'"'"'s sources skipped here too, and a `pass` above means "this host'"'"'s own'
+            echo 'gate passed", never "every oracle it carries ran". Cross-host parity is the'
+            echo 'cross-host gate'"'"'s claim (§11.1), not this report'"'"'s.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Corpus commit under report: $CORPUS_SHA"
+          echo
+          cat "$rows"
+          echo
+
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::warning title=Host does not certify against this corpus commit::$line"
+          done < "$drifted"
+
+          if [ -s "$missing" ]; then
+            {
+              echo
+              echo '### Hosts that could not be MEASURED'
+              echo
+              sed 's/^/- /' "$missing"
+              echo
+              echo 'This FAILS the report — and it is a fault in the report mechanism, not a'
+              echo 'statement about the corpus or about those hosts. A leg that did not run has not'
+              echo 'passed, and a green report over a missing answer is worse than no report because'
+              echo 'it looks like evidence.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo 'HOSTS NOT MEASURED:'
+            sed 's/^/  - /' "$missing"
+            while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error title=Host could not be measured::$line"
+            done < "$missing"
+            exit 1
+          fi
+
+          echo "All rostered hosts were measured. Report: $RUN_URL"
