@@ -4,7 +4,25 @@
   "description": "The reviewed-equivalence contract for defect MESSAGES. `defect-vocabulary.json` fixes the code and severity; a code is worthless across hosts if they disagree on what it MEANS, so this fixes the concepts each message must convey. Hand-authored on purpose — 'conveys the same fix' is a judgement, and generating it from the reference's wording would only assert that the reference matches itself.",
   "howToRead": "Each code carries `mustConvey`: a list of GROUPS, each group a list of accepted spellings. A conformant message contains at least one spelling from every group, matched case-insensitively against the message TEMPLATE (interpolation placeholders included, since a placeholder is where the host puts the value the group names).",
   "whyConceptsNotPhrases": "Requiring exact wording across five languages would be a formatting rule wearing a semantics costume, and it would fail on the reference's own 'Switch' against a host's 'switch'. What must survive translation is the DEFECT and the FIX; the prose around them belongs to the host.",
-  "scope": "Only codes at least two non-reference hosts implement — parity is meaningless for one. Hosts whose findings carry no message at all (a structured defect union rather than prose) declare `messageForm: \"structured\"` and are exempt by shape, not by omission: there is nothing to compare, and the human-readable rendering is their consumer's to write.",
+  "scope": "Only codes at least two non-reference hosts implement — parity is meaningless for one. Hosts whose findings carry no message at all (a structured defect union rather than prose) declare `messageForm: \"structured\"` and are exempt by shape, not by omission: there is nothing to compare, and the human-readable rendering is their consumer's to write. That declaration is a CHECKED claim, not a trusted one — see `structuredExemption`.",
+  "structuredExemption": {
+    "claim": "`messageForm: \"structured\"` in a host's own `validator-coverage.json` asserts that the host's findings carry no message string — a discriminant plus typed fields, with the human-readable rendering left to the consumer. The host declares it; nothing else can, because it is a fact about that host's source.",
+    "checkedNotTrusted": "The declaration is VERIFIED against the host's source by `check-message-parity.mjs`, and was merely believed until Phase 1659. The reason is not hypothetical: probe-demonstrated 2026-08-29, a host that falsely declared it went from nine codes checked to `exempt` at exit 0 — which turns the strongest claim this contract carries into an opt-out available to any host that types one line.",
+    "howItIsChecked": "The contract carries a probe per exempt host: where that host constructs a finding, and a sample of the message-shaped construction the probe must be able to match. The checker proves the probe against its sample on EVERY run before believing its silence, then reads the argument of each construction site — brace-balanced, with comments and string interiors masked — and refuses the exemption if it finds either a prose-carrying member (`message`, `detail`, `hint`, …) or a string literal with an interior space. An exempt host for which the contract carries no probe FAILS: an exemption nothing can check is the thing this closes.",
+    "canSee": [
+      "a prose member added to a finding record, whatever its value is built from",
+      "a message string literal at a finding-construction site, under any member name",
+      "a host declared exempt for which no probe exists, so the claim is unverifiable",
+      "a probe that has stopped matching its host's idiom, which would otherwise read as a clean host"
+    ],
+    "cannotSee": [
+      "a message assembled far from the construction site and attached through a variable under a member the probe does not name — the member list is deliberately short, because falsely accusing an honest host costs as much as believing a false claim",
+      "whether the consumer's rendering of a structured finding conveys the required concepts; that rendering is not in the host's repository at all, and this contract makes no claim about it",
+      "anything at all on a checkout where the host's source is absent — reported as NOT VERIFIED rather than as exempt, since a bare corpus checkout has no host sources and 'I could not look' must never render as 'I looked and it was clean'",
+      "a host source whose construction site sits inside a regular-expression literal carrying a quote or a comment opener; the mask is not a parser, and such a host needs its probe's site regex narrowed"
+    ],
+    "goRed": "`node validator/check-message-parity-selftest.mjs` proves the arm against two committed fixture hosts under `validator/go-red/`: a FALSE declaration is refused, the SAME fixture passes the frozen pre-change gate beside it (which is what makes the refusal a proof about the change rather than about the fixture), and a TRUE declaration still passes and reports itself verified."
+  },
   "codes": {
     "FUARAN-EMPTY-ID": {
       "mustConvey": [
