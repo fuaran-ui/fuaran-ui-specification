@@ -3826,13 +3826,57 @@ Rows carry **scalar cells only**. A cell that is itself an object or an array de
 **Read-compat (indefinite).** Two legacy wire forms – what the earlier encoder produced for a slot before it gained its typed form (pre-429 for the options / values / series / marker slots, pre-665 for the row feed) – stay decode-accepted at every typed slot:
 
 - `"<opaque>"` → a **tagged placeholder**: options → `[ { Value = "<opaque>"; Label = Literal "<opaque>" } ]`; `string option` → `Some "<opaque>"`; `string list` → `[ "<opaque>" ]`; float / marker seqs → empty; **row feeds → the empty feed**, re-encoding as `[]`. A placeholder's re-encode is its **typed** form (e.g. the one-element placeholder options array) – pinned cross-host by the `lenient/lenient-opaque-static-*` corpus fixtures, and for rows by `lenient/lenient-665-rows-opaque-sentinel` (a `State`-sourced feed) and `lenient/lenient-460-explicit-default-column` (a `Static`-sourced one).
-- `null` → the typed empty form (`[]` / `None`). This was the pre-429 F# boxes-to-`null` asymmetry (`box ([] : 'a list)` and `box None` are null references, which the old encoder wrote as JSON `null`); pinned by `lenient/lenient-null-static-options`.
+- `null` → the typed empty form (`[]` / `None`). This was the pre-429 F# boxes-to-`null` asymmetry (`box ([] : 'a list)` and `box None` are null references, which the old encoder wrote as JSON `null`); pinned by `lenient/lenient-null-static-options`. **This rule is scoped to the `Static.value` position and does NOT reach `State.defaultValue`, where `null` is a spelling of ABSENCE** — see *The absent `State.defaultValue`* below, which is the normative statement for that position and pins it with `lenient/lenient-1656-state-default-null`.
 
 **The rows sentinel stays decode-accepted indefinitely**, exactly like the two forms above. Every tree persisted, permalinked, or op-stream-logged before Phase 665 carries `"<opaque>"` in its row-feed position; each such feed decodes to the **empty feed** and re-encodes as `[]`. This is a deliberate, permanent read-compat obligation on every conformant host, not a migration window – decoding is lenient, but the sentinel is never *emitted* for a row feed again. The rows are not recoverable (they were never on the wire); what the rule buys is that an old tree still decodes and renders as an empty grid rather than failing.
 
 For a genuinely residual-opaque slot, the old rule still holds: the substituted placeholder must itself re-encode to `"<opaque>"` (a non-null reference of a non-recognised type). The invariant there remains `encode(decode(encode(x))) == encode(x)`, not value preservation – residual-opaque content is intentionally lost. Since Phase 665 that invariant governs the **cell** seam and the non-enumerated `Static` payloads listed above; the row feed itself is now value-faithful, so for it the stronger invariant holds – `decode ∘ encode` preserves the rows.
 
 **Render semantics of an opaque options source (cross-host contract).** The placeholder above keeps the *codec* round-trip byte-stable, but it is **not** authored data and **MUST NOT** reach the DOM. For an options-bearing control (`Select` / `Choice` / `SegmentedChoice` – forms and filter chips alike) whose options binding is an opaque/non-array `Static` source, every conformant renderer emits **no concrete options** – only the control's own structural placeholder option (the empty-valued ` – ` entry where one is rendered). The decoder's `[ { Value = "<opaque>"; … } ]` placeholder is dropped at render time, never shown as a selectable `<option>`. The TS host realises this through its `asArray` coercion (a non-array source resolves to `[]`); the F# host strips the opaque placeholder in `resolveOptions`. This is a renderer-behaviour contract, not a wire-shape change – the JSON is unchanged and still round-trips identically. (Settled in workspace Phase 131; it superseded the earlier dual-host `form-1` parity gap.)
+
+**The absent `State.defaultValue` (normative; Phase 1656).** The typed table above says what a
+DECLARED default looks like at each slot. This says what an UNDECLARED one looks like, because rule
+4 alone did not settle it and three hosts had reached three different answers.
+
+**An absent `State.defaultValue` is OMITTED.** A canonical encoder writes the member only when the
+document it re-encodes carried one, so a bare `{"$type":"State","key":k}` re-encodes as itself at
+**every** slot, typed or not — including the slots whose typed empty is `[]` or `null`. Three
+spellings reach the decoder and all three mean the same thing: the member missing, the member
+present as JSON `null`, and either lenient alias (`initialValue` / `default`) present as `null`. All
+of them decode to no default at all, and all of them re-encode to the omitted member. The typed
+placeholder a slot's parser would yield for `null` is a RESOLUTION value (§3.3 — what an unwritten
+key resolves to) and is **not** a wire fact; emitting it declares something the author did not.
+
+Two vectors pin it: `nodes/state-absent-default` carries a bare `State` at the five typed slots that
+had no fixture — `Float`, `Int`, a row feed, an options source and a float sequence, whose
+placeholders are `0`, `0`, `[]`, `[]` and `[]` — and `lenient/lenient-1656-state-default-null` pins
+the two null spellings normalising to it. Their refusing twin is
+`reject/reject-state-default-without-key`: the default is the OPTIONAL member of this binding and
+the `key` is the required one, and a host that read the optionality the other way about would decode
+a reader of the empty key rather than refuse.
+
+*Why omission and not the typed empty.* At a collection slot the two are different claims and the
+format already spends both. A declared `[]` is a claim about content that the seeding rule reads —
+`{"$type":"State","key":"members","defaultValue":[]}` is the direct spelling of "I read this key and
+carry no data of my own", the shape a `Transform` source's remedy text tells an author to write, and
+a declaration that deliberately neither wins the first-declaration race nor conflicts with a sibling
+that carries rows. Absence is the claim that nothing was declared at all. A host that re-emits the
+typed empty for an absent default respells the second as the first on every round trip, and a
+document that has been through such a host can no longer be told from one whose author wrote the
+empty declaration deliberately.
+
+*What the posture costs, stated plainly.* A consumer that wants to distinguish "the author
+deliberately declared no default" from "the author said nothing" cannot: rule 4 gives this format no
+`null` case, so the two are one fact and would need a third spelling minted for them. The narrower
+and realer cost is at the `string option` slots, where the typed empty IS `null` (the table above):
+a default DECLARED as `None` has no bytes of its own and is indistinguishable from an undeclared
+one. That is the price of one canonical form per fact, and it is paid at exactly one slot family.
+
+*What the posture does NOT settle.* A default the document DID carry and the slot's parser cannot
+read is a different fact, and the hosts do not yet agree on it — some drop it to no default, some
+substitute the slot's typed placeholder, and the hosts that do not type this position at all carry
+the value through structurally. All three are non-fabricating in the sense above (none invents a
+member the document lacked); none is normative here, and no vector pins it.
 
 ---
 
@@ -4073,7 +4117,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->156<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4674,11 +4718,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->531<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->221<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->534<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->222<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->156<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->69<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->70<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
