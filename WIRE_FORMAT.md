@@ -4502,6 +4502,70 @@ whose classification table is asserted total over the manifest's `lenient-accept
 generated `docs/prompt-pack/DIALECT-APPENDIX.md` publishes the result. A host with no teaching
 surface owes nothing here; a host with one owes the classification, not merely the decode.
 
+### An additive family lands with its own forward coupling
+
+The numbered steps are stated over a **discriminator family**, and the subsection above carves out a
+second act — a §16 leniency — which shares the corpus but not the artefact set. Both are about the
+node and op codecs. Most of this corpus is neither, and the rule binds it just the same.
+
+**An additive family is any family of this corpus a host certifies against that the numbered steps do
+not reach:** every top-level fixture directory other than `nodes/`, `ops/`, `reject/` and `lenient/`
+(whose own act is the subsection above), plus the declaration artefacts a host's suite reads —
+[`render-fidelity.json`](./render-fidelity.json) and `a11y-contract.json`. Defined that way the class
+is derivable from the repository rather than from a list here that would rot, and it is most of the
+tree: the document-level artefacts a host decodes *beside* a tree (`envelope/` §15, `elicitation/`
+§18, `cards/` §25, `teleport/` §17, `attestation/` §26), the op-graph and merge families (`dag/`, `chain/`,
+`merge-conformance/`, `diff/`), the host-obligation and policy families (`sanitization/` §19,
+`decode-policy/` §23, `validator/`, `laws/`, `function-registry/`, `devtools-relay/`), and the
+lowering and render goldens (`chart-lowering/`, `sparkline-lowering/`, `markdown/` §14).
+
+Four things at this repository's root are **not** in the class, and they are named so the definition
+neither over- nor under-counts: `schema.json` and `idl.json` are generated projections of the core
+that steps 1–4 already move; `spec-annotations.json` holds the hand-authored notes attached to §12.2's
+marker-block projections; `copies.json` and `secrets.json` are declarations *about* this repository
+rather than artefacts a host certifies against; and `conformance/` is the cross-host runner, not a
+family.
+
+**Why this needs saying at all.** A family outside the numbered steps gets re-read against the wrong
+scope precisely because the steps are the only place the obligation is written down — so a session
+lands the payloads, watches every byte-parity leg stay green, and reasonably concludes the change-set
+is whole. Every byte-parity leg staying green is *exactly* what an unread family looks like: those
+legs assert agreement on the node and op fixtures, and a host holding no reader for a new family
+passes all of them without asserting anything about it. That is the §11.2 argument, one level up — and
+it is worse here than for a discriminator case, because a discriminator case at least rides a fixture
+in a family every host already reads.
+
+Changing or adding an additive family MUST, **in the same change-set**:
+
+1. **amend the normative section of this document that specifies it** — the shape, the refusal
+   vocabulary (which is often *not* §6's eight codes; see §17.6 for the standing instance), and any
+   derived value. A family with no normative section is not additive but undocumented, and no host
+   can be held to it;
+2. **regenerate its enumeration** — its own `manifest.json` where it carries one, or its rows in the
+   root `manifest.json` where it rides that. §12 says which of those the reference emitter authors and
+   which are hand-maintained, and carries the merge rule that preserves a family the emitter does not
+   build. A manifest or a digest reconciled BY HAND is the one artefact to regenerate instead;
+3. **update its resident checker or generator** where it carries one — several families ship their own
+   (`sanitization/`, `validator/`, `conformance/`) — because a checker still describing the previous
+   shape reports green about the wrong thing, which is the one failure mode worse than no checker;
+4. **update every codec host in the §11.0 roster that reads the family, and record the answer of every
+   host that does not** in that family's own adoption table. This is the step that gets skipped. An
+   additive family is by construction one a host may hold no reader for at all, so the byte-parity legs
+   cannot speak for it and its adoption is a *separate* bar — which is the shape the adoption tables
+   above and in the family sections already have (§13's render obligations, §25's contract cards,
+   §17.6's teleport). `pending` and `n/a` are conformant answers there, and silence is not; and
+5. **re-sync the bundled snapshots** where the family sits inside the bundled payload. The TypeScript
+   and Python hosts each bundle a wholesale copy of this corpus, so a corpus commit that re-syncs
+   neither leaves both serving a spec this format no longer matches; a payload whose FILE SET moved is
+   re-declared in [`copies.json`](./copies.json) by the bundling host's own declare step, never by
+   editing that file. The two hosts that read this corpus directly from the workspace are deliberately
+   undeclared there, and that file's own note says which is which.
+
+**The five are one act.** The per-host consumer report on this repository's own push (§11.1) makes a
+missed step 4 visible on the corpus commit that caused it, rather than days later on some host's
+unrelated push in a repository whose author cannot attribute it — but a report is a detector and never
+a substitute. What discharges the coupling is landing the change-set whole.
+
 ### 11.1 Cross-implementation conformance gate (step 5 enforced mechanically)
 
 Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate + stale-schema guard). Step 5 – *keep every non-reference codec host in the §11.0 roster byte-identical* – is enforced by pinning **each codec host to the committed corpus**, so a divergence between any two conformant hosts is caught rather than discipline-maintained. The committed corpus **is** the F# encoder's canonical output (`Corpus.emit` writes `CanonicalJson.encode*` into the `expectedFile` payloads and the `DecodeError` code/path into `manifest.json`); each codec host's leg asserts its own canonical output is byte-identical to that corpus, and `X == corpus` for every host `X` proves `X == Y` byte-for-byte across the roster.
@@ -4513,7 +4577,7 @@ Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate 
 - **Leg E – `fuaran-py` (Python):** the `fuaran_py` codec round-trips the corpus byte-for-byte (node + op), surfaces the canonical reject code/path + float layout, re-encodes to schema-valid wire, and holds its offline-snapshot drift guard. ⇒ `Python == corpus`.
 - **`fuaran-go` (Go) / `fuaran-rs` (Rust):** each host pins itself to the **same** corpus in its own repo's conformance suite (`fuaran-go/conformance/`, `fuaran-rs/tests/conformance.rs`), consuming the workspace corpus directly (no bundled snapshot). ⇒ `Go == corpus`, `Rust == corpus`.
 
-**Enforcement topology (current).** Legs A–E run in the workspace CI gate `.github/workflows/wire-conformance.yml`, driving [`wire-format-fixtures/conformance/`](./conformance/); the host repos POST a `repository_dispatch` on push-to-main so a host-side change fires the workspace gate. The Go and Rust legs run in their own repos' `run.ps1` suites today; their **workspace** CI legs (so a corpus change fails centrally for all five codec hosts, not only F#/TS/Python) are pending. A one-byte divergence in any host's encoder turns its leg red with a per-fixture byte diff naming the fixture, host, and first differing byte. This is the mechanical enforcement of the forward-coupling rule **across the roster** – see [`wire-format-fixtures/conformance/README.md`](./conformance/README.md).
+**Enforcement topology (current).** Two mechanisms, answering two different questions. The **cross-host gate** runs every codec host's leg in one workspace CI job (`.github/workflows/wire-conformance.yml`, driving [`wire-format-fixtures/conformance/`](./conformance/)) and FAILS when any leg does not pass — reached nightly, by hand, and by a `repository_dispatch` this repository and the host repositories each POST on push-to-main. It answers *do the hosts still agree*. This repository's own **per-host consumer report** (`.github/workflows/consumers.yml`, Phase 1660) reassembles the same side-by-side layout with this corpus at the PUSHED commit and each host at `main`, runs each host's own declared gate, and reports PER HOST on the corpus commit — never marking that commit red because a host is behind, and failing only when a host could not be MEASURED. It answers *which host has not moved with the corpus yet*, at the moment the corpus moves rather than on that host's next unrelated push in a repository whose author cannot attribute it, and it is the detector for step 5 above and for step 4 of the additive-family coupling. A one-byte divergence in any host's encoder turns its leg red with a per-fixture byte diff naming the fixture, host, and first differing byte. Together these are the mechanical enforcement of the forward-coupling rule **across the roster** – see [`wire-format-fixtures/conformance/README.md`](./conformance/README.md).
 
 ### 11.2 Vocabulary attestation (the discriminator-family enumerations)
 
