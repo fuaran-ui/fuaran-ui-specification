@@ -4840,6 +4840,49 @@ Obligations are **additive within a major version** and land under the §11 forw
 
 Each language tier ships the same derivation over the same artefact, so the three segments a badge shows are identical whichever host produced the page.
 
+### Render-text conformance family (`render-text.json`) — Phase 1663
+
+The manifest's `renderText` pointer names [`wire-format-fixtures/render-text.json`](./render-text.json), the **executable** half of this section. The fidelity table above declares, in normative sentences, what a kind owes the reader; the obligation vocabulary makes some of those claims nameable. Neither says what a slot actually READS. So "N renderers agree on the text" was a claim no host could check, and a cross-host parity task was deferred, carrier-less, by five consecutive phases.
+
+**The vector shape is `(fixture, pinned sources, expected text)`.** Each entry of `vectors` carries:
+
+| field | meaning |
+|---|---|
+| `id` | the vector's stable identity, Ordinal-sorted so an addition lands as one clean insert |
+| `fixture` | a corpus-relative path to an **existing, committed** node fixture (`nodes/now-grain.json`) |
+| `nodeId` | the `id` of the node inside that fixture whose slot is read; the fixture root's own id is admissible |
+| `slot` | `<kind>.<field>`, from the CLOSED `slotVocabulary` this artefact enumerates at the top level |
+| `sources` | the PINNED host sources — see below |
+| `expectedText` | the text every conformant host must produce for that slot under those sources |
+| `description` | why the vector exists, in one sentence |
+
+**The vectors name existing fixtures rather than minting payloads.** Those documents are already under byte-parity certification on every host, so the family adds a render claim over bytes that are already agreed, rather than a second set of documents to keep in step. A vector naming a fixture, a node id or a slot the corpus does not carry fails the generator rather than shipping as an unevaluable claim.
+
+**The sources are PINNED, and that is the whole reason the family is checkable.** `sources` is the three-member shape a host's binding-source seam carries:
+
+- **`now`** — the host instant, an **ISO-8601 UTC** string (`2026-08-02T06:59:24Z`). A `Binding.Now` slot (§4b) rendered against the machine's own clock has no expected text at all, so the instant is data in the vector. `""` means **this host furnishes no clock** — the identity default.
+- **`locale`** — the ambient BCP-47 tag a `LocaleSource.Ambient` reads (§4b). `""` means the runtime default. Every seeded vector pins `""`, because every seeded vector is locale-independent.
+- **`values`** — the identity-keyed host value map a `State` key / a `Query` or `Filter` name / a `Selection` nodeId resolves against (§4b). Empty in every seeded vector: each vector's sources are `Static` or `Now`. A future vector that needs a host value declares its identity key here and every host reads it by that key.
+
+**`expectedText` is the FALLBACK-tier render** — tier 2 of the three above: the deterministic, non-`Intl` text a no-JS reader, a crawler, an email client or a non-browser host receives. It is not the `rich` tier and makes no claim about it.
+
+**What an unresolvable instant renders: ABSENCE.** An empty `now`, or one whose leading `YYYY-MM-DD` will not parse, resolves the slot to the host's ordinary unresolved state, which a text slot renders as the empty string. That is deliberately loud and deliberately NOT a value: a relative time computed against an invented "now" is a confidently wrong answer, and the raw epoch source rendered where a reader expects a phrase is worse. It is also **not** an error in the §5 sense — the document is answerable, the host simply furnished no clock, which is the same fact as an unwritten `Query`.
+
+**`excluded` is the legitimately-differing tier, enumerated.** A slot listed there is one the family deliberately does not pin, with the reason and a corpus site that carries the shape so a reader can inspect what is being declined rather than take it on trust. The seeded exclusions are `Format.Number`, `Format.Currency`, `Format.Percent` and `Format.Date`: their text comes out of a locale database — `Intl.NumberFormat` / `Intl.DateTimeFormat` on a browser host, `CultureInfo` on .NET, a hand-rolled fixed-point or ISO form on a stdlib-only host — and all three answers are correct for their target while none is canonical. A cross-host byte comparison over those slots would measure CLDR, not this contract.
+
+`Format.Since` and `Format.RelativeTime` are deliberately **IN** the family, and the distinction is worth stating because it is the one a reader is most likely to get backwards. Their `(unit, count)` reduction is host-shared and canonical (the §4b threshold ladder, with the count truncating toward zero); only the final PHRASING step differs, and the fallback-tier phrasing is the deterministic English form. A host whose only relative-time path is `Intl.RelativeTimeFormat` therefore delivers a `rich`-tier divergence on those vectors and reports them as such — **not checked is not passed**, exactly as for a render obligation.
+
+- **`$id`:** `https://fuaran.dev/wire-format/v1/render-text.json`, pinning the wire-format major version as `schema.json` and `render-fidelity.json` do.
+- **Generated, and the generator PROVES it.** The vectors are authored in `fuaran-dotnet` (`src/Fuaran.UI.JsonDecode.Tests/RenderTextFixtures.fs`); the writer decodes each named fixture, resolves the named slot through the reference resolver under the pinned sources, and **refuses to write the file** when the produced text differs from the authored expectation. So the artefact cannot publish a claim the reference host does not meet — the discipline the §15 and §16 families' emitters already carry. The same `--emit-corpus` command that writes the fixtures co-emits it, and a vector-only change can publish it alone:
+
+  ```
+  cd fuaran-dotnet
+  dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-render-text ..\wire-format-fixtures
+  ```
+
+- **Conformance.** A conformant host's render suite reads THIS artefact's `vectors` — never a list beside its own checkers — and for each one decodes the named fixture, resolves the named slot under the pinned sources, and asserts byte-equality with `expectedText`. A slot outside its reader's vocabulary is REPORTED by name with the vector id, never skipped silently. A stale-artefact guard on the authoring side asserts byte-equality between the committed file and a fresh emission, so a fixture edit that moves a pinned slot fails for the author who made it.
+- **Growth.** Vectors are additive within a major version and land under the §11 forward-coupling rule: a new vector, or a new entry in `slotVocabulary`, is a change to this artefact and to every adopting host's reader in the same change-set. The seeded set covers the locale-independent slots first — every `Binding.Now` grain, the `Format.Since` cases (auto-selected unit, declared unit, future, zero, no clock) and `Format.RelativeTime`.
+
 ---
 
 ## 14. Markdown rendering (render-only; not a wire concern)
