@@ -4,7 +4,7 @@ The mechanical enforcement of the **forward-coupling rule** ([`WIRE_FORMAT.md` �
 
 - the **F#** `Fuaran.UI` tier (`CanonicalJson` encoder + `JsonDecode` decoder),
 - the **TypeScript** `@fuaran-ui/ops` tier (`encodeNode`/`encodeOp` + `decodeNode`/`decodeOp`), and
-- the **Python** `fuaran_py` tier (`fuaran_py.schema` / `fuaran_py.ops` — `decode_node`/`encode_node` + `decode_op`/`encode_op`).
+- the **Python** `fuaran_ui` tier (`fuaran_ui.schema` / `fuaran_ui.ops` — `decode_node`/`encode_node` + `decode_op`/`encode_op`).
 
 The central claim — _language-neutral contract, F# + TS + Python as sibling implementations_ — depends on all three hosts agreeing **byte-for-byte** on the wire format. This gate makes a divergence **un-mergeable** rather than discipline-maintained. It is wired into CI as [`.github/workflows/wire-conformance.yml`](../../.github/workflows/wire-conformance.yml).
 
@@ -16,7 +16,7 @@ The committed [`wire-format-fixtures/`](..) corpus **is** the F# encoder's canon
 |---|---|---|
 | **A — F#** | `dotnet run --project fuaran-dotnet/src/Fuaran.UI.JsonDecode.Tests -c Release` (Expecto: `RoundTrip` + `Reject` + `SchemaConformance`) | The **current** F# encoder/decoder re-produces the committed corpus byte-for-byte, and every payload is schema-valid (+ the stale-schema guard). ⇒ `F# == corpus`. |
 | **B — cross-host (TS)** | `node cross-host-conformance.mjs` (this directory) | The TS `@fuaran-ui/ops` codec, run over the same corpus, produces canonical output **byte-identical to the F# canonical form** and **schema-valid** against `schema.json` (off-the-shelf Draft 2020-12 validator, `ajv`). ⇒ `TS == corpus`. |
-| **E — Python** | `python -m pytest` in `fuaran-py/` (`test_roundtrip` + `test_reject` + `test_canonical_numbers` + `test_schema_conformance` + `test_bridge` + `test_corpus_sync` + `test_generative_parity`) | The `fuaran_py` codec re-encodes the corpus **byte-identical to the F# canonical form**, surfaces the canonical reject code/path, matches the canonical float layout (§5), re-encodes to **schema-valid** wire (Draft 2020-12, `jsonschema`), and certifies through the kit's stdio bridge. ⇒ `Python == corpus`. |
+| **E — Python** | `python -m pytest` in `fuaran-py/` (`test_roundtrip` + `test_reject` + `test_canonical_numbers` + `test_schema_conformance` + `test_bridge` + `test_corpus_sync` + `test_generative_parity`) | The `fuaran_ui` codec re-encodes the corpus **byte-identical to the F# canonical form**, surfaces the canonical reject code/path, matches the canonical float layout (§5), re-encodes to **schema-valid** wire (Draft 2020-12, `jsonschema`), and certifies through the kit's stdio bridge. ⇒ `Python == corpus`. |
 
 `A` ⟹ `F# == corpus`, `B` ⟹ `TS == corpus`, and `E` ⟹ `Python == corpus`, therefore **`F# == TS == Python`, byte-for-byte**.
 
@@ -28,10 +28,10 @@ A one-byte divergence in **any** host's encoder fails the gate:
 
 ### Leg E — Python native harness + kit bridge
 
-Python certifies two ways over the one corpus (both reading the same `manifest.json` + the same `fuaran_py` codec, so they cannot disagree):
+Python certifies two ways over the one corpus (both reading the same `manifest.json` + the same `fuaran_ui` codec, so they cannot disagree):
 
 - **Native `pytest` harness** — the inner-loop DX, resolving the corpus at `../wire-format-fixtures` (or the committed offline snapshot `fuaran-py/conformance/corpus/`, kept in sync by `fuaran-py/conformance/sync_corpus.py` + the `test_corpus_sync` drift guard).
-- **Phase 168 kit bridge** — [`fuaran-py.adapter.mjs`](fuaran-py.adapter.mjs) (this directory) shells the Python codec through a stdio bridge (`fuaran_py.conformance.bridge`, JSON in / JSON out), so the language-agnostic `@fuaran-ui/conformance` kit issues Python the *same* certification report it issues any third-party host — the worked proof of the kit's language-agnostic claim. Run against the built kit CLI:
+- **Phase 168 kit bridge** — [`fuaran-py.adapter.mjs`](fuaran-py.adapter.mjs) (this directory) shells the Python codec through a stdio bridge (`fuaran_ui.conformance.bridge`, JSON in / JSON out), so the language-agnostic `@fuaran-ui/conformance` kit issues Python the *same* certification report it issues any third-party host — the worked proof of the kit's language-agnostic claim. Run against the built kit CLI:
 
   ```powershell
   # from fuaran-ts/packages/conformance, after `pnpm build`:

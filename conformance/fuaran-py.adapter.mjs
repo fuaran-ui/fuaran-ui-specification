@@ -5,7 +5,7 @@
 //  — the worked example proving the Phase 168 kit's language-agnostic claim: a
 //  host in any language certifies through a thin JS bridge without the kit
 //  taking a dependency on it. This adapter shells the Python codec via the
-//  stdio bridge (fuaran_py.conformance.bridge, JSON in / JSON out), so the kit
+//  stdio bridge (fuaran_ui.conformance.bridge, JSON in / JSON out), so the kit
 //  runner drives the real Python decoder + encoder exactly as it drives the TS
 //  ops package.
 //
@@ -44,7 +44,7 @@ if (!existsSync(pySrc)) {
 
 /** One synchronous round-trip through the Python stdio bridge. */
 function call(op, input) {
-  const stdout = execFileSync(python, ['-m', 'fuaran_py.conformance.bridge'], {
+  const stdout = execFileSync(python, ['-m', 'fuaran_ui.conformance.bridge'], {
     input: JSON.stringify({ op, input }),
     env: { ...process.env, PYTHONPATH: pySrc + (process.env.PYTHONPATH ? `${process.platform === 'win32' ? ';' : ':'}${process.env.PYTHONPATH}` : '') },
     encoding: 'utf8',

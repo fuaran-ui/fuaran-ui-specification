@@ -4726,7 +4726,7 @@ Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate 
 
 - **Leg A – `fuaran` (F#):** `dotnet run` the `Fuaran.UI.JsonDecode.Tests` suite – the current encoder/decoder re-produces the committed corpus byte-for-byte (round-trip), surfaces the canonical reject code/path, and is schema-valid + stale-schema-guarded. ⇒ `F# == corpus`.
 - **Leg B – `fuaran-ts` (TypeScript):** a Node runner drives the TS encoder/decoder over the same corpus and asserts its canonical output is **byte-identical to the F# canonical form** and schema-valid against `schema.json` (off-the-shelf Draft 2020-12 validator). ⇒ `TS == corpus`. Legs C/D extend this to a generative sample space (FsCheck-emitted trees round-tripped F#→TS and TS→F#).
-- **Leg E – `fuaran-py` (Python):** the `fuaran_py` codec round-trips the corpus byte-for-byte (node + op), surfaces the canonical reject code/path + float layout, re-encodes to schema-valid wire, and holds its offline-snapshot drift guard. ⇒ `Python == corpus`.
+- **Leg E – `fuaran-py` (Python):** the `fuaran_ui` codec round-trips the corpus byte-for-byte (node + op), surfaces the canonical reject code/path + float layout, re-encodes to schema-valid wire, and holds its offline-snapshot drift guard. ⇒ `Python == corpus`.
 - **`fuaran-go` (Go) / `fuaran-rs` (Rust):** each host pins itself to the **same** corpus in its own repo's conformance suite (`fuaran-go/conformance/`, `fuaran-rs/tests/conformance.rs`), consuming the workspace corpus directly (no bundled snapshot). ⇒ `Go == corpus`, `Rust == corpus`.
 
 **Enforcement topology (current).** Two mechanisms, answering two different questions. The **cross-host gate** runs every codec host's leg in one workspace CI job (`.github/workflows/wire-conformance.yml`, driving [`wire-format-fixtures/conformance/`](./conformance/)) and FAILS when any leg does not pass — reached nightly, by hand, and by a `repository_dispatch` this repository and the host repositories each POST on push-to-main. It answers *do the hosts still agree*. This repository's own **per-host consumer report** (`.github/workflows/consumers.yml`, Phase 1660) reassembles the same side-by-side layout with this corpus at the PUSHED commit and each host at `main`, runs each host's own declared gate, and reports PER HOST on the corpus commit — never marking that commit red because a host is behind, and failing only when a host could not be MEASURED. It answers *which host has not moved with the corpus yet*, at the moment the corpus moves rather than on that host's next unrelated push in a repository whose author cannot attribute it, and it is the detector for step 5 above and for step 4 of the additive-family coupling. A one-byte divergence in any host's encoder turns its leg red with a per-fixture byte diff naming the fixture, host, and first differing byte. Together these are the mechanical enforcement of the forward-coupling rule **across the roster** – see [`wire-format-fixtures/conformance/README.md`](./conformance/README.md).
@@ -7334,7 +7334,7 @@ Three properties of the grammar are load-bearing:
   "host": "fuaran-py",
   "hostVersion": "0.5.0",
   "corpusAuthority": "87063b3b815c1c4e96eeaf25b394411c91be014a",
-  "generator": "fuaran_py.conformance.host_capability",
+  "generator": "fuaran_ui.conformance.host_capability",
   "families": {
     "kinds":       { "covered": true },
     "unionCases":  { "covered": true, "scope": ["Action", "Binding", "…"], "reason": "…what the scope leaves out…" },

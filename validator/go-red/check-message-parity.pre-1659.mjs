@@ -65,7 +65,7 @@ const HOSTS = [
   },
   {
     host: 'fuaran-py',
-    file: 'fuaran-py/src/fuaran_py/validator/validate.py',
+    file: 'fuaran-py/src/fuaran_ui/validator/validate.py',
     re: /Finding\(\s*"(FUARAN[0-9A-Z-]+)"\s*,\s*[^,]+?,\s*([\s\S]{0,600}?)\)\s*\n/g,
   },
   {
