@@ -119,7 +119,7 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
 
 11. **`obj`-typed values** (the remaining erased seams: untyped `Binding.Static` statics, a `PropValue.Native` op value) are best-effort: if the runtime type matches a recognised JSON primitive (string, bool, `int`, `int64`, `float`, `float32`, `DateTimeOffset`, `DateTime`), encode that. `DateTimeOffset`/`DateTime` encode as Unix **seconds** (`int64`). Anything else renders the sentinel `"<opaque>"`. **No reflection over arbitrary CLR objects.** The slot-typed `Static` payloads the language enumerates (options / values / series / markers / **row feeds**) bypass this rule with typed encodings – see §5 for the table and the residual-opaque boundary. Rule 11 still governs *inside* a row, at the individual cell.
 
-12. **Structured JSON payload positions** – `Custom` props, `Action.Notify` / `SetState` / `AiTool` payloads, `I18n` args, and a wire-form `UpdateProp` value – carry a structured JSON value (`JVal` on the F# host) and round-trip **faithfully at any nesting depth within the §21 resource limits**: objects re-encode with Ordinal-sorted keys, numbers under rule 5, no `"<opaque>"` collapse. (This rule read "at any nesting depth" unqualified until §21 landed, which made unboundedness normative and put the format's totality guarantee out of reach – see §21.3.) A JSON `null` anywhere inside such a position is **rejected at decode** (`WRONG_TYPE`, message naming the rule) – the wire model has no null (rule 4): omit the field instead.
+12. **Structured JSON payload positions** – `Custom` props, `Action.Notify` / `SetState` / `AiTool` payloads, `I18n` args, and a wire-form `UpdateProp` value – carry a structured JSON value (`JVal` on the F# host) and round-trip **faithfully at any nesting depth within the §21 resource limits**: objects re-encode with Ordinal-sorted keys, numbers under rule 5, no `"<opaque>"` collapse. (This rule read "at any nesting depth" unqualified until §21 landed, which made unboundedness normative and put the format's totality guarantee out of reach – see §21.3.) A JSON `null` anywhere inside such a position is **rejected at decode** (`WRONG_TYPE`, message naming the rule) – the wire model has no null (rule 4): omit the field instead. Since Phase 1661 an `I18n` argument is a `Binding<JSON>` rather than a bare value, and this rule governs its LITERAL arm – which is every argument any host has emitted; see §5, *`TextSource.I18n` arguments*, for the inspection that decides which arm an argument is.
 
 ### 2.1 Reserved `$`-prefixed keys
 
@@ -1316,8 +1316,12 @@ a worse rendering than an empty one.
 the paragraph above — resolves as the slot's empty state, exactly as a null cell out of a scalar
 `Transform` does.
 
-**Bounds.** `expr` is subject to `MaxExprNodes` (§21) — `LIMIT_EXCEEDED` at decode. A `ColExpr` inside
-a `Transform` PIPELINE is deliberately not covered by that limit; see §21.
+**Bounds.** `expr` is subject to `MaxExprNodes` (§21.8) — `LIMIT_EXCEEDED` at decode. So is a
+`ColExpr` inside a `Transform` PIPELINE (a `derive`'s expression, a `filter`'s predicate): the same
+budget, counted per expression, at the path of that step's member. This paragraph excluded the
+pipeline surface until §21.8 was amended, which is what made the bound bypassable by wrapping an
+expression in a Transform; see §21.8 for the amendment and for what it does to a document a host
+previously accepted.
 
 See `nodes/expr-scalar.json` (the param-free constant-fold form) and
 `nodes/expr-params-state-selection.json` (params from `State` / `Selection` / `Query` / `Filter` /
@@ -3908,6 +3912,69 @@ substitute the slot's typed placeholder, and the hosts that do not type this pos
 the value through structurally. All three are non-fabricating in the sense above (none invents a
 member the document lacked); none is normative here, and no vector pins it.
 
+**`TextSource.I18n` arguments — the discriminated-BY-INSPECTION argument (normative; Phase 1661).**
+An `I18n` argument bag maps a placeholder name to an ARGUMENT, and an argument is a `Binding<JSON>`
+— not a bare JSON value. `"{count} items left"` therefore takes its count from the same slot the
+list beside it reads, which is what the slot could not express before.
+
+**The wire carries no tag saying which of the two an argument is; the codec INSPECTS the shape.**
+
+- An **object carrying a `$type` member** is the BINDING form and decodes as a `Binding<JSON>`.
+- **Any other JSON value** is the LITERAL form and decodes to `Static` carrying that value.
+
+**On encode, a `Static` argument carrying a value emits the BARE value**, and every other arm emits
+its own `$type` object. That is the whole reason the widening moves no shipped byte: every argument
+any host has ever emitted was a literal, every literal decodes to exactly that arm, and
+`nodes/image-caption-i18n-1.json` (`"args":{"year":1908}`) and `nodes/tooltip-metric-1.json`
+(`"args":{}`) are byte-identical across it. A `Static` carrying NO value is `{"$type":"Static"}` —
+absence is structural (rule 4, and *The absent `State.defaultValue`* above) and has no bare
+spelling, so it does not collapse.
+
+The vectors: `nodes/text-i18n-bound-arg-1` (one bound argument), `nodes/text-i18n-mixed-args-1` (one
+bag carrying both arms — the only vector in which a host that read the discriminator off the BAG
+rather than off each ARGUMENT fails, since both single-arm vectors pass under either mistake), and
+`lenient/lenient-1661-i18n-arg-tagged-static` (the tagged `{"$type":"Static","value":v}` spelling,
+decode-accepted and normalising DOWN to the bare value — §16's bare-string `TextSource.Literal` rule
+one level in — beside a valueless `Static` that stays tagged).
+
+*Two shapes the inspection makes unreachable, stated because they are not obvious.* A literal
+argument that is itself a JSON object carrying a `$type` member is **not expressible**: the
+inspection reads it as a binding. And an object whose `$type` names no known binding case is
+**refused** (`UNKNOWN_DU_CASE`) rather than read as an unrecognised object literal —
+`reject/reject-i18n-arg-unknown-binding-case`. Falling back to the literal reading there would
+substitute a discriminator's own text into a sentence a reader reads, which is worse than refusing
+the document. A known case with a required member missing refuses at the argument's own path —
+`reject/reject-i18n-arg-binding-missing-key`.
+
+*What is unchanged.* Rule 12 governs the LITERAL arm exactly as it governed the whole bag before: a
+JSON `null` at any depth inside a literal argument is refused at the null's own path
+(`reject/reject-null-i18n-arg`, `WRONG_TYPE` at `$.kind.text.args.name`), and a literal round-trips
+faithfully at any depth within the §21 limits. **Rule 12 governs the TAGGED spelling of a literal
+identically** — a `null` inside `{"$type":"Static","value":…}` at an argument is refused at
+`<arg>.value`'s own path, not admitted through the generic binding-payload reading. One payload
+position under two spellings cannot have two null postures: a host that read the tagged spelling
+permissively would substitute a value where every other host refused the document, and no vector
+would have caught it, because the tagged spelling is a lenient input nobody emits.
+
+**The `Binding.I18n` relationship (normative; Phase 1661).** `Binding.I18n` and `TextSource.I18n`
+now carry the **same argument type**. They keep two differences, and both are stated here rather
+than left to be inferred, because a reader who assumed either way round would be wrong about one of
+them:
+
+1. **Presence.** `TextSource.I18n.args` is REQUIRED and always emitted, including as `"args":{}`;
+   `Binding.I18n.args` is OMITTED when absent.
+2. **The canonical spelling of one argument.** A `TextSource.I18n` literal argument is BARE, per the
+   inspection rule above. A `Binding.I18n` argument always carries its `$type` envelope, including a
+   `Static` one.
+
+*Why they differ, and why that is a decision rather than an oversight.* Each slot's canonical form is
+pinned by what already shipped on it, and this phase was designed so that neither moves. The
+inspection rule exists precisely to keep `TextSource.I18n`'s literal bytes; `Binding.I18n`'s bag was
+binding-typed from the start and has no bare literal form to preserve, so giving it the collapse
+would change the canonical emission of a shipped surface to buy no capability at all — that slot can
+already carry a literal, as `Static`. A host reading either slot must implement both spellings; a
+host WRITING either has exactly one canonical answer at each.
+
 ---
 
 ## 5.1 Wire-survivability boundary (Phase 378)
@@ -4144,10 +4211,10 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `UNKNOWN_DU_CASE` | A `$type` discriminator (or bare-enum string) is not a recognised case. `ExpectedShape` enumerates valid cases. |
 | `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the discriminators the §3.2 table enumerates, in any of its five recovered categories. Raised at `$.kind.$type`. (Deliberately not re-listed here: §3.2's table is generated and this sentence would be the copy that goes stale.) (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
-| `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
+| `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->159<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->163<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4759,11 +4826,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->538<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->224<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->545<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->226<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->159<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->70<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->163<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->71<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -6019,7 +6086,7 @@ typed error.
 | **max array length** | **100 000** | Elements in a single JSON array, and members in a single JSON object. |
 | **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
 | **max document bytes** | **33 554 432** | UTF-8 bytes of the whole input document — see §21.7. |
-| **max expr nodes** | **512** | `ColExpr` nodes in ONE `Binding.Expr` expression (§3.3.2) — see §21.8. |
+| **max expr nodes** | **512** | `ColExpr` nodes in ONE expression — a `Binding.Expr`'s expression (§3.3.2), or an expression a `Binding.Transform` pipeline embeds — see §21.8. |
 | **max skeleton rows** | **10 000** | The value of ONE `Skeleton` node's `rows` slot (§3.2) — see §21.9. |
 
 **Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
@@ -6344,12 +6411,68 @@ gateway.
 
 ### 21.8 Max expression nodes (normative)
 
-`Binding.Expr` (§3.3.2) carries an expression a host EVALUATES, which the other six limits do not
-bound in the way that matters: an expression is small in bytes and shallow in JSON relative to the
-work it names, so a document well inside every structural limit can still name an evaluation that is
-not. **512 `ColExpr` nodes in one `Binding.Expr` expression**, counted per expression rather than per
-document — a tree may carry many `Expr` bindings, each bounded here, with the whole still bounded by
-max document bytes. A breach is `LIMIT_EXCEEDED` at the path of the `expr` member.
+An expression is something a host EVALUATES, which the other six limits do not bound in the way that
+matters: an expression is small in bytes and shallow in JSON relative to the work it names, so a
+document well inside every structural limit can still name an evaluation that is not. **512
+`ColExpr` nodes in one expression**, counted per expression rather than per document — a tree may
+carry many expressions, each bounded here, with the whole still bounded by max document bytes.
+
+**The bound covers EVERY expression a decoded document can name**, and there are exactly two places
+one appears:
+
+| Position | Path of the breach |
+|---|---|
+| a `Binding.Expr`'s `expr` (§3.3.2) | the `expr` member |
+| an expression a `Binding.Transform` pipeline embeds — a `derive` step's `expr`, a `filter` step's `pred` (§3.3) | that step's `expr` / `pred` member, e.g. `$.kind.source.pipeline[2].pred` |
+
+A breach is `LIMIT_EXCEEDED` at that path, so an author repairing the document is told which
+expression — and, in a pipeline, which STEP — to come back under. Where several expressions breach,
+a host reports one; which one is not specified.
+
+**Those two are the whole surface, and that is a fact about the vocabulary rather than a promise.**
+`filter` and `derive` are the only pipeline steps carrying an expression: `groupBy`, `window`,
+`pivot`, `unpivot` and `sort` name columns by string, and the operand of `join` / `union` /
+`intersect` / `except` is a data source — an embedded table or a named `ref` — never another
+pipeline. So the bound is not "the expression positions we have thought of"; it is all of them, and
+§11's forward-coupling rule is what keeps that true when the step vocabulary grows.
+
+**Where the count is taken.** Over the decoded expression, at each expression root above, at DECODE
+— before the pipeline reaches any evaluator. Not at validation: a document that DECODES must not be
+able to name an unbounded evaluation, since a host may decode, store, forward and later evaluate a
+tree without ever running a validator over it. The recursion the count itself walks is already
+bounded by max JSON depth at the parse, which is why counting over the decoded sub-tree satisfies
+rule 4 of §21.2 here — what this limit bounds is the evaluation the document NAMES, and the count
+is taken before anything acts on it.
+
+**ONE budget for both positions, not two.** The thing bounded is identical either way — the
+evaluation named by one `ColExpr` — so a second figure would be one more number to keep in step
+across the hosts and would refuse nothing this one does not. **And per EXPRESSION rather than per
+pipeline:** twenty `derive` steps of ten nodes each are twenty cheap evaluations, not one expensive
+one, so a whole-pipeline sum would refuse that legitimate shape while catching no blow-up the
+per-expression bound misses. The aggregate is max document bytes' job, exactly as it is for the many
+`Expr` bindings of one tree.
+
+**A document a host previously accepted is REFUSED OUTRIGHT.** Until this section was amended the
+pipeline positions were explicitly excluded, which made the limit bypassable by wrapping an
+expression in a Transform: every conformant host accepted a 513-node `derive` expression, including
+the one shape a `Binding.Expr` refuses. Closing that changes what an already-shipped decoder
+accepts, so the decision is stated here rather than left to be read off any host's code:
+
+- There is **no profile boundary and no grandfathering**. §21.2 rules 1 and 2 admit no second
+  acceptance class — a document is within the limits or it is not — and the format's one
+  host-narrowing mechanism (§23) is deliberately a NARROWING that never appears on the wire and is
+  never negotiated. Widening in the other direction has no spelling here, and inventing one for a
+  resource limit would be a larger and more durable change than the hole it papers over.
+- It is a **breaking** change, and the affected shape is stated rather than estimated away: a
+  document that stops decoding is one carrying more than 512 `ColExpr` nodes in a single pipeline
+  step's expression. That is the blow-up this limit exists to refuse, not a shape an author writes —
+  see the value paragraph below.
+- A host **MUST NOT** report the refusal as a shape error. The document is well-formed and its
+  expression is a well-formed expression; it is too large to evaluate, which is what
+  `LIMIT_EXCEEDED` says (§21.2 rule 2).
+
+The `limit-expr-nodes-pipeline-at-max` node fixture and the three `reject-limit-expr-nodes-*` reject
+vectors pin both sides of the bound on this surface, the third of them being the bypass itself.
 
 **One count, not a count and a depth.** Depth ≤ node count for every expression, so an expression 600
 deep is already 600 nodes and already refused; a second number would be one more figure to keep in
@@ -6360,11 +6483,12 @@ vocabulary admits is an `in` over a literal set, and 512 admits a membership tes
 values. What it refuses is the blow-up — a nested `case` chain deep enough to make evaluation itself
 the attack.
 
-**Its SCOPE is `Binding.Expr` and nothing else.** A `ColExpr` inside a `Binding.Transform` pipeline —
-a `derive`'s expression, a `filter`'s predicate — is NOT bounded by this limit, and was not bounded
-before it either. That surface predates this limit, and widening it here would change what an
-already-shipped decoder accepts; it is stated rather than left to be inferred, because a limit whose
-scope is guessed at is worse than no limit.
+_(This section carried the opposite scope rule until it was amended: "its SCOPE is `Binding.Expr` and
+nothing else", with the pipeline positions named as deliberately unbounded because bounding them
+would change what an already-shipped decoder accepts. That reasoning is preserved above rather than
+deleted — it is why the amendment states the refusal of previously-accepted documents explicitly
+instead of leaving it to be inferred — but the rule itself is superseded: a stated exclusion on the
+one surface an expression could be moved to is not a scope, it is a bypass.)_
 
 ---
 
