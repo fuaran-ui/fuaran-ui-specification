@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "host": "fuaran-ts",
+  "family": "pre-emit",
+  "fixture": "FIXTURE — not a host declaration. The FALSE half of Phase 1659's go-red proof: this declaration claims `messageForm: \"structured\"` while the source beside it constructs findings carrying prose. It is reached only through `check-message-parity.mjs --workspace`, never by ordinary host discovery, and it borrows the `fuaran-ts` host name because the contract's probe is keyed by host.",
+  "vocabulary": "wire-format-fixtures/validator/defect-vocabulary.json",
+  "posture": "subset",
+  "postureReason": "Fixture. Immaterial to what is under proof.",
+  "messageForm": "structured",
+  "messageFormReason": "FALSE, deliberately. This is the claim the proof exists to refute: the source beside it carries a `message` member on a constructed finding and a prose string literal, so the host does have wording to compare and is not exempt by shape at all. Before Phase 1659 this sentence was the whole check.",
+  "implemented": ["FUARAN047", "FUARAN048", "FUARAN049", "FUARAN069", "FUARAN082", "FUARAN083"],
+  "abstentionDefault": "Fixture.",
+  "otherFamilies": {},
+  "machineChecked": false,
+  "machineCheckedNote": "Fixture."
+}

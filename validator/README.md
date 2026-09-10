@@ -46,8 +46,13 @@ convey, so `FUARAN083` cannot point at one message that names the remedy and
 another that stops at describing the situation.
 
 ```
-node validator/check-message-parity.mjs [--verbose]
+node validator/check-message-parity.mjs [--verbose] [--workspace <dir>]
+node validator/check-message-parity-selftest.mjs   # the go-red proof
 ```
+
+`--workspace` points host discovery at an alternative root, which is how the
+go-red proof runs the gate against the fixture hosts under `go-red/` without
+reading any real checkout.
 
 It is **hand-authored**, unlike the vocabulary beside it, and deliberately so:
 "conveys the same fix" is a judgement, and deriving it from the reference's own
@@ -58,18 +63,71 @@ spellings, and a message must hit one spelling from every group. Requiring exact
 wording across five languages would be a formatting rule wearing a semantics
 costume, and would fail on the reference's own `Switch` against a host's `switch`.
 
-Two exemptions, both declared rather than inferred:
+Two exemptions, both declared rather than inferred — and the first of them is
+**checked** rather than believed:
 
 - A host whose findings are **structured records with no message string** declares
   `messageForm: "structured"`. There is nothing to compare, and the
   human-readable rendering belongs to its consumer. Declared rather than inferred
-  from "no messages found", because that is also what a broken extractor looks like.
+  from "no messages found", because that is also what a broken extractor looks like
+  — and since Phase 1659 **verified against the host's own source**, because a
+  declaration nothing checks is an opt-out rather than an exemption. See below.
 - A code **fewer than two non-reference hosts implement** is out of scope: parity
   needs two parties.
 
 A non-exempt host from which zero templates were extracted **fails**, rather than
 reporting zero problems. That is the same hazard the gate exists to catch, one
 level down.
+
+### `messageForm: "structured"` is a checked claim
+
+The exemption is the strongest thing this contract lets a host say about itself,
+and until Phase 1659 it was the only thing nothing verified. That was not a
+hypothetical: probe-demonstrated 2026-08-29, a host that FALSELY declared it went
+from nine codes checked to `exempt` at exit 0 — one line of declaration and the
+whole contract stopped applying to it.
+
+The declaration is a claim about the host's source, so the source is where it is
+answered. The contract carries a probe per exempt host — where that host
+constructs a finding, plus a sample of the message-shaped construction the probe
+must be able to match. On every run the checker proves the probe against its own
+sample *before* believing its silence (a regex that has quietly stopped matching
+finds nothing in a false declaration exactly as it finds nothing in an honest
+one), then reads the argument of each construction site — brace-balanced, with
+comments and string interiors masked — and refuses the exemption on either a
+prose-carrying member (`message`, `detail`, `hint`, …) or a string literal with an
+interior space. An exempt host for which the contract carries **no** probe fails
+outright, which is the case this closes.
+
+**What it can see:** a prose member added to a finding record, whatever its value
+is built from; a message literal at a construction site under any member name; a
+host declared exempt with no probe to check it; a probe that no longer matches its
+host's idiom.
+
+**What it cannot see,** stated because a gate that implied otherwise would be
+worse than none: a message assembled elsewhere and attached through a variable
+under a member the probe does not name — the member list is deliberately short,
+since falsely accusing an honest host costs as much as believing a false claim;
+whether the consumer's rendering of a structured finding conveys the required
+concepts, which is not in the host's repository at all and about which this
+contract makes no claim; anything on a checkout where the host's source is absent,
+which reports as **NOT VERIFIED** rather than as exempt, because a bare corpus
+checkout has no host sources and "I could not look" must never render as "I looked
+and it was clean"; and a construction site inside a regular-expression literal
+carrying a quote or a comment opener, since the mask is not a parser — such a host
+needs its probe's site regex narrowed rather than the mask widened.
+
+**The go-red proof** lives beside the gate, per SPEC_CONVENTIONS §8, and covers
+both directions. `check-message-parity-selftest.mjs` runs the gate against two
+committed fixture hosts under `go-red/`: a FALSE declaration is refused with the
+constructions named; **the same fixture passes the frozen pre-change gate**
+(`go-red/check-message-parity.pre-1659.mjs`), which is what makes the refusal a
+proof about the change rather than about the fixture; and a TRUE declaration —
+sitting beside every shape a naive scan would misread as prose — still passes and
+reports itself verified. Replacing "always believed" with "always refused" would
+only relocate the wrong answer, so the second half is proved as carefully as the
+first. Nothing in the proof writes or perturbs anything; the fixtures are
+read-only inputs reached through `--workspace`.
 
 ## Two limits, stated because a gate that implied otherwise would be worse than none
 

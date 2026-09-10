@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "version_note": "FIXTURE — see `fixture` below.",
+  "host": "fuaran-ts",
+  "family": "pre-emit",
+  "fixture": "FIXTURE — not a host declaration. The TRUE half of Phase 1659's go-red proof: an HONEST `messageForm: \"structured\"` claim, whose source beside it carries only typed fields. It exists so the proof shows the new arm discriminating rather than merely refusing — a check that always fails is no better than one that always passes. Reached only through `check-message-parity.mjs --workspace`.",
+  "vocabulary": "wire-format-fixtures/validator/defect-vocabulary.json",
+  "posture": "subset",
+  "postureReason": "Fixture. Immaterial to what is under proof.",
+  "messageForm": "structured",
+  "messageFormReason": "TRUE. The source beside it constructs findings from a discriminant and typed fields only. The FUARAN codes, the backticked type names, the apostrophes and the `//` inside a string literal are all there to be ignored: each is a shape that would make a naive scan report prose where there is none, and a false accusation against an honest host costs this contract as much as a believed false claim.",
+  "implemented": ["FUARAN047", "FUARAN048", "FUARAN049", "FUARAN069", "FUARAN082", "FUARAN083"],
+  "abstentionDefault": "Fixture.",
+  "otherFamilies": {},
+  "machineChecked": false,
+  "machineCheckedNote": "Fixture."
+}
