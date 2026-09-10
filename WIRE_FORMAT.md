@@ -4117,7 +4117,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->158<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4163,6 +4163,17 @@ that is the point.
 Note the asymmetry with a float slot,
 which per §20.2 row 8 **widens** to the three sentinel strings: an integer slot does not, and a host
 where one function serves both must check that the widening cannot leak.
+
+**A §21-bounded integer slot refuses IN-range values, and that is not an exception to this rule.**
+This section says what an integer slot can HOLD; §21 says how much work a document may NAME, and a
+few of these slots are read as a count of something a host then produces. `Skeleton.rows` is the
+first (§21.9). At such a slot the two rules compose in a fixed ORDER: this one decides first, so a
+value that is not an integer stays a **`WRONG_TYPE`**, and a 32-bit-valid value past the §21 bound is
+a **`LIMIT_EXCEEDED`** — never the reverse in either direction. The distinction is worth stating
+rather than leaving to be inferred, because the two codes send an author to repair different things:
+`WRONG_TYPE` says the value is not of this slot's type, and `LIMIT_EXCEEDED` says it is, and is too
+much. A host that collapses them into a narrower `requireInt` will also refuse the at-the-bound
+document §21.2 rule 1 obliges it to accept.
 
 ---
 
@@ -4718,10 +4729,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->534<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->222<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->536<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->223<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->158<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->70<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -5936,6 +5947,7 @@ typed error.
 | **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
 | **max document bytes** | **33 554 432** | UTF-8 bytes of the whole input document — see §21.7. |
 | **max expr nodes** | **512** | `ColExpr` nodes in ONE `Binding.Expr` expression (§3.3.2) — see §21.8. |
+| **max skeleton rows** | **10 000** | The value of ONE `Skeleton` node's `rows` slot (§3.2) — see §21.9. |
 
 **Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
 other in either direction. One tree level costs several JSON levels — a `Box` costs three (the node
@@ -6029,14 +6041,20 @@ by §21.2 rule 5 rather than propose a smaller wire limit.
 
 ### 21.5 Conformance status
 
-The reference (F#) host enforces all six limits — the document-bytes ceiling of §21.7 at the parse
-entry point, before any allocation, and the string bound in §21.6's code-point unit. Specifically:
-its JSON parser enforces the
+The reference (F#) host enforces **every limit in §21.1** — the document-bytes ceiling of §21.7 at
+the parse entry point, before any allocation, and the string bound in §21.6's code-point unit.
+Specifically: its JSON parser enforces the
 syntactic-depth, string-length and array-length bounds; its structural decoder enforces the
 node-depth and total-node bounds; its **op** decoder enforces the same node-depth figure over
 `TreeOp.Batch` nesting, counted on its own axis; and — per rule 5 — its pre-emit validator, its
 server-side renderer and its interaction-cost accounting each enforce the node-depth bound on their
 own walks, the renderer by the visible-marker route rule 5 allows for a total signature.
+
+The two VALUE bounds sit at the slot that reads them rather than on a walk: §21.8's expression count
+in the `Expr` binding arm, §21.9's row ceiling in the `Skeleton` spec decoder, each after the §7.1
+integer read and never before it (the composition order §7.1 states). Counting the enumeration in
+prose is deliberately avoided here — a stated count is one more thing a new limit must remember to
+move, and §21.1's table is the enumeration.
 
 **A note for implementers, because it cost this host a second pass.** Bounding the node decoder is
 not sufficient. `TreeOp.Batch` makes the *op* decoder self-recursive on a separate axis, and the
@@ -6274,6 +6292,62 @@ a `derive`'s expression, a `filter`'s predicate — is NOT bounded by this limit
 before it either. That surface predates this limit, and widening it here would change what an
 already-shipped decoder accepts; it is stated rather than left to be inferred, because a limit whose
 scope is guessed at is worse than no limit.
+
+---
+
+### 21.9 Max skeleton rows (normative)
+
+`Skeleton.rows` names a number of placeholder rows a renderer EMITS, and it is the first bound in
+this section that a document breaches with four digits rather than with bulk. §21.8's argument for
+`Binding.Expr` applies here more sharply, because it is not even an evaluation: the rows are simply
+not present in the input. A server-side renderer emits one row of markup per count, so
+`{"$type":"Skeleton","rows":100000000}` is a document well inside every other limit — a handful of
+bytes, one node, three JSON levels — that names a hundred million rendered rows. Every structural
+limit is satisfied, and each is satisfied because none of them is looking at the value.
+
+**A conformant host MUST refuse a `Skeleton` whose `rows` exceeds 10 000, with `LIMIT_EXCEEDED`**,
+counted per node rather than per document — a tree may carry many `Skeleton` nodes, each bounded
+here, with the whole still bounded by max total nodes and max document bytes. `Path` is the `rows`
+member; `Message` names the bound and the observed value, as §21.2 rule 2 requires everywhere.
+
+**§7.1 decides FIRST, and the ORDER is the whole of what keeps the two rules apart.** §7.1 governs
+what a typed integer slot can HOLD, and `2147483647` is finite, fraction-free and inside signed
+32-bit, so §7.1 admits it; this section then refuses it because of the work it names. So a value
+that is not an integer at all — `2.5`, `1e10`, a §7 sentinel string — is a **`WRONG_TYPE`** and
+never a limit breach, and a 32-bit-valid value past the bound is a **`LIMIT_EXCEEDED`** and never a
+wrong type. A host that answers `WRONG_TYPE` at `2147483647` has read this bound as a narrowing of
+the slot's TYPE, and the same reading makes it refuse the at-the-bound document every host MUST
+accept — one misreading, breaching rule 1 and rule 2 at once. That is why both halves are corpus
+fixtures (`limit-skeleton-rows-at-max`, `reject-limit-skeleton-rows`) and why the reject vector's
+value is the 32-bit maximum rather than `10 001`: `10 001` cannot separate the two readings, and the
+32-bit maximum is the only value that can.
+
+**Why 10 000, and why not a shape limit's figure.** It keeps a skeleton's EXPANSION an order of
+magnitude under the 100 000 max array length already fixes for a single position's element count,
+and the asymmetry is the justification rather than caution: an array's elements are *carried*, so the
+document's own size bounds them, while these rows are *named*, so the input gives a host no size
+signal at all and this figure is the only thing between two bytes and the expansion. For scale, a
+loading placeholder standing in for a real list is single or double digits; 10 000 is three orders of
+magnitude above any of them. Like every other figure in §21.1 it is a protocol number, and a host
+that wants a tighter operational ceiling bounds it under rule 6.
+
+**An UPPER bound only, and the omission is deliberate.** A negative `rows` is not refused by this
+section. It is not a resource breach — nothing expands — and answering `LIMIT_EXCEEDED` for it would
+be the actively-wrong diagnosis rule 2 forbids in the `INVALID_JSON` direction: it tells an author to
+come back under a ceiling when what they wrote is a count that cannot be drawn at all. It is an
+authoring defect, and it belongs to the pre-emit validator
+([`validator/defect-vocabulary.json`](validator/defect-vocabulary.json), code `FUARAN150`), which
+holds BOTH ends of the range because that is the surface an author is standing on. A host
+implementing the decode bound and not the authoring rule is conformant — the pre-emit family is
+per-host declared coverage (`validator-coverage.json`, §11.2's sibling mechanism) and always has
+been. A host implementing neither is not.
+
+**No per-host exemption, here or anywhere in §21**, and the question is worth answering once because
+this is the first bound a host might plausibly already breach by ACCEPTING rather than by refusing:
+rule 1 says refusing a document inside the limits is non-conformance, so a limit a host may decline
+is not part of the format at all. The dial that DOES exist is the pre-emit one named above, and it
+exists for a reason that does not generalise — a headless codec legitimately carries fewer authoring
+rules than an authoring tier. Decode conformance has no such dial and must not acquire one.
 
 ## 22. Render-time safety floor (normative renderer obligation)
 
