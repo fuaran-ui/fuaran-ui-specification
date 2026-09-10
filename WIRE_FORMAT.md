@@ -1286,8 +1286,12 @@ a worse rendering than an empty one.
 the paragraph above — resolves as the slot's empty state, exactly as a null cell out of a scalar
 `Transform` does.
 
-**Bounds.** `expr` is subject to `MaxExprNodes` (§21) — `LIMIT_EXCEEDED` at decode. A `ColExpr` inside
-a `Transform` PIPELINE is deliberately not covered by that limit; see §21.
+**Bounds.** `expr` is subject to `MaxExprNodes` (§21.8) — `LIMIT_EXCEEDED` at decode. So is a
+`ColExpr` inside a `Transform` PIPELINE (a `derive`'s expression, a `filter`'s predicate): the same
+budget, counted per expression, at the path of that step's member. This paragraph excluded the
+pipeline surface until §21.8 was amended, which is what made the bound bypassable by wrapping an
+expression in a Transform; see §21.8 for the amendment and for what it does to a document a host
+previously accepted.
 
 See `nodes/expr-scalar.json` (the param-free constant-fold form) and
 `nodes/expr-params-state-selection.json` (params from `State` / `Selection` / `Query` / `Filter` /
@@ -4114,10 +4118,10 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `UNKNOWN_DU_CASE` | A `$type` discriminator (or bare-enum string) is not a recognised case. `ExpectedShape` enumerates valid cases. |
 | `WRONG_NODE_KIND` | The **top-level** `kind.$type` is not a recognised node kind – i.e. not one of the discriminators the §3.2 table enumerates, in any of its five recovered categories. Raised at `$.kind.$type`. (Deliberately not re-listed here: §3.2's table is generated and this sentence would be the copy that goes stale.) (Distinct from `UNKNOWN_DU_CASE` for the eval gate-1 surface.) |
 | `EMPTY_NODE_ID` | An `"id"` field is present but the empty string. (Same defect the post-apply validator catches; surfaced at decode time to save the round-trip.) |
-| `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, or total node count. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
+| `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `LIMIT_EXCEEDED`**, whose fixtures are deliberately deferred until the hosts adopt §21 together (§21.5), **and `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->160<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4718,10 +4722,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->534<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->222<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->538<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->223<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->157<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->160<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->70<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -5935,7 +5939,7 @@ typed error.
 | **max array length** | **100 000** | Elements in a single JSON array, and members in a single JSON object. |
 | **max total nodes** | **100 000** | `Node` objects in one document, summed across the whole tree. |
 | **max document bytes** | **33 554 432** | UTF-8 bytes of the whole input document — see §21.7. |
-| **max expr nodes** | **512** | `ColExpr` nodes in ONE `Binding.Expr` expression (§3.3.2) — see §21.8. |
+| **max expr nodes** | **512** | `ColExpr` nodes in ONE expression — a `Binding.Expr`'s expression (§3.3.2), or an expression a `Binding.Transform` pipeline embeds — see §21.8. |
 
 **Why node depth and JSON depth are two numbers and not one.** They are not derivable from each
 other in either direction. One tree level costs several JSON levels — a `Box` costs three (the node
@@ -6253,12 +6257,68 @@ gateway.
 
 ### 21.8 Max expression nodes (normative)
 
-`Binding.Expr` (§3.3.2) carries an expression a host EVALUATES, which the other six limits do not
-bound in the way that matters: an expression is small in bytes and shallow in JSON relative to the
-work it names, so a document well inside every structural limit can still name an evaluation that is
-not. **512 `ColExpr` nodes in one `Binding.Expr` expression**, counted per expression rather than per
-document — a tree may carry many `Expr` bindings, each bounded here, with the whole still bounded by
-max document bytes. A breach is `LIMIT_EXCEEDED` at the path of the `expr` member.
+An expression is something a host EVALUATES, which the other six limits do not bound in the way that
+matters: an expression is small in bytes and shallow in JSON relative to the work it names, so a
+document well inside every structural limit can still name an evaluation that is not. **512
+`ColExpr` nodes in one expression**, counted per expression rather than per document — a tree may
+carry many expressions, each bounded here, with the whole still bounded by max document bytes.
+
+**The bound covers EVERY expression a decoded document can name**, and there are exactly two places
+one appears:
+
+| Position | Path of the breach |
+|---|---|
+| a `Binding.Expr`'s `expr` (§3.3.2) | the `expr` member |
+| an expression a `Binding.Transform` pipeline embeds — a `derive` step's `expr`, a `filter` step's `pred` (§3.3) | that step's `expr` / `pred` member, e.g. `$.kind.source.pipeline[2].pred` |
+
+A breach is `LIMIT_EXCEEDED` at that path, so an author repairing the document is told which
+expression — and, in a pipeline, which STEP — to come back under. Where several expressions breach,
+a host reports one; which one is not specified.
+
+**Those two are the whole surface, and that is a fact about the vocabulary rather than a promise.**
+`filter` and `derive` are the only pipeline steps carrying an expression: `groupBy`, `window`,
+`pivot`, `unpivot` and `sort` name columns by string, and the operand of `join` / `union` /
+`intersect` / `except` is a data source — an embedded table or a named `ref` — never another
+pipeline. So the bound is not "the expression positions we have thought of"; it is all of them, and
+§11's forward-coupling rule is what keeps that true when the step vocabulary grows.
+
+**Where the count is taken.** Over the decoded expression, at each expression root above, at DECODE
+— before the pipeline reaches any evaluator. Not at validation: a document that DECODES must not be
+able to name an unbounded evaluation, since a host may decode, store, forward and later evaluate a
+tree without ever running a validator over it. The recursion the count itself walks is already
+bounded by max JSON depth at the parse, which is why counting over the decoded sub-tree satisfies
+rule 4 of §21.2 here — what this limit bounds is the evaluation the document NAMES, and the count
+is taken before anything acts on it.
+
+**ONE budget for both positions, not two.** The thing bounded is identical either way — the
+evaluation named by one `ColExpr` — so a second figure would be one more number to keep in step
+across the hosts and would refuse nothing this one does not. **And per EXPRESSION rather than per
+pipeline:** twenty `derive` steps of ten nodes each are twenty cheap evaluations, not one expensive
+one, so a whole-pipeline sum would refuse that legitimate shape while catching no blow-up the
+per-expression bound misses. The aggregate is max document bytes' job, exactly as it is for the many
+`Expr` bindings of one tree.
+
+**A document a host previously accepted is REFUSED OUTRIGHT.** Until this section was amended the
+pipeline positions were explicitly excluded, which made the limit bypassable by wrapping an
+expression in a Transform: every conformant host accepted a 513-node `derive` expression, including
+the one shape a `Binding.Expr` refuses. Closing that changes what an already-shipped decoder
+accepts, so the decision is stated here rather than left to be read off any host's code:
+
+- There is **no profile boundary and no grandfathering**. §21.2 rules 1 and 2 admit no second
+  acceptance class — a document is within the limits or it is not — and the format's one
+  host-narrowing mechanism (§23) is deliberately a NARROWING that never appears on the wire and is
+  never negotiated. Widening in the other direction has no spelling here, and inventing one for a
+  resource limit would be a larger and more durable change than the hole it papers over.
+- It is a **breaking** change, and the affected shape is stated rather than estimated away: a
+  document that stops decoding is one carrying more than 512 `ColExpr` nodes in a single pipeline
+  step's expression. That is the blow-up this limit exists to refuse, not a shape an author writes —
+  see the value paragraph below.
+- A host **MUST NOT** report the refusal as a shape error. The document is well-formed and its
+  expression is a well-formed expression; it is too large to evaluate, which is what
+  `LIMIT_EXCEEDED` says (§21.2 rule 2).
+
+The `limit-expr-nodes-pipeline-at-max` node fixture and the three `reject-limit-expr-nodes-*` reject
+vectors pin both sides of the bound on this surface, the third of them being the bypass itself.
 
 **One count, not a count and a depth.** Depth ≤ node count for every expression, so an expression 600
 deep is already 600 nodes and already refused; a second number would be one more figure to keep in
@@ -6269,11 +6329,12 @@ vocabulary admits is an `in` over a literal set, and 512 admits a membership tes
 values. What it refuses is the blow-up — a nested `case` chain deep enough to make evaluation itself
 the attack.
 
-**Its SCOPE is `Binding.Expr` and nothing else.** A `ColExpr` inside a `Binding.Transform` pipeline —
-a `derive`'s expression, a `filter`'s predicate — is NOT bounded by this limit, and was not bounded
-before it either. That surface predates this limit, and widening it here would change what an
-already-shipped decoder accepts; it is stated rather than left to be inferred, because a limit whose
-scope is guessed at is worse than no limit.
+_(This section carried the opposite scope rule until it was amended: "its SCOPE is `Binding.Expr` and
+nothing else", with the pipeline positions named as deliberately unbounded because bounding them
+would change what an already-shipped decoder accepts. That reasoning is preserved above rather than
+deleted — it is why the amendment states the refusal of previously-accepted documents explicitly
+instead of leaving it to be inferred — but the rule itself is superseded: a stated exclusion on the
+one surface an expression could be moved to is not a scope, it is a bypass.)_
 
 ## 22. Render-time safety floor (normative renderer obligation)
 
