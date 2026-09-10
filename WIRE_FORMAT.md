@@ -172,6 +172,36 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   > not change the negotiated wire version (§15) — no optional field is added, so §15.4's
   > additive-minor question does not arise.
 
+  **Normative render obligations for the trait's two `Binding` slots (Phase 1665).** A conformant
+  rendering host, given a node carrying `accessibility`:
+
+  1. MUST resolve `label` and `hidden` through the **SCALAR path** (§3.6, §3.3.2) — the same path a
+     `Binding` in any other scalar slot takes, so a `Transform` yielding exactly one cell and an
+     `Expr` both work at either slot. Resolving either through a ROW-shaped generic path is
+     non-conformant: a typed host throws, an erased one yields the rows array, and in both cases the
+     slot renders nothing while every byte-parity leg stays green.
+  2. MUST emit no `aria-label` when the name resolves to the empty string. An empty accessible name
+     is worse than none: it silences the content that would otherwise have named the node.
+  3. MUST emit no `aria-label` when the name does not resolve, or resolving it errors — never a
+     placeholder, and never a fallback to the node's visible text. This is the same asymmetry
+     `visible` has below, and for the same reason: an unresolved binding is not an authored value.
+  4. MUST emit `aria-hidden="true"` only on a resolved `true`. An explicit `Static false`, an
+     unresolved binding and an errored one all emit nothing — an explicit `false` is distinct on the
+     wire from an omitted `hidden`, and a host that collapses the two loses the author's explicit
+     "this is NOT hidden".
+  5. MUST take these decisions identically on the server and on the client it hydrates, from the
+     same seeded sources — the property hydration depends on, stated for the same reason it is
+     stated for `visible`.
+
+  **Why this is stated normatively rather than left to the slot's type.** It was left to the type,
+  and all five hosts read the name slot through their generic binding path while `hidden` was routed
+  to the scalar one — the two adjacent slots of one trait resolved by two different rules. The trait
+  is the one part of a node with **no visible output**, so nothing downstream reported it: a region
+  whose computed name never arrived rendered exactly like one that had no name to begin with. The
+  cross-host behaviour vectors live beside this document in
+  [`a11y-contract.json`](./a11y-contract.json)'s `behaviour` section, keyed by node-fixture id, with
+  `nodes/a11y-wrapper-transform-label.json` the fixture that pins rule 1.
+
 - `tooltip` (`TextSource`) is a supplementary **hint** about the node — the text a reader is shown on hover or focus, and which assistive technology receives as the node's description. Omitted entirely when absent. It takes every `TextSource` arm, and note that the CANONICAL encoding of a literal hint is a BARE STRING (`"tooltip": "Updated nightly."`) rather than an object: `Literal` is `TextSource`'s transparent case wherever it appears, and `Bound` / `I18n` are the arms that carry a `$type` envelope. The `{"$type":"Literal","text":…}` spelling is decode-accepted and normalises to the bare form on re-encode, exactly as at every other `TextSource` slot.
 - `visible` (`Binding<bool>`) decides whether the node is **present in the rendered output at all**. A resolved `false` removes it — no element, no layout, no accessibility-tree entry; any other outcome, including an unresolved or errored predicate, renders it. Omitted entirely when absent. It is NOT `accessibility.hidden`, which is `aria-hidden` over a node that IS rendered; the two are set out side by side below.
 
@@ -4121,7 +4151,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->160<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->161<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -4722,10 +4752,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->538<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->223<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->540<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->224<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->160<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->161<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->70<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,

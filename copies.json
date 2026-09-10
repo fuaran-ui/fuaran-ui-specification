@@ -3084,6 +3084,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "nodes/a11y-wrapper-transform-label.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/a11y-wrapper-transform-label.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "nodes/a11y-wrapper-transform-label.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/a11y-wrapper-transform-label.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "nodes/action-confirm-cancel.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/action-confirm-cancel.json"
@@ -6951,6 +6967,22 @@
       "source": "reject/reject-a11y-hidden-nonbool.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-a11y-hidden-nonbool.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-a11y-label-nonstring.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-a11y-label-nonstring.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-a11y-label-nonstring.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-a11y-label-nonstring.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
