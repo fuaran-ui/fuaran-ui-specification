@@ -51,6 +51,27 @@ name: Consumer conformance
 # chains format → build → test → validate; a subset of another repository's
 # build script is not this repository's to carve, so it runs whole.
 #
+# ── What a leg here does NOT assert, and why that is deliberate ──────────────
+# Each host is measured in the arrangement ITS OWN CI uses: itself, this corpus,
+# and only the extra siblings its own workflow checks out. So a suite that skips
+# for want of another host's sources skips here exactly as it skips there — the
+# class-vocabulary and stylesheet-parity oracles two of these hosts carry are
+# the standing instance, and each of those repositories prints its own
+# disclosure of them on every run.
+#
+# That is a floor, not an oversight, and checking a reference host out beside
+# every host would NOT raise it uniformly: at least one host's suite escalates
+# from "not run" to "FAILED" the moment a second host appears beside it, because
+# a cross-host checkout missing a corpus it would otherwise skip is a silently
+# disabled oracle rather than a standalone clone. Adding that checkout would
+# therefore buy two hosts' oracles at the price of reporting drift on a third
+# for a corpus this workflow cannot supply — a false report, which is worse than
+# a disclosed floor.
+#
+# So this report says what each host's own gate says, and no more. It is NOT a
+# cross-host parity check; that claim belongs to the cross-host gate (§11.1),
+# which assembles every host together for exactly that reason.
+#
 # ── It reports; it does not gate ─────────────────────────────────────────────
 # A `push`-triggered workflow cannot block a push — the commit is already on
 # `main` by the time it starts. So "never fails the corpus push" means something
@@ -559,6 +580,12 @@ jobs:
             echo 'that gate said. It does NOT claim this corpus commit CAUSED a failing leg: a host'
             echo 'already behind before this push fails identically. What the report gives you is the'
             echo 'measurement at the moment it became answerable, and the corpus author as its reader.'
+            echo
+            echo 'Each host was measured in the arrangement its OWN CI uses — itself, this corpus, and'
+            echo 'only the siblings its own workflow checks out — so a suite that skips there for want'
+            echo 'of another host'"'"'s sources skipped here too, and a `pass` above means "this host'"'"'s own'
+            echo 'gate passed", never "every oracle it carries ran". Cross-host parity is the'
+            echo 'cross-host gate'"'"'s claim (§11.1), not this report'"'"'s.'
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "Corpus commit under report: $CORPUS_SHA"
