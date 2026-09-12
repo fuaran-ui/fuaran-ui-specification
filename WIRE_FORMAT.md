@@ -331,6 +331,20 @@ is `"ltr"` or `"rtl"`:
    alignment, and not a direction for the node's descendants beyond whatever the receiving surface's
    own inheritance already does.
 
+**In the render-fidelity manifest.** Rules 1-5 are carried as the FIRST entry of §13's `traits`
+array, the subject population for a member that rides the node envelope rather than any one kind
+(`style.direction`, `appliesTo.scope` = `allKinds`, one claim per numbered rule). A conformant
+rendering host enumerates them from `render-fidelity.json` rather than from this paragraph and
+reports any it does not assert, on the same "not checked is not passed" terms every kind obligation
+carries. Rules 4 and 5 are declared as COMPARISONS for the reason §13 records: `auto` is checked by
+rendering the declaring node and the omitting node and comparing the bytes, because the reference
+host's own `dir="auto"` heuristic makes "emits nothing" a claim that would mean different things on
+different hosts. _(Phase 1696. Before it, these five rules were normative prose no gate reached: the
+reference host, `fuaran-go` and `fuaran-rs` met them, `fuaran-ts` emitted the isolation without the
+direction, and `fuaran-py` emitted neither - and every one of those hosts reported full conformance
+for the member, because its CODEC conformance was complete and its RENDER obligation was
+undeclared.)_
+
 **The pure-SSR degradation is stated here rather than left to hosts, and there is nothing to
 degrade.** Obligations 1–5 are satisfiable with markup and stylesheet alone — no script
 participates in any of them — so a server-rendered page with no hydration carries the same
@@ -5018,7 +5032,7 @@ The artefact also distinguishes a third posture from those two. A **`behavioural
   dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-fidelity ..\wire-format-fixtures
   ```
 
-- **Shape.** A single JSON object: `version`, `$id`, `description`, `tiers` (the three tier definitions above, so the artefact is self-describing), `obligationVocabulary` (the closed set of checkable claims — see "Render obligations" below), and `kinds` - one entry per canonical `kind.$type`, Ordinal-sorted so an addition lands as one clean insert. Each entry carries `kind`, `sensitive` (whether the kind has an explicit, phase-pinned fidelity contract, as against being trivially single-tier), `source`, `fallback`, `rich` (`{ "class": "none" | "behavioural" | "clientOnly", ... }`), `fixtures` (corpus-relative paths pinning the fallback, declared for the fidelity-sensitive kinds), `obligations` (the checkable claims this kind owes, each bound to the section that states it), and `contract` (where the contract is written down).
+- **Shape.** A single JSON object: `version`, `$id`, `description`, `tiers` (the three tier definitions above, so the artefact is self-describing), `obligationVocabulary` (the closed set of checkable claims — see "Render obligations" below), `traits` (the node-level members whose claims ride any kind — see "Node-level traits" below), and `kinds` - one entry per canonical `kind.$type`, Ordinal-sorted so an addition lands as one clean insert. Each entry carries `kind`, `sensitive` (whether the kind has an explicit, phase-pinned fidelity contract, as against being trivially single-tier), `source`, `fallback`, `rich` (`{ "class": "none" | "behavioural" | "clientOnly", ... }`), `fixtures` (corpus-relative paths pinning the fallback, declared for the fidelity-sensitive kinds), `obligations` (the checkable claims this kind owes, each bound to the section that states it), and `contract` (where the contract is written down).
 - **Conformance.** Two guards on the F# side. A **completeness rule** asserts one row per canonical wire kind, measured against this manifest's own generated `kinds` enumeration rather than a hand list - so a kind added under the §11 forward-coupling rule appears here and fails the rule until its posture is declared, and the class cannot silently grow. A **stale-artefact guard** asserts byte-equality between the committed file and a fresh emission, naming the regeneration command, exactly as the stale-schema guard does. Every fixture a row names is checked to exist. The artefact **describes the existing render contract only**: no wire byte and no renderer behaviour changed when it landed.
 - **Scope.** Render fidelity, not interactivity. An inert server-rendered control becoming live at hydration is `behavioural`; what happens *after* a user interacts is outside this artefact entirely. Kinds the §15.3 tolerance path preserves without understanding have no row by construction, which is the honest answer rather than a missing one.
 
@@ -5054,6 +5068,38 @@ Each kind entry therefore also carries an `obligations` array — the subset of 
 The enumeration a host iterates is **this artefact's**, never a list beside its checkers. That is the whole mechanism: an obligation added to one kind's row arrives in every adopting host as a claim with no checker and turns that host's gate red, rather than as a paragraph a future reader may or may not re-read. A host whose closed vocabulary does not carry a claim id the artefact names is **behind the artefact** and must report that too — it cannot have checked what it cannot name.
 
 Obligations are **additive within a major version** and land under the §11 forward-coupling rule: declaring one is a change to this artefact and to every adopting host's suite in the same change-set. A kind whose `obligations` array is empty states no checkable claim; that is not a statement that its fallback prose is optional.
+
+**Node-level TRAITS — the second subject population (`traits`, Phase 1696; normative).** Every obligation above is owed BY A KIND, and the shape says so: a host reads `kinds`, finds the row, asserts its claims. A **trait** is the other population. `style.direction` (§3.1) rides the node ENVELOPE, so a `Badge`, a `Markdown` and a `DataGrid` owe it alike and none of them owns it — and until this array existed there was no honest place to declare it. Repeating it on every kind row would state forty-odd separate claims where there is one; declaring it on the one kind a fixture happens to use would be a claim about that fixture. The consequence was concrete and lasted two phases: §3.1's five numbered render obligations were normative prose no gate could reach, and each of two consecutive passes deferred the declaration to the other because arming it is a five-host change-set.
+
+`traits` is therefore a top-level array beside `kinds`, one entry per node-level member:
+
+```json
+"traits": [
+  { "trait": "style.direction",
+    "summary": "the declared base direction of ONE value's own run - …",
+    "appliesTo": { "scope": "allKinds", "kinds": [] },
+    "fixtures": ["nodes/style-direction-ltr-1.json", "nodes/style-direction-isolated-1.json"],
+    "obligations": [
+      { "id": "declared-direction-emitted", "rule": 1,
+        "statement": "a node whose `style.direction` is `ltr` or `rtl` emits that direction on the element carrying the node's own run — as HTML `dir`, or the receiving surface's equivalent …",
+        "section": "WIRE_FORMAT.md 3.1" }
+    ],
+    "contract": "Phase 1472; Phase 1653; Phase 1696; WIRE_FORMAT.md 3.1 + 13" }
+]
+```
+
+- **`trait`** is the trait's identity, and it is **the wire path of the member it governs** (`style.direction`) rather than a name of its own. Two things follow, and both are the reason. A host's checker registry is keyed by one string — `<subject>/<claim id>` — and a dotted path can never collide with a `kind.$type`, which is a bare identifier; so the two subject populations coexist in one registry with no second field saying which is which. And a name beside the member would be a second thing to keep in step with it, which is the drift this whole artefact exists to remove.
+- **`summary`** is what the member declares, in one sentence: the trait-level counterpart of a kind row's `source`.
+- **`appliesTo`** names the kinds whose rendering owes the claims — `{ "scope": "allKinds", "kinds": [] }` for a member that rides the envelope, `{ "scope": "namedKinds", "kinds": [...] }` for one that does not. A tagged scope rather than a bare list, because "every kind" must not be spellable as an empty array: an empty list reads as *no* kinds, which is the opposite claim, and a trait riding nothing would be satisfiable by rendering nothing at all. A host that renders none of the named kinds reports `not rendered`, exactly as it does for a kind row it does not render.
+- **`fixtures`** name corpus payloads that CARRY the trait, so a host asserts against documents already under byte-parity certification rather than minting its own.
+- **`obligations`** is the same shape as a kind row's, plus **`rule`** — the ordinal of the numbered rule in the cited section. It is carried rather than left to be matched from the prose: §3.1 states five numbered obligations, a conformant host registers five checkers, and without the ordinal the correspondence between them is a reader's reconstruction rather than a fact in the artefact. A section that does not number its rules omits the member.
+- **The claim ids come from the SAME closed `obligationVocabulary`** the kind rows draw from. This is the load-bearing choice. The vocabulary answers *which checkable claims exist*, and that question has nothing to do with which subject owes a claim; a second vocabulary would let a host enumerate one and miss the other, which is precisely the silent-acceptance failure the closed set replaces. So `not checked is not passed` reads identically for a trait claim and a kind claim, and a host's report needs no new outcome.
+
+**What a conformant host does with it.** Exactly what it does with `kinds`: enumerate the artefact's obligations — both arrays — answer `asserted` / `unchecked` / `not rendered` for each, print everything it did not assert with its section and a reason, and fail the gate on any unasserted claim without a declared exemption. The enumeration is the artefact's, never a list beside the checkers, which is why a trait declared tomorrow arrives in every adopting host as a claim with no checker rather than as a paragraph somebody may re-read.
+
+**Two of `style.direction`'s five claims are COMPARISONS, and that is what makes them checkable rather than a weakness.** Rule 4 says `auto` is the absence of a declaration; the honest test is that the two emissions are **byte-identical**, because the reference host emits `dir="auto"` for a bidi-isolated display leaf under its own heuristic (§3.1's host-adoption note) while a host with no such heuristic emits nothing — so "emits nothing" would be a claim that means different things per host, which is not a conformance claim at all. Rule 5 says nothing else is derived; the test is that a declared emission differs from the undeclared one by the direction and its isolation **alone**, a subtraction that no single-node assertion can express. A host is free to satisfy either by another route, but a checker that only asserts an emission has not checked these two.
+
+Traits are **additive within a major version** and land under the §11 forward-coupling rule on exactly the terms obligations do: declaring one is a change to this artefact and to every adopting host's suite in the same change-set. The two are not separable — a declaration without the checkers reddens every host, and the checkers without the declaration guard nothing enumerable.
 
 **Deriving a fidelity badge (the consumer recipe).** A surface that shows per-node fidelity - a legend, a certification report, a degradation exhibit - derives it and hard-codes nothing:
 
