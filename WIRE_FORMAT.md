@@ -7041,6 +7041,68 @@ resolves the badge's derivation over the grid's two rows. It is a *render*-parit
 §24.3's: the bytes round-trip identically with or without the rule, which is exactly why no codec
 family catches a host that has not adopted it.
 
+### 24.7 Float-sequence resolution — the element rule and the accept set (Phase 1704)
+
+§24.1 says what an UNWRITTEN slot resolves to and §24.4 says who else its declaration reaches. This
+subsection says what a WRITTEN one resolves to when the value the host wrote is a SEQUENCE — the one
+slot shape where the answer is not obvious, and where five conformant hosts had reached four
+different answers while the format said nothing.
+
+**A binding that resolves to a sequence at a float-sequence slot yields exactly one reading per
+element.** Each element is read by §7's rule for a float — a JSON number, or one of the quoted
+sentinels `"NaN"`, `"Infinity"`, `"-Infinity"`. **An element that is neither reads as NaN.** A host
+MUST NOT drop such an element, truncate the sequence at it, or abandon the whole sequence because of
+it.
+
+*Why the position is the point.* A series index IS a position. Dropping element 1 does not leave a
+gap at 1 — it slides every later reading one place left, so the chart is not missing a point, it is
+showing the wrong points at the wrong places, and it looks entirely plausible doing it. Abandoning
+the whole series is the more honest of the two failures and is still wrong: one unreadable element
+out of two hundred discards the other hundred and ninety-nine, and tells the reader nothing at all
+rather than telling them one point is missing. The sentinel says "there is no number here" in the
+position where the number is not, which is the only answer that neither invents data nor destroys
+it.
+
+**And `"3.5"` is NOT a number at this slot.** The accept set is §7's, and it is closed: a JSON
+number and the three sentinel spellings.
+
+*The alternative, stated because it is the more forgiving rule and one shipped host applied it.*
+Accepting any string the host's own float parser accepts loses on three counts. It makes the accept
+set the RUNTIME's rather than the format's — Go's `ParseFloat` takes `"0x1p-2"`, `"infinity"` and
+`"+Inf"`; JavaScript's coercion takes `"0x10"` and the empty string; Python's `float()` takes
+`" 1_0 "` — so "a numeric string" names a different set on every host, and one store draws different
+pictures on two conformant hosts. It contradicts the DECODE path at the same slot, which admits
+exactly §7's set and refuses `[1,"3.5",3]` outright (`reject/reject-spark-element-nonnumeric`, with
+`reject/reject-spark-element-sentinel-case` pinning that even a mis-cased `"nan"` is out), so a
+document could not carry the value the resolver would accept and the two halves of one slot would
+disagree about what a number is. And the format already spells the values a string is allowed to
+carry here: the three sentinels exist precisely because JSON has no syntax for them, and no other
+number needs a string.
+
+*What the rule governs, and what it does not.* It governs a value the host HAS resolved to a
+sequence. A host whose store is TYPED — one for which a foreign element means the whole value fails
+to resolve as a sequence of numbers, rather than one element failing — reads no elements and
+therefore drops none; that is the ordinary unresolved case §24.1 leaves open, not a breach of this
+rule. What no host may do is read SOME elements and then abandon the sequence on one it could not
+read: that is the shortening above in its most misleading form, because the host has demonstrably
+read the others already.
+
+It also says nothing about how a NaN reading DRAWS. A non-finite coordinate is a host-wide question
+every host already answers for a NaN arriving through the decode path —
+`nodes/spark-nonfinite-sentinel.json` carries three of them — and this rule's whole job is to make
+the two paths agree about what the SERIES is.
+
+*Conformance, and why the bytes cannot carry it.* A float-sequence slot TYPES its elements at decode
+(§5), so a foreign element is a `WRONG_TYPE` and no conformant document can hold one. The only place
+one exists is a HOST STORE, which no fixture can carry. The executable form is therefore two render
+obligations on the `Sparkline` row of `render-fidelity.json` (§13) —
+`float-seq-reads-element-wise` and `float-seq-accept-set-closed` — each host asserting them over a
+series it feeds its own resolver, against the corpus's bound-source sparkline
+(`nodes/state-absent-default.json`, node `absent-default-sparkline`, whose `source` is a
+`Binding.State` on `$state.series`). Two claims rather than one because a host can satisfy either
+alone: one that reads element-wise while coercing `"3.5"` passes the first and fails the second, and
+the reverse is equally reachable.
+
 ---
 
 ## 25. Contract cards + the unregistered-degradation obligation (Phase 1108)
