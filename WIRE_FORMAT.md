@@ -490,7 +490,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
-| `FragmentDecl` | _Meta_ | `body`, `effect?`, `holes?`, `name` | NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion. |
+| `FragmentDecl` | _Meta_ | `body`, `effect?={determinism=Deterministic, hostEffect=Pure}`, `holes?=[]`, `name` | NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion. |
 | `FragmentRef` | _Meta_ | `args?`, `name` | An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time. |
 | `Mount` | _Meta_ | `capabilities`, `channel`, `inputs?`, `onBubble?`, `scopeId` | An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document. |
 | `Switch` | _Meta_ | `autoAdvanceMs?`, `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
@@ -1074,13 +1074,15 @@ fixtures pin them.
 
 A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares typed **holes**, a ref **applies** it by binding **args**. These fields are **additive** – a zero-hole, pure-deterministic decl omits `holes`+`effect` and a zero-arg ref omits `args`, so a fixed-body fragment is byte-identical to the pre-parameterisation shape (the degenerate case).
 
+**Those omissions are NORMALISATIONS, not permissions (Phase 1670).** A conformant emitter MUST omit `holes` when the declaration has none and MUST omit `effect` when the declared class is pure-deterministic – the redundant `"holes":[]` and `"effect":{"determinism":"Deterministic","hostEffect":"Pure"}` are **not** a second canonical spelling. Both remain **decode-accepted**, and a decoder that meets either re-encodes without it; `lenient/lenient-1670-fragment-decl-redundant-defaults` is the vector that pins exactly that, and it is the one a corpus needs, because a round-trip fixture emitted by a normalising host cannot discriminate the two semantics – it writes the canonical bytes either way. Stated as a MUST because the alternative was reached for and cost: the reference host modelled both slots as optional and encoded whatever it was handed, so one value round-tripped to two different documents on two conformant hosts, and the reference host's own round-trip gate could not see it (it compares `encode(decode(bytes))` against bytes the same host produced). `args` is the third member of this class and is **NOT** stated as a MUST here, because no host normalises it yet: the reference host's generated codec cannot express a map's identity default, so `"args":{}` is still emittable there. Saying MUST of a rule the reference host breaks would make this paragraph the thing that is wrong, which is how a specification stops being read — so it is recorded as OPEN: a zero-arg ref SHOULD omit `args`, every host MUST decode it either way, and the rule is promoted to a MUST with a `lenient-accept` vector beside its two siblings once a host can hold it.
+
 - **`holes`** – an ordered array of `HoleDecl`, each `$type`-discriminated:
   - `{"$type":"Value","name":<string>,"space":<HoleValueSpace>,"default"?:<Scalar>}`
   - `{"$type":"Slot","name":<string>,"kindConstraint"?:<string>}`
   - `{"$type":"Repeat","name":<string>,"countSpace":<HoleValueSpace>}` – `countSpace` MUST be a bounded `IntRange` (totality).
 - **`HoleValueSpace`** – `{"$type":"IntRange","min","max"}` | `{"$type":"FloatRange","min","max"}` | `{"$type":"StringLen","minLen","maxLen"}` | `{"$type":"Enum","choices":[…]}` | `{"$type":"AnyString"}`.
 - **`Scalar`** (a value default or value arg) – self-describing: `{"$type":"Int","value":<int>}` | `{"$type":"Float","value":<number>}` | `{"$type":"Bool","value":<bool>}` | `{"$type":"Str","value":<string>}`.
-- **`effect`** – `{"hostEffect": "Pure"|"ReadsHost"|"WritesHost", "determinism": "Deterministic"|"Clock"|"Random"|"Network"}`. Omitted when pure-deterministic.
+- **`effect`** – `{"hostEffect": "Pure"|"ReadsHost"|"WritesHost", "determinism": "Deterministic"|"Clock"|"Random"|"Network"}`. Omitted when pure-deterministic – a MUST on encode, decode-accepted and normalised away on the way back out (above).
 - **`args`** – an object keyed by hole name; each value is a `FragmentArg`: a `Scalar` branch (`Int`/`Float`/`Bool`/`Str`) for a value arg, or `{"$type":"SlotArg","tree":<Node>}` for a slot subtree.
 
 See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical shapes; `nodes/frag-decl-1.json` + `nodes/frag-ref-1.json` remain the degenerate fixed-body fixtures.
@@ -1623,12 +1625,14 @@ read-compat):
 | `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
 | `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
+| `effect` | `EffectClass` | `{determinism=Deterministic, hostEffect=Pure}` | `FragmentDeclSpec` |  |
 | `emphasis` | `Emphasis` | `Normal` | `MetricSpec`, `SemanticStyle` |  |
 | `emphasis` | `bool` | `false` | `FactSpec`, `LabelValueRowSpec` | The behavioural bool, not the `Emphasis` style DU — a different field that shares a name. |
 | `expandable` | `bool` | `false` | `ImageSpec` |  |
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
+| `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
 | `keepRowsTogether` | `bool` | `false` | `DataGridSpec` |  |
 | `keepTogether` | `bool` | `false` | `BoxSpec` |  |
@@ -4826,11 +4830,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->547<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->548<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->227<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->164<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->71<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=lenient-accept -->72<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -5125,7 +5129,7 @@ The mechanism is host-neutral substrate in [`Fuaran.Core.Wire`](../../Fuaran-Cor
 
 ### 15.1 Profile id + the versioned envelope
 
-A **profile id** names a capability set: `<name>@<major>.<minor>` – e.g. `core@1.0`. `name` is the capability namespace; **`major` is the `/vN/` incompatibility boundary** (it pins the `$id` path of §13 – a removal/rename mints a new major); **`minor` is the additive capability counter** (a new kind/case/field bumps it). The current wire is **`core@1.0`**.
+A **profile id** names a capability set: `<name>@<major>.<minor>` – e.g. `core@1.0`. `name` is the capability namespace; **`major` is the `/vN/` incompatibility boundary** (it pins the `$id` path of §13 – a removal/rename mints a new major); **`minor` is the additive capability counter** – it counts the TAGS a consumer might meet and be unable to map, not every additive edit, and §15.4 enumerates exactly what moves it (an optional field does not). The current wire is **`core@1.0`**.
 
 An artifact may be wrapped in a **versioned envelope** that carries the producer's authored profile alongside the payload tree/op:
 
@@ -5159,14 +5163,23 @@ When a `Behind` consumer's decoder meets a discriminator it does not recognise, 
 
 A behind consumer thus has three honest responses to an unknown kind: **detect** it (negotiate → `Behind`, decode → `Unknown`), **preserve** it (re-encode the verbatim payload), or **degrade** it (render a labelled placeholder). Crashing is no longer one of them. A genuinely malformed object – no discriminator at all – still fails the decode (the tolerance is for *unknown* kinds, not *invalid* ones).
 
-### 15.4 Evolution policy – additive=minor, removal/rename=major
+### 15.4 Evolution policy – what moves the profile, and what does not
 
 | Change class | Version step | Old-consumer effect |
 |---|---|---|
-| **Additive** – new `NodeKind` / `Spec` / `Binding` / `Action` case or a new optional field | **minor** (`core@1.N` → `core@1.(N+1)`) | `Behind` → must-ignore-but-preserve (§15.3) absorbs it; no migration needed |
+| **Additive – a new TAG** in a closed discriminated vocabulary: a `NodeKind`, a `TreeOp`, a `Spec` / `Binding` / `Action` union case, or an enum case in a slot an existing decoder already reads | **minor** (`core@1.N` → `core@1.(N+1)`) | `Behind` → must-ignore-but-preserve (§15.3) absorbs it, but only because the profile TOLD the consumer to tolerate; without the step it meets the tag as `Current` and hard-rejects |
+| **Additive – a new OPTIONAL FIELD** on an existing kind / op / case / record | **no step** – exempt | `Behind` never arises. §2 rule 2 ignores an unknown key on decode, and §15.3's must-ignore-but-preserve keeps its bytes, so the consumer never consults the profile at all |
+| **Additive – a new REQUIRED field**, or an optional field becoming required | **no step** – and that understates it | Old CONSUMERS are unaffected, which is all the counter measures; old EMITTERS now produce invalid documents. Coordinate the emitters; the profile cannot say this and must not pretend to |
+| **A narrowing of the CANONICAL form** where the accepted set is unchanged – an omit-at-default arriving on a field that was optional-by-convention | **no step** | Every document that was valid stays valid and decodes to the same value; what changes is which of two spellings a conformant host EMITS. Certified by the `lenient-accept` family, which is where a normalisation belongs |
 | **Removal / rename** – a kind/case/field present before and absent after | **major** (`core@1.x` → `core@2.0`, new `/vN/` + `$id`) | `Foreign` → hard-refuse; a migration shim rewrites old→new |
 
-The classification is **derivable, not hand-disciplined**: an IDL diff (the canonical-source inversion, Phase 316) over two capability snapshots classifies the change – no removed tags ⇒ additive/minor; any removed tag ⇒ breaking/major (a *rename* surfaces as a removal + an add, correctly breaking). `Fuaran.Core.Wire.Versioning.classify` / `bump` are the host-neutral primitives; the IDL generator is what emits the per-host migration shims for a major step. This makes "is this change breaking?" a computed property of the IDL delta, not a reviewer's judgement call – the same posture as the §11 forward-coupling gate, extended across version boundaries.
+**The optional-field exemption is the PRECEDENT made into the rule (Phase 1670).** Until then this table's first row said an optional field bumped the minor, and nothing had ever bumped it: `pageStateKey` (Phase 862), `editStateKey` (Phase 863) and Phase 934 each added one and each declined the step, deliberately and with the reason recorded, while the profile stood at `core@1.0` throughout. Two readings were available – that the practice was drifting, or that the policy over-specified – and the second is correct on the mechanism: §2 rule 2 already tolerates an unknown key, so a behind consumer absorbs a new optional field with no negotiation, no degradation and nothing to name. A minor step there communicates nothing a consumer can act on, and spending the counter on changes it cannot describe is what makes the counter useless for the changes it can. A rule nobody follows is worse than no rule: it makes a reviewer who enforces it look wrong, and it makes the three declined bumps read as oversights rather than as the correct call they were.
+
+The classification is **derivable, not hand-disciplined**, and since Phase 1670 it is also DERIVED: an IDL diff (the canonical-source inversion, Phase 316) over two `idl.json` revisions classifies each change – no removed tags ⇒ additive; any removed tag ⇒ breaking (a *rename* surfaces as a removal + an add, correctly breaking) – and the table above is applied to that classification to produce the step. `Fuaran.Core.Wire.Versioning.classify` / `bump` are the host-neutral primitives, `Fuaran.Core.Idl.Diff` is the artifact-level differ, and the IDL generator is what emits the per-host migration shims for a major step.
+
+The reference host wires this to the one command a deliberate vocabulary change goes through – its regeneration check (`fuaran-dotnet`, `src/Fuaran.UI.Idl/WireProfile.fs`, reported from `src/Fuaran.UI.Idl.Tests`) – so a change that moves `idl.json` prints its own class before it is committed, and the rows above are exercised by tests that perturb the real vocabulary rather than a reference one. **Advisory, never authoritative**: it prints and does not gate, because a classifier that auto-applied would make the hand-declared classification unfalsifiable, and the whole value of deriving it independently is that the derived and the declared answers can disagree out loud. Another host adopting this section reproduces the table, not that implementation.
+
+This makes "is this change breaking?" a computed property of the IDL delta, not a reviewer's judgement call – the same posture as the §11 forward-coupling gate, extended across version boundaries.
 
 ### 15.5 Cross-host coordination
 

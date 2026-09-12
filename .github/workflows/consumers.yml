@@ -107,6 +107,19 @@ name: Consumer conformance
 on:
   push:
     branches: [main]
+  # Phase 1670 — a PRE-MERGE run, so a corpus change can be reviewed against the
+  # hosts' own gates before it is the thing every host is already certifying
+  # against. Until this landed, this repository had no `pull_request` trigger at
+  # all: the merge to `main` WAS the first report, and the only way to watch a
+  # corpus change's effect on five hosts was to have already made it.
+  #
+  # `github.sha` below is the PR's MERGE commit on this trigger, which is the
+  # right thing to measure: it is the corpus the hosts would see if the PR landed.
+  # The hosts themselves are still checked out at `main` (or at the
+  # `workflow_dispatch` ref), because the question this workflow asks is what the
+  # SPECIFICATION's move does to the hosts as they stand.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       host:
