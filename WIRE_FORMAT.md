@@ -3841,6 +3841,68 @@ separately because they are four decoder arms).
 
 ---
 
+### 3.6.24 `DataGrid` — the interactive-row class (Phase 1701)
+
+`DataGridSpec.onRowClick` is a closure-bearing slot (§4), so it rides the wire as the
+`"<closure>"` sentinel and carries exactly one fact a renderer can read: **this grid declares a row
+action.** That fact is what decides whether a rendered row is interactive, and this section states
+what a host emits on the strength of it.
+
+```json
+{"id":"grid-clickable","kind":{"$type":"DataGrid","columns":[…],"onRowClick":"<closure>","rowKeyField":"reference","source":{"$type":"Query","name":"settlements"}}}
+```
+
+**Host obligation.** A host that renders a grid's rows marks the rows that carry a declared row
+action, and marks no others. In the reference class vocabulary the marker is
+`fuaran-grid-row-interactive`, emitted beside `fuaran-grid-row`; on a surface with no class
+vocabulary it is whatever that surface uses to say "this row can be activated". Three rules, and the
+second and third are the ones a host is most likely to get wrong in a way that looks right.
+
+1. **A bound row carries the marker if and only if the grid declares `onRowClick`.** A grid that
+   declares none emits it on no row.
+2. **A `staticRows` grid carries it on no row, whatever it declares.** The static mode honours no
+   row action in any tier: its rows are `TextSource` cells rather than the row values a declared
+   action is applied to, so there is nothing for a host to invoke. A host that emitted the marker
+   there would be promising a click no tier can deliver — which is the defect this section exists
+   to remove, not a smaller version of it.
+3. **A host that renders the bound leg as a hydration placeholder emits no row, and so no marker.**
+   The obligation is satisfied vacuously and honestly: there is no row to mislead a reader about.
+   Such a host can still refute rule 2, and that is the half of the claim it answers for.
+
+**Why the marker rather than the row class.** A pointer cursor is the web's ambient signal that
+something can be activated. Keying it on *being a row* told every reader that every row was
+clickable — a table of figures, a markdown table, a read-only export — when only a row whose grid
+declares an action is. A promise the markup does not keep is the kind of thing a reader learns to
+distrust rather than reports, and hosts were scoping their own neutralisations to undo it. Keying it
+on the declaration makes the affordance mean what it says.
+
+**What is NOT claimed.** The marker says the DOCUMENT declared a row action, not that a click will
+reach one in the tier you are looking at: a no-script static rendering runs nothing, and a marked row
+there is a seed for the hydrated grid rather than a live control — the same posture
+`keepRowsTogether` takes on the placeholder, and the opposite of `exportable` (§3.6.15), which draws
+no control where it cannot act. The difference is that an inert *button* reads as a broken page,
+where a pointer on a row that is about to become clickable reads as the page it is about to be. Nor
+does the marker claim anything about a host's own row behaviour: a host whose grid rows SELECT on
+click regardless of the declaration (the reference client tier does) is unaffected — selection is
+the host's fallback, not the document's declaration, and a class keyed on it could not be emitted by
+a host that has no selection at all.
+
+Pre-emit: nothing new. `onRowClick` is already governed by §4 and by the declarative-floor rule
+below — a `staticRows` grid declaring one is not a decode defect, and this section says what it
+renders as rather than refusing it.
+
+Fixtures: none of this section's own. The claim is about EMITTED markup rather than about bytes on
+the wire, so it is carried as a render-fidelity obligation on the `DataGrid` row
+(`interactive-row-only-with-action`, §13) and asserted by each host against nodes it builds itself,
+exactly as the §3.6.5 / §3.6.6 obligations are. `nodes/grid-1.json` pins the omission polarity:
+its bytes carry no `onRowClick` key at all.
+
+**Host adoption.** Recorded here on the §11.0 convention: every host that renders grid rows moved in
+the Phase 1701 change-set. A host that renders the bound leg as a placeholder owes rules 2 and 3
+only, and says so in its obligation report.
+
+---
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
