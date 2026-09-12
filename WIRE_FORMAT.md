@@ -1095,6 +1095,21 @@ See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical 
 
 **`Binding.Transform` params (Phase 424).** The Transform binding gains an OPTIONAL `params` field: `"params":[{"from":<Binding>,"name":<string>},…]`, each entry binding a `ColExpr.param` name the pipeline references (a `{"$type":"param","name":…}` scalar expression, `fuaran-core#77`) to a scalar `Binding` source (`Filter` / `State` / `Static` / `Selection`). **Omitted when empty**, so a param-free Transform is byte-identical to the Phase 282 wire. The host resolves each param to a `Cell`, prunes any `filter` step whose params are unbound (an unset choice filter ⇒ no constraint – the one lenient UI rule), and evaluates the pipeline in that env – so a `filter` step comparing a `col` to a `param` scopes the rows by a live filter/state value, the declarative-data twin of `Query.dependsOn`. The filter→consumer edge is *derived* from the pipeline's params, never separately declared. See `nodes/grid-transform-param.json` (a filter param from a chip) vs the byte-unchanged `nodes/grid-transform.json`.
 
+**UNDECLARED param names, and why they are not pruned (normative, Phase 1674).** The prune above is
+keyed off the set of params the `params` array DECLARES and that have not RESOLVED — "this chip is
+unset, so it constrains nothing". A name that appears in no `params` entry at all is not in that set,
+and the reading is deliberate rather than incidental: a `filter` step naming `{"$type":"param","name":
+"ghost"}` with nothing called `ghost` declared anywhere is a document defect, and a defective document
+must not quietly return every row as though the author had written no filter. The step therefore
+SURVIVES the prune and reaches the strict unbound-param error, loudly.
+
+The alternative reading — prune every param not present in the resolved evaluation env — is
+indistinguishable from this one on every well-formed document, and produces the opposite verdict on
+this one. Two hosts held it for months without anyone noticing, because the corpus contained only
+well-formed transforms and so could not ask the question. `nodes/grid-transform-undeclared-param.json`
+is the document that asks it: perfectly legal wire, byte-identical on round trip, and a strict error
+to evaluate. A host that returns rows for it has the other reading.
+
 **LIST-valued `Binding.Transform` params (Phase 610).** A `params` entry is not restricted to a scalar source. Where the pipeline reads the name through the membership test's `param` form – `{"$type":"in","expr":<ColExpr>,"param":"<name>"}`, the `in` spelling that carries `param` in place of `items` – the entry is a **list param**, and its `from` binding resolves to a JSON **array** of scalars. A list param resolves by **substitution**, not through the evaluation env: the host rewrites each `in`/`param` occurrence to the literal `in`/`items` form before evaluating, exactly as `fuaran-core#91` specifies, so a pipeline reaching the evaluator with an `in`/`param` still in it names an unbound param and is a strict error rather than a silent pass. An **EMPTY selection is UNBOUND**, never `items: []`: the dependent `filter` step prunes under the same lenient "unset ⇒ no constraint" rule an unset scalar chip already gets, so deselecting everything shows the **unfiltered** table rather than an empty one. One rule covers both param kinds because a substituted step names no param at all, while an unsubstituted one still names its own – the prune is derived from the pipeline's params either way, and the reactivity edge with it. The canonical chip wiring is a `Select` with `"multiple":true` whose `values` binding names a filter and whose `onChangeMulti` is omitted (the write-back stores the selection there), with the param's `from` naming that same filter: the shared name is the whole wiring. See `nodes/multiselect-chip-list-param.json`.
 
 **Host adoption of the list-param wiring.** Recorded here rather than inferred, on the §11.0 convention: the wire form is decoded by every codec host that decodes `ColExpr` (it is Core vocabulary, not a new node kind), but *resolving* a list param — substitution, the empty-selection prune, and the reactivity edge — is host-side and adopted per host. A host that has not adopted is **not thereby exempt**; it owes the behaviour and has simply not made its answer visible.
@@ -4007,65 +4022,64 @@ type-dependent cases (opaque `Static`, closure grid columns).
 default** (`Binding.State` / `Binding.Filter`); use `Column.Field` + `CellFormat` instead of a closure
 grid column; use `Binding.Transform` (data derivation) / `Binding.Format` (formatting) / `Binding.State`
 instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead of an `onResult` closure.
+
+_This block is a PROJECTION of `Fuaran.UI.WireSurvivability`, and since Phase 1674 that claim is
+checked rather than asserted: the reference host's `WireSurvivability` suite reads this section and
+fails when a classified case is missing here, when a case here no longer exists in the code, or when
+the two disagree about a verdict. It is checked from the AUTHORING side, where the change that
+invalidates the projection is made. The prose in the third column stays authored - the gate governs
+membership and verdict, not wording. The four rows this repair removed (`NodeKind.Layout`,
+`.Display`, `.Input`, `.Visualisation`) were the category wrappers Phase 692 deleted, and the three
+tables that followed them were headed by `LayoutKind` / `DisplayKind` / `InputKind`, DUs that no
+longer exist; `NodeKind` is flat, and its 43 rows are below._
+
 **`NodeKind`**
 
 | Case | Wire | Recoverable alternative |
 |---|---|---|
-| `NodeKind.Layout` | survivable | – |
-| `NodeKind.Display` | survivable | – |
-| `NodeKind.Input` | survivable | – |
-| `NodeKind.Visualisation` | survivable | – |
 | `NodeKind.Custom` | survivable | – |
 | `NodeKind.ErrorBoundary` | survivable | – |
 | `NodeKind.Switch` | survivable | – |
 | `NodeKind.FragmentDecl` | survivable | – |
 | `NodeKind.FragmentRef` | survivable | – |
 | `NodeKind.Mount` | partial | – |
-
-**`LayoutKind`**
-
-| Case | Wire | Recoverable alternative |
-|---|---|---|
-| `LayoutKind.Box` | survivable | – |
-| `LayoutKind.SplitPanel` | survivable | – |
-| `LayoutKind.Tabs` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `LayoutKind.Stepper` | partial | – |
-| `LayoutKind.SummaryList` | survivable | – |
-| `LayoutKind.Disclosure` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `LayoutKind.Modal` | survivable | – (both Phase 1119 members are plain wire data: `modality` a bare enum, `anchor` a string) |
-| `LayoutKind.ScrollArea` | survivable | – |
-
-**`DisplayKind`**
-
-| Case | Wire | Recoverable alternative |
-|---|---|---|
-| `DisplayKind.Heading` | survivable | – |
-| `DisplayKind.Markdown` | survivable | – |
-| `DisplayKind.Metric` | survivable | – |
-| `DisplayKind.Badge` | survivable | – |
-| `DisplayKind.Sparkline` | survivable | – |
-| `DisplayKind.Callout` | survivable | – |
-| `DisplayKind.Progress` | survivable | – |
-| `DisplayKind.Skeleton` | survivable | – |
-| `DisplayKind.LabelValueRow` | survivable | – |
-| `DisplayKind.Link` | survivable | – |
-| `DisplayKind.Image` | survivable | – |
-| `DisplayKind.List` | survivable | – |
-| `DisplayKind.Toast` | survivable | – |
-| `DisplayKind.CodeBlock` | survivable | – |
-| `DisplayKind.Math` | survivable | – |
-| `DisplayKind.Fact` | survivable | – |
-| `DisplayKind.Drawing` | survivable | – |
-
-**`InputKind`**
-
-| Case | Wire | Recoverable alternative |
-|---|---|---|
-| `InputKind.Form` | survivable | – |
-| `InputKind.Filters` | survivable | – |
-| `InputKind.Button` | survivable | – |
-| `InputKind.FileUpload` | partial | – |
-| `InputKind.Select` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `NodeKind.Box` | survivable | – |
+| `NodeKind.SplitPanel` | survivable | – |
+| `NodeKind.Tabs` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `NodeKind.Stepper` | partial | – |
+| `NodeKind.SummaryList` | survivable | – |
+| `NodeKind.Disclosure` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `NodeKind.Modal` | survivable | – (both Phase 1119 members are plain wire data: `modality` a bare enum, `anchor` a string) |
+| `NodeKind.ScrollArea` | survivable | – |
+| `NodeKind.Heading` | survivable | – |
+| `NodeKind.Markdown` | survivable | – |
+| `NodeKind.Metric` | survivable | – |
+| `NodeKind.Badge` | survivable | – |
+| `NodeKind.Sparkline` | survivable | – |
+| `NodeKind.Callout` | survivable | – |
+| `NodeKind.Progress` | survivable | – |
+| `NodeKind.Skeleton` | survivable | – |
+| `NodeKind.Icon` | survivable | – |
+| `NodeKind.LabelValueRow` | survivable | – |
+| `NodeKind.Fact` | survivable | – |
+| `NodeKind.Link` | survivable | – |
+| `NodeKind.Image` | survivable | – |
+| `NodeKind.Media` | survivable | – |
+| `NodeKind.Embed` | survivable | – |
+| `NodeKind.List` | survivable | – |
+| `NodeKind.Tree` | partial | – |
+| `NodeKind.Toast` | survivable | – |
+| `NodeKind.CodeBlock` | survivable | – |
+| `NodeKind.Math` | survivable | – |
+| `NodeKind.Drawing` | survivable | – |
+| `NodeKind.Form` | survivable | – |
+| `NodeKind.Filters` | survivable | – |
+| `NodeKind.Button` | survivable | – |
+| `NodeKind.FileUpload` | partial | – |
+| `NodeKind.Select` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `NodeKind.DataGrid` | partial | use Column.Field + CellFormat instead of a closure Value; RowKeyField instead of RowKey; the click write-back default for OnRowClick. The **row feed on `source` is survivable** since Phase 665 (§5) – the remaining erasure in this kind is its closure slots, not its data |
+| `NodeKind.Chart` | partial | – |
+| `NodeKind.Map` | partial | – |
 
 **`FormFieldKind`**
 
@@ -4074,33 +4088,18 @@ instead of `Binding.Computed`; use `Action.Call ... into: State/Query` instead o
 | `FormFieldKind.Text` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Number` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Checkbox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.Toggle` | partial | – |
 | `FormFieldKind.Choice` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.TextArea` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `FormFieldKind.Range` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.RangedNumber` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.SegmentedChoice` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Rating` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `max` and `allowHalf` are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Color` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Tokens` | partial | omit the handler – the renderer's write-back default rewrites the WHOLE token list into the control's writable Binding.State / Binding.Filter value slot on every add and remove, which is what preserves the reader's own chip order on a decoded tree. `allowFreeText` and the suggestion source are DATA and survive intact; the erasure here is the handler alone |
-
-_(The `FilterKind` table is retired at 0.2.0 – filter chips are `FormFieldKind` controls; see the rows above.)_
-
-**`VisKind`**
-
-| Case | Wire | Recoverable alternative |
-|---|---|---|
-| `VisKind.DataGrid` | partial | use Column.Field + CellFormat instead of a closure Value; RowKeyField instead of RowKey; the click write-back default for OnRowClick. The **row feed on `source` is survivable** since Phase 665 (§5) – the remaining erasure in this kind is its closure slots, not its data |
-| `VisKind.Chart` | partial | – |
-| `VisKind.Map` | partial | – |
-
-`GridSpec.staticRows` is itself **survivable**: its `TextSource` headers and cells round-trip
-value-faithfully, so a static table's content is visible to op-stream replay, structural diffing,
-and every host. Since Phase 665 the same is true of the row feed a data-bound grid's `source`
-carries (§5), so the two modes no longer differ in survivability — only in meaning (§16.1). There is
-no separate table spec record on the wire (§3.2); the retired `Table` kind's surface lives here.
+| `FormFieldKind.Range` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 
 **`CellKindErased`**
 
@@ -4109,15 +4108,15 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `CellKindErased.Text` | survivable | – |
 | `CellKindErased.Numeric` | survivable | – |
 | `CellKindErased.Date` | survivable | – |
-| `CellKindErased.Editable` | **host-only** | Column.Field + CellFormat for display; interactive edit needs host wiring |
-| `CellKindErased.Checkbox` | **host-only** | – |
+| `CellKindErased.Editable` | host-only | – |
+| `CellKindErased.Checkbox` | host-only | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `CellKindErased.Button` | partial | – |
 | `CellKindErased.ButtonGroup` | partial | – |
-| `CellKindErased.Link` | **host-only** | Column.Field projecting the href row property + a Text cell |
-| `CellKindErased.Pill` | **host-only** | `CellKindErased.TonedPill` – a `field` + value→tone `map`, fully wire-expressible |
+| `CellKindErased.Link` | host-only | – |
+| `CellKindErased.Pill` | host-only | – |
 | `CellKindErased.TonedPill` | survivable | – |
-| `CellKindErased.Progress` | **host-only** | – |
-| `CellKindErased.Custom` | **host-only** | – |
+| `CellKindErased.Progress` | host-only | – |
+| `CellKindErased.Custom` | host-only | – |
 
 **`CellFormat`**
 
@@ -4129,7 +4128,9 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `CellFormat.Percent` | survivable | – |
 | `CellFormat.SignificantDigits` | survivable | – |
 | `CellFormat.Date` | survivable | – |
-| `CellFormat.Custom` | **host-only** | one of the six typed CellFormat cases – they are the declarative set |
+| `CellFormat.Duration` | survivable | – |
+| `CellFormat.RelativeTime` | survivable | – |
+| `CellFormat.Custom` | host-only | – |
 
 **`Binding`**
 
@@ -4140,8 +4141,8 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Binding.Filter` | survivable | – |
 | `Binding.Selection` | partial | – |
 | `Binding.State` | survivable | – |
-| `Binding.Computed` | **host-only** | Binding.Expr for scalar logic over bound values (AND/OR/NOT, concat, arithmetic, null tests, membership – Section 3.3.2); Binding.State / Binding.Filter for reactive values; Binding.Transform for ROW derivation; Binding.Format for formatting. **A decoded `Computed` resolves to an ERROR naming those alternatives, never to a value** – the `fn` is the whole payload of the case, so a decoded one has nothing to compute with, and a host that answered the slot's zero (`0` / `""` / `false`) would render a wrong answer indistinguishable at the slot from a right one |
-| `Binding.Now` | survivable | – (the instant is a HOST input, never wire content — §3.3.1; only the declared `grain` rides the wire) |
+| `Binding.Now` | partial | – (the instant is a HOST input, never wire content — §3.3.1; only the declared `grain` rides the wire) |
+| `Binding.Computed` | host-only | – |
 | `Binding.I18n` | survivable | – |
 | `Binding.Local` | partial | survivable with a declared codec / commit target: `codec` (a locale-free edit-buffer codec) and `commitTo` (the State key the flush writes) are the declarative twins of the format/parse/onCommit closures, and a decoded Local without them uses the IDENTITY codec and commits nowhere. Host closures remain host-only – Section 3.3.3 |
 | `Binding.Format` | survivable | – |
@@ -4153,7 +4154,7 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 
 | Case | Wire | Recoverable alternative |
 |---|---|---|
-| `Action.Dispatch` | **host-only** | the substrate actions – Action.SetState / Action.Call / Action.Notify / Action.Navigate / Action.AiTool |
+| `Action.Dispatch` | host-only | – |
 | `Action.Call` | partial | Action.Call with into: IntoState / IntoQuery is the declarative result target |
 | `Action.Notify` | survivable | – |
 | `Action.Navigate` | survivable | – |
@@ -4163,6 +4164,8 @@ no separate table spec record on the wire (§3.2); the retired `Table` kind's su
 | `Action.CommitLocal` | survivable | – |
 | `Action.WriteToClipboard` | survivable | – |
 | `Action.Print` | survivable | – |
+| `Action.Confirm` | survivable | – |
+| `Action.Focus` | survivable | – |
 | `Action.ReadFileBody` | partial | – |
 | `Action.Invoke` | survivable | – |
 
@@ -4193,6 +4196,50 @@ host-only escape - what changes there is that FUARAN084's remedy can now name a 
 for the scalar case instead of pointing at the nearest detour.
 
 ---
+
+## 5.2 Replay verification (normative host obligation, Phase 1674)
+
+The op-stream's hash chain is specified by the §4 consequence above, and the three reference hosts
+compute it identically — the chain hashes agree **character for character** across F#, TypeScript and
+Python, which was measured rather than assumed. What differed, and what this section settles, is
+whether a host's REPLAY entry point verifies that chain before it applies anything.
+
+It differed silently, and in the direction that matters. The F# host's `Replay.applyTo` verifies the
+whole segment first and refuses everything on a break, with `applyToUnverified` as the named opt-out.
+The TypeScript and Python hosts' `applyTo` / `apply_to` fold without verifying and offer a separate
+`verifyChain`. Each host is internally honest — both TypeScript's module header and this host's
+function names say which they are — but a host author porting the F# idiom by name gets a replay
+engine with no tamper detection, and nothing outside the three implementations said so.
+
+**What is NOT specified, deliberately.** Whether verification is the DEFAULT of a host's replay entry
+point is a host API-design decision and stays one. Verification is O(n) hashing over the segment, a
+host may hold a segment it has already verified, and two of the three hosts ship the unverified
+default in published packages — so mandating convergence would be a breaking semantic change to
+those packages in order to state a property their own documentation already states. The wire is not
+what disagrees here.
+
+**What IS required:**
+
+1. A host MUST provide chain verification as a callable operation, distinct from applying ops. A host
+   that can replay but cannot verify offers no way to tell a faithful stream from a forged one.
+2. A host's replay entry point MUST document, at the entry point, whether it verifies. "Documented at
+   the entry point" is the obligation: a reader reaching for the function is who needs the answer,
+   and this whole divergence is what happens when the answer lives somewhere else.
+3. A host that verifies as part of replay MUST refuse the WHOLE segment on a chain break and MUST NOT
+   replay the prefix before it. This is the one behaviour that must not differ, because it is
+   observable in the RESULT rather than in an API: a host replaying the prefix produces a tree, and a
+   caller cannot tell that tree from a complete one. Both postures are defensible in isolation; only
+   one of them can be the contract.
+4. Naming MUST NOT imply the stronger posture. A host whose unqualified entry point does not verify
+   MUST NOT name its verifying variant as the qualified one — the unmarked name goes to the weaker
+   guarantee only where the marked name carries the stronger, never the reverse.
+
+**Current conformance.** F#: verifies by default, `applyToUnverified` named for the opt-out, refuses
+the whole segment (1, 2, 3, 4). TypeScript and Python: fold without verifying, `verifyChain` /
+`verify_chain` separate and documented at the entry point (1, 2, 4 — obligation 3 does not apply to a
+replay that does not verify). No host is out of conformance with this section as it stands; what
+changes is that a fourth host now has the rule in front of it, and that a host moving to
+verify-by-default inherits obligation 3 with it.
 
 ## 6. `DecodeError` envelope + the eight codes
 
@@ -4802,6 +4849,27 @@ wire-format-fixtures/
 └── reject/  *.json   # malformed inputs
 ```
 
+**What a `node-round-trip` fixture is an oracle FOR, ruled here because the answer was assumed
+(Phase 1674).** A round-trip fixture is a **codec** oracle and nothing else: decode the bytes,
+re-encode, compare. It is deliberately ISOLATED — one node, the smallest tree that carries the shape —
+and isolation is what makes a byte pin about that shape rather than about a composition.
+
+It follows that **a round-trip fixture is not required to pass a pre-emit validator, and a corpus-wide
+"the fixtures validate cleanly" gate would be measuring the wrong thing.** The instance that raised the
+question is `nodes/button-setstate-valuefrom.json`: a lone `Button` whose `valueFrom` selects on a grid
+that is not in the fixture, which the reference host's Action-binding walk correctly reports as a
+dangling reference. Nothing validates corpus fixtures today so nothing is red — but a sibling host
+porting that walk meets it first, and would reasonably read a CORRECT defect report as a corpus defect.
+
+The ruling is the **declared exception at the CLASS level**, not a second node in that one fixture.
+Adding a grid to it would make its byte pin a pin about two nodes and would leave the next isolated
+cross-reference fixture in the same position; and the property under test — that a `Button` carrying
+`valueFrom` round-trips — is not made truer by a neighbour. A host that wants to run its validator over
+the corpus SHOULD do so over the families whose contract is validity (`reject/`, and its own
+authoring-side suites), and SHOULD treat a cross-node reference defect on a `node-round-trip` fixture as
+expected rather than as a finding. A fixture that means to pin a validator verdict belongs in a family
+whose kind SAYS so.
+
 **One rule about that command, and it is load-bearing for every family the reference emitter does not
 build.** `--emit-corpus` **merges** into `manifest.json`. It rewrites every row whose `kind` it
 authors, and returns every other row exactly as it found it — original property set, original order,
@@ -4830,8 +4898,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->548<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->227<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->549<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->228<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->164<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->72<!-- /fuaran:count --> `lenient-accept`,
