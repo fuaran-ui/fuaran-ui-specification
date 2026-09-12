@@ -948,6 +948,38 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "lenient/lenient-1670-fragment-decl-redundant-defaults.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-1670-fragment-decl-redundant-defaults.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-1670-fragment-decl-redundant-defaults.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-1670-fragment-decl-redundant-defaults.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "lenient/lenient-1670-fragment-decl-redundant-defaults.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-1670-fragment-decl-redundant-defaults.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-1670-fragment-decl-redundant-defaults.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-1670-fragment-decl-redundant-defaults.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "lenient/lenient-460-alias-emphasis-muted.expected.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-460-alias-emphasis-muted.expected.json"
