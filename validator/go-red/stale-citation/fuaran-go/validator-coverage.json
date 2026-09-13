@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "host": "fuaran-go",
+  "family": "pre-emit",
+  "fixture": "FIXTURE — not a host declaration. The RED half of Phase 1692's go-red proof for the citation arm. The declaration is deliberately IMPECCABLE: every implemented code is in the vocabulary, an abstentionDefault accounts for the rest, and otherFamilies declares the walker code the source beside it names. Every arm that existed before Phase 1692 passes it, which is the point — the source beside it cites FUARAN150, the code Phase 1666 RENUMBERED to FUARAN152, and only the citation arm can see that. It borrows the fuaran-go name because a fixture that named itself would be discovered as a sixth host by anyone running the matrix. Reached only by an explicit host-directory argument, never by sibling discovery.",
+  "vocabulary": "wire-format-fixtures/validator/defect-vocabulary.json",
+  "posture": "subset",
+  "postureReason": "Fixture.",
+  "implemented": ["FUARAN147"],
+  "abstentionDefault": "Fixture — not ported.",
+  "abstained": {},
+  "otherFamilies": {
+    "ast-walker": ["FUARAN050"]
+  },
+  "otherFamiliesNote": "Fixture.",
+  "machineChecked": true,
+  "machineCheckedNote": "Fixture."
+}

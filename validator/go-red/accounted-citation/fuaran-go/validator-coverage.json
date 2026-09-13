@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "host": "fuaran-go",
+  "family": "pre-emit",
+  "fixture": "FIXTURE — not a host declaration. The GREEN half of Phase 1692's go-red proof for the citation arm. Identical to the stale-citation fixture beside it in every respect but one: its decoder cites FUARAN152, the code the renumbering LANDED on. It exists because replacing always-believed with always-refused would only relocate the wrong answer — a check that cannot go green is no better than one that cannot go red. It borrows the fuaran-go name because a fixture that named itself would be discovered as a sixth host by anyone running the matrix. Reached only by an explicit host-directory argument, never by sibling discovery.",
+  "vocabulary": "wire-format-fixtures/validator/defect-vocabulary.json",
+  "posture": "subset",
+  "postureReason": "Fixture.",
+  "implemented": ["FUARAN147"],
+  "abstentionDefault": "Fixture — not ported.",
+  "abstained": {},
+  "otherFamilies": {
+    "ast-walker": ["FUARAN050"]
+  },
+  "otherFamiliesNote": "Fixture.",
+  "machineChecked": true,
+  "machineCheckedNote": "Fixture."
+}

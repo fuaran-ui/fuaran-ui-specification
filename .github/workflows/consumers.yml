@@ -40,6 +40,14 @@ name: Consumer conformance
 # change in any host repository, and no credential: all five host repositories
 # are public, so the checkouts read anonymously.
 #
+# ── One job here IS this repository's own ────────────────────────────────────
+# Phase 1692 added the `registry` job, and it is the one exception to everything
+# said below about the legs belonging to the hosts. It runs this repository's own
+# defect-code checks — the pre-emit vocabulary, the per-host code CITATIONS, the
+# message-parity contract, and both go-red proofs — which until then were run by
+# nobody at all. That job CAN fail this run, because what it measures is this
+# repository's obligation about itself rather than a host's about its own code.
+#
 # ── The leg is the HOST's, never this repository's ───────────────────────────
 # Nothing here defines conformance. Each `gate` in the roster below is the
 # command that host's own CI blocks on — the step it labels "THE GATE" / "Test
@@ -283,6 +291,96 @@ jobs:
           echo "Effective roster:"
           jq -r '.[] | "  \(.id) @ \(.ref)"' effective.json
           echo "hosts=$(cat effective.json)" >> "$GITHUB_OUTPUT"
+
+  # ── The defect-code registry ───────────────────────────────────────────────
+  #
+  # Phase 1692. Three checks lived under `validator/` and NOTHING RAN THEM: not
+  # this workflow, not a host's CI, not `notify-conformance.yml`. Phase 1659
+  # recorded that as residue against its own message-parity contract and it was
+  # true of all three, so the corpus's defect-code contract was hand-run or not
+  # run at all — which is the same arrangement `check-message-parity.mjs` exists
+  # to refuse one level down, and it had it about itself.
+  #
+  # WHY THIS IS A JOB AND NOT A STEP IN THE MATRIX BELOW. The question is
+  # cross-host by construction: "does every host account for every FUARAN code
+  # it names" cannot be answered from inside one host's checkout, because a code
+  # is accounted for by the SHARED vocabulary or by that host's declaration, and
+  # the message-parity contract needs two hosts before parity means anything at
+  # all. So the answer is assembled once, and it is per host inside this job —
+  # `check-coverage.mjs --matrix` prints one row per host and names the host in
+  # every finding.
+  #
+  # AND WHY IT CAN FAIL THE RUN, unlike a host's own gate. Host drift is the
+  # HOST's obligation and this repository is the specification, so the matrix
+  # below reports it and stays green. This is the specification's obligation
+  # about ITSELF: a vocabulary that has renumbered a code out from under a host's
+  # source, or a message contract two hosts no longer satisfy, is this
+  # repository's defect on this repository's commit.
+  #
+  # Node only — no toolchain, no build, five shallow clones. It is the cheapest
+  # job here by an order of magnitude, which is part of why leaving it unrun was
+  # a poor trade rather than a considered one.
+  registry:
+    name: Defect-code registry (vocabulary, citations, message parity)
+    needs: roster
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout the specification (this repo, at the commit under report)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: wire-format-fixtures
+
+      # Every rostered host, at the ref the roster resolved, in the side-by-side
+      # layout the validator tools assume. Shallow and anonymous: nothing here is
+      # built or run, only read.
+      - name: Checkout every rostered host
+        env:
+          HOSTS: ${{ needs.roster.outputs.hosts }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          jq -r '.[] | "\(.repo)\t\(.dir)\t\(.ref)"' <<< "$HOSTS" | while IFS=$'\t' read -r repo dir ref; do
+            echo "Cloning $repo@$ref -> $dir"
+            git clone --quiet --depth 1 --branch "$ref" "$SERVER_URL/$repo.git" "$dir"
+          done
+
+      # The two go-red proofs first, and deliberately so: a checker that has
+      # stopped being able to fail reports a clean estate exactly as a clean
+      # estate does, so the proofs are the precondition for reading the two
+      # checks below rather than an appendix to them. Both are hermetic — they
+      # read committed fixtures under `validator/go-red/` and nothing else — so
+      # they would run identically with no host checked out at all.
+      - name: Go-red proofs (the checkers can still fail)
+        working-directory: wire-format-fixtures
+        run: |
+          set -euo pipefail
+          node validator/check-coverage-selftest.mjs
+          node validator/check-message-parity-selftest.mjs
+
+      # Per-host coverage AND citations. `--matrix` prints the table as well as
+      # checking it, so the run's log carries the answer for every host whether
+      # or not anything is wrong — a report only produced on failure is one
+      # nobody can cite when asked what the state is.
+      - name: Coverage and citations, per host
+        working-directory: wire-format-fixtures
+        run: node validator/check-coverage.mjs --matrix
+
+      - name: Message parity, per host
+        working-directory: wire-format-fixtures
+        run: node validator/check-message-parity.mjs --verbose
+
+      # Not a per-host question at all — it is about this corpus alone, and it
+      # needs no host checked out. It sits in this job because it is the same
+      # KIND of obligation as the three above: a table this repository publishes,
+      # measured against what this repository actually exercises. Phase 1691
+      # published the wire token for every enum case; nothing then asked whether
+      # any committed document carried them, and six emittable mapped tokens did
+      # not exist anywhere in the corpus.
+      - name: Enum token vector coverage
+        working-directory: wire-format-fixtures
+        run: node check-enum-token-vectors.mjs
 
   # ── One job per host ───────────────────────────────────────────────────────
   #

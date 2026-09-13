@@ -32,10 +32,81 @@ decision; an unlisted code is drift.
 ```
 node validator/check-coverage.mjs           # check
 node validator/check-coverage.mjs --matrix  # check, and print the coverage table
+node validator/check-coverage-selftest.mjs  # the go-red proof for the citation arm
 ```
 
 Node only, no build step, no dependencies, so any host's CI can run it. With no
 arguments it discovers host declarations as siblings of this checkout.
+
+**All three checkers now run on every corpus push** (Phase 1692), in the
+`registry` job of `.github/workflows/consumers.yml`, alongside both go-red
+proofs. Until then nothing ran any of them: not that workflow, not a host's CI,
+not `notify-conformance.yml`. Phase 1659 recorded that as residue against the
+message-parity contract and it was true of all three — a defect-code contract
+that was hand-run or not run at all, which is the arrangement the message-parity
+gate exists to refuse one level down. That job is the one leg in `consumers.yml`
+that can fail the run, because what it measures is this repository's obligation
+about itself rather than a host's about its own code.
+
+## The citation arm — codes a host NAMES, not codes it declares
+
+`check-coverage.mjs` quantified only over a host's DECLARATION, and that left the
+failure it was written for half covered. Phase 1666 is the instance: the
+reference renumbered `FUARAN150` to `FUARAN152`, the sweep reached each host's
+`limits.*` and missed the identical sentence in every `decode.*`, so four hosts
+went on naming a code for a defect that code no longer named. Every declaration
+stayed consistent, so nothing was red — a citation in prose is not a declaration,
+and the reader it misled is a human.
+
+Phase 1692's arm quantifies over the host's SOURCE instead. Every `FUARAN…`
+token in a host's tracked source must be accounted for by one of:
+
+- **the pre-emit vocabulary** beside this file;
+- **the host's own `otherFamilies`** declaration — the FUARAN code space is
+  shared with the reference's build-time source-AST walker and its analyzer
+  descriptors, and neither is enumerated here (see the two limits below);
+- **`otherFamiliesSource`, for the REFERENCE host only** — a pointer to the
+  in-repo registry that owns those codes. The reference is the host the other two
+  families live IN, and `fuaran-dotnet`'s `scripts/fuaran-codes.ps1` already
+  derives all three from source, refuses a code claimed by two registries for
+  different rules, and runs in that repo's own gate. Enumerating them here would
+  be a second derivation of one fact, and the copy nobody regenerates is the copy
+  that goes stale. A SUBSET host cannot take this route — it owns no registry, so
+  for it the pointer would be an opt-out rather than an answer, which is the
+  hazard `messageForm: "structured"` records one section up.
+
+An unaccounted citation is the drift. A retired or renumbered code named anywhere
+in any host now has exactly one place it can be, and it is red.
+
+**What the arm cannot see**, stated for the same reason as everything else here.
+It reads TOKENS, not meanings: a code cited correctly for the wrong rule passes,
+because deciding that needs the rule the citation sits beside — which is what
+`message-parity.json` answers for the codes it covers and nothing answers for the
+rest. It cannot see a code assembled from parts at runtime. And on a checkout
+where a host's source is absent it reports **NOT SCANNED** rather than clean,
+because "I could not look" must never render as "I looked and it was clean".
+
+**What it is NOT, because the phase that added it asked for something else.** It
+is not a check over the codes a host's DECODER raises. No decoder raises a FUARAN
+code and none can: the decode family is a different code space entirely — the
+eight `DecodeError` codes of `WIRE_FORMAT.md` §7 — and this vocabulary says so at
+its own head. FUARAN codes reach a decoder only as citations in prose, which is
+precisely what the 1666 defect was.
+
+**The go-red proof** lives beside the gate, per SPEC_CONVENTIONS §8, and covers
+both directions and the discrimination between them.
+`check-coverage-selftest.mjs` runs the checker against two committed fixture
+hosts under `go-red/`, identical but for three characters: the stale one cites
+`FUARAN150` and is refused with the code and its file named; **the same fixture
+passes the frozen pre-change gate** (`go-red/check-coverage.pre-1692.mjs`), which
+is what makes the refusal a proof about the change rather than about the fixture;
+the corrected one cites `FUARAN152` and passes. The fourth assertion is the one
+that matters most: both fixtures also cite a walker-family code, and dropping the
+`otherFamilies` declaration that accounts for it must make the SAME source red —
+without it, an arm reduced to "is it in the vocabulary" would be green on these
+fixtures and red on every real host. Nothing in the proof writes or perturbs
+anything committed; its one perturbation is built in a temporary directory the
+run removes.
 
 
 ## Message parity — `message-parity.json` + `check-message-parity.mjs`
@@ -151,7 +222,15 @@ value per host is the prerequisite for closing this, and is open work.
 
 So what the gate catches today is: a host claiming a code the vocabulary does not
 define (the failure that actually bites, when the reference retires or renames one),
-a vocabulary code a host neither implements nor accounts for, and the reference's own
-generated declaration being hand-edited away from the artefact generated out of it.
-That is less than the phase's ambition and more than existed before, and the
-difference between the two is written down rather than assumed.
+a vocabulary code a host neither implements nor accounts for, the reference's own
+generated declaration being hand-edited away from the artefact generated out of it,
+and — since Phase 1692 — a FUARAN code NAMED anywhere in a host's source that
+nothing accounts for. That is less than the phase's ambition and more than existed
+before, and the difference between the two is written down rather than assumed.
+
+Note what the citation arm does and does not do to the first limit. It does not
+enumerate the second family, so that limit stands. What it does is make each
+host's `otherFamilies` list **load-bearing** rather than a declaration of intent:
+a code missing from it is now red at the citation, so the list can no longer
+quietly stop being complete. That is a different property from the one the limit
+describes, and it is the one the 1666 renumbering needed.
