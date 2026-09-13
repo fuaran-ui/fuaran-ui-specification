@@ -3973,8 +3973,14 @@ document it re-encodes carried one, so a bare `{"$type":"State","key":k}` re-enc
 spellings reach the decoder and all three mean the same thing: the member missing, the member
 present as JSON `null`, and either lenient alias (`initialValue` / `default`) present as `null`. All
 of them decode to no default at all, and all of them re-encode to the omitted member. The typed
-placeholder a slot's parser would yield for `null` is a RESOLUTION value (§3.3 — what an unwritten
-key resolves to) and is **not** a wire fact; emitting it declares something the author did not.
+placeholder a slot's parser would yield for `null` is a DECODE-time artefact of that parser and is
+**not** a wire fact; emitting it declares something the author did not.
+
+**And it is not a RESOLUTION either** (amended, Phase 1690 — this sentence read "is a RESOLUTION
+value (§3.3 — what an unwritten key resolves to)", which is the reading that licensed three hosts to
+render a fabricated `0`). A bare `State` at an unwritten, unseeded slot resolves to NOTHING, at
+every slot; [§24.8](#248-the-undeclared-half--a-bare-state-is-unresolved-phase-1690) is the
+normative statement, and `render-text.json`'s `bare-state-numeric-slot-unresolved` vector pins it.
 
 Two vectors pin it: `nodes/state-absent-default` carries a bare `State` at the five typed slots that
 had no fixture — `Float`, `Int`, a row feed, an options source and a float sequence, whose
@@ -6973,8 +6979,9 @@ this section exists to name. A host that emits nothing for a defaulted binding i
 Writing wins over defaulting, and the order is normative: a renderer resolves the slot from its
 sources first and consults the declared default only when the slot is unwritten. Hydration therefore
 **re-resolves** a value the server already rendered; it never *first-fills* one the server left
-empty. A binding with neither a written slot nor a declared default is genuinely unresolved, and this
-section says nothing about what a renderer shows for it.
+empty. A binding with neither a written slot nor a declared default is genuinely unresolved —
+[§24.8](#248-the-undeclared-half--a-bare-state-is-unresolved-phase-1690) states that half, which
+this subsection left open.
 
 ### 24.2 Why this is stated on `State` and not left to its mirror
 
@@ -7125,6 +7132,62 @@ series it feeds its own resolver, against the corpus's bound-source sparkline
 `Binding.State` on `$state.series`). Two claims rather than one because a host can satisfy either
 alone: one that reads element-wise while coercing `"3.5"` passes the first and fails the second, and
 the reverse is equally reachable.
+
+### 24.8 The undeclared half — a bare `State` is UNRESOLVED (Phase 1690)
+
+§24.1 says what a `Binding.State` carrying a `defaultValue` resolves to. This subsection says what
+one carrying NONE resolves to, which §24.1's closing sentence left open and which five hosts had
+answered four different ways.
+
+**A `Binding.State` with no `defaultValue`, at a slot nothing has written and §24.4 has not seeded,
+is UNRESOLVED. It resolves to no value at all.** Not the slot's zero value, not the slot's typed
+empty, not the runtime's own name for absence rendered as text, and not an error. The answer is the
+same at every slot: `Float`, `Int` and `Percent` are not distinguished from one another or from a
+text, boolean, options, row-feed or float-sequence slot, and a host that answers differently by slot
+type is not applying a rule but reporting its runtime's spelling of nothing.
+
+*Why: `State` joins its own mirrors, in both directions.* §24.1 calls `Binding.Filter` and
+`Binding.Selection` this arm's mirrors, and §24.2's whole argument is that a rule stated for one
+must be read across to the other. Both mirrors have always answered "unresolved" when unwritten and
+undeclared. The operator ruling of 2026-08-26 that §24.2 records made `State` join them for the
+DECLARED half; this is the same ruling's undeclared half, and stating it is what makes the family
+one rule rather than two thirds of one.
+
+*Why not the slot's zero.* A zero is an answer, and no answer was furnished. A `Metric` labelled
+"Revenue" reading `0` cannot be told by any reader from a business that took no revenue — it is the
+"confidently wrong" rendering [§13](#render-text-conformance-family-render-textjson--phase-1663)
+refuses for a relative time computed against an invented instant, and the fabrication
+[§5](#5-bindingstatic-payloads--typed-forms--the-residual-opaque-boundary) refuses when it declines
+to re-emit a typed empty the author never wrote. It is also unspecifiable without a per-slot
+placeholder table that every host would have to reproduce exactly, for a value none of them should
+be producing. And it is at its worst in a `visible` predicate, where a fabricated `false` REMOVES
+the node: §22's own posture is that a node vanishing because a source was missing is the one failure
+a reader can neither see nor report, so the resolution that makes the predicate unresolved — and the
+node therefore rendered — is the only one consistent with it.
+
+*Why not an error.* The error channel means the document is UNANSWERABLE — a decoded `Computed`
+whose payload was erased to a `"<closure>"` sentinel. Here the document is perfectly answerable and
+the host simply holds nothing for the key, which is the same fact as an unwritten `Query`, an
+unwritten `Filter` with no declared default, or a host that furnishes no clock — all three of which
+§13 and §5 already place outside the error channel. An error surface on an untouched form is a worse
+rendering than an empty one, and the remedy an author wants is the one the format already has:
+declare a `defaultValue`, and §24.1 resolves it.
+
+*What this does NOT pin: how a slot DRAWS absence.* That is each renderer's own surface, exactly as
+§24.7 declines to say how a NaN reading draws. In practice every conformant host today writes the
+em-dash `—` at a numeric slot and the empty string at a text slot, and the vector below pins the
+numeric one; this subsection mints no new drawing obligation beyond it.
+
+*What this does NOT change: the wire.* No byte moves. §5's absent-`State.defaultValue` posture is
+unaffected — a bare `State` still re-encodes as itself at every slot — and the typed placeholder §5
+names is a DECODE-time parser artefact, never a resolution.
+
+**Conformance.** `render-text.json`'s `bare-state-numeric-slot-unresolved` vector is the executable
+form: `nodes/state-absent-default.json`, node `absent-default-metric`, slot `Metric.value`, a
+`Binding.State` on `$state.revenue` with no declared default, resolved under empty sources and
+pinned to the em-dash. It is a *render*-parity claim, like §24.3's and §24.6's: the bytes round-trip
+identically with or without the rule, which is exactly why no codec family catches a host that has
+not adopted it.
 
 ---
 
