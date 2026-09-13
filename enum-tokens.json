@@ -1,0 +1,931 @@
+{
+  "version": 1,
+  "source": "idl.json",
+  "description": "The closed bare-string enum vocabularies of the Fuaran UI wire format, as the case-to-wire-token mapping each one declares. Generated from idl.json; do not hand-edit. WIRE_FORMAT.md 3.5 states the same closed sets from the same source, but states the WIRE side only: this artefact carries the PAIRING, which is what an emitter needs and what an emitter that derives a token from a host case name gets wrong while still compiling. Entries whose mapping is not the identity come first; within each group entries are Ordinal by name, and within an entry cases are in declared order.",
+  "enums": [
+    {
+      "name": "CompareOp",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Eq",
+          "token": "eq"
+        },
+        {
+          "case": "Neq",
+          "token": "neq"
+        },
+        {
+          "case": "Lt",
+          "token": "lt"
+        },
+        {
+          "case": "Lte",
+          "token": "lte"
+        },
+        {
+          "case": "Gt",
+          "token": "gt"
+        },
+        {
+          "case": "Gte",
+          "token": "gte"
+        }
+      ]
+    },
+    {
+      "name": "LinkProtection",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Email",
+          "token": "email"
+        }
+      ]
+    },
+    {
+      "name": "LiveRegionKind",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Polite",
+          "token": "polite"
+        },
+        {
+          "case": "Assertive",
+          "token": "assertive"
+        },
+        {
+          "case": "Off",
+          "token": "off"
+        }
+      ]
+    },
+    {
+      "name": "SortDirection",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Asc",
+          "token": "asc"
+        },
+        {
+          "case": "Desc",
+          "token": "desc"
+        }
+      ]
+    },
+    {
+      "name": "TextDirection",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Auto",
+          "token": "auto"
+        },
+        {
+          "case": "Ltr",
+          "token": "ltr"
+        },
+        {
+          "case": "Rtl",
+          "token": "rtl"
+        }
+      ]
+    },
+    {
+      "name": "TextFormat",
+      "mapped": true,
+      "cases": [
+        {
+          "case": "Email",
+          "token": "email"
+        },
+        {
+          "case": "Url",
+          "token": "url"
+        },
+        {
+          "case": "Tel",
+          "token": "tel"
+        }
+      ]
+    },
+    {
+      "name": "BadgeVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Neutral",
+          "token": "Neutral"
+        },
+        {
+          "case": "Brand",
+          "token": "Brand"
+        },
+        {
+          "case": "Success",
+          "token": "Success"
+        },
+        {
+          "case": "Warning",
+          "token": "Warning"
+        },
+        {
+          "case": "Critical",
+          "token": "Critical"
+        },
+        {
+          "case": "Info",
+          "token": "Info"
+        }
+      ]
+    },
+    {
+      "name": "BoxRole",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Dashboard",
+          "token": "Dashboard"
+        },
+        {
+          "case": "Card",
+          "token": "Card"
+        },
+        {
+          "case": "Group",
+          "token": "Group"
+        },
+        {
+          "case": "Separator",
+          "token": "Separator"
+        }
+      ]
+    },
+    {
+      "name": "ButtonVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Primary",
+          "token": "Primary"
+        },
+        {
+          "case": "Secondary",
+          "token": "Secondary"
+        },
+        {
+          "case": "Tertiary",
+          "token": "Tertiary"
+        },
+        {
+          "case": "Destructive",
+          "token": "Destructive"
+        }
+      ]
+    },
+    {
+      "name": "CaptureSource",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Camera",
+          "token": "Camera"
+        },
+        {
+          "case": "Microphone",
+          "token": "Microphone"
+        }
+      ]
+    },
+    {
+      "name": "ChannelDirection",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "OutOnly",
+          "token": "OutOnly"
+        },
+        {
+          "case": "TwoWay",
+          "token": "TwoWay"
+        }
+      ]
+    },
+    {
+      "name": "ChartDataLabels",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Off",
+          "token": "Off"
+        },
+        {
+          "case": "Ends",
+          "token": "Ends"
+        }
+      ]
+    },
+    {
+      "name": "ChartKind",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Line",
+          "token": "Line"
+        },
+        {
+          "case": "Bar",
+          "token": "Bar"
+        },
+        {
+          "case": "Area",
+          "token": "Area"
+        },
+        {
+          "case": "Pie",
+          "token": "Pie"
+        },
+        {
+          "case": "Scatter",
+          "token": "Scatter"
+        },
+        {
+          "case": "Heatmap",
+          "token": "Heatmap"
+        }
+      ]
+    },
+    {
+      "name": "ChartLegendPosition",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Top",
+          "token": "Top"
+        },
+        {
+          "case": "Right",
+          "token": "Right"
+        },
+        {
+          "case": "Bottom",
+          "token": "Bottom"
+        },
+        {
+          "case": "None",
+          "token": "None"
+        }
+      ]
+    },
+    {
+      "name": "ChartXScale",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Category",
+          "token": "Category"
+        },
+        {
+          "case": "Temporal",
+          "token": "Temporal"
+        }
+      ]
+    },
+    {
+      "name": "DateStyle",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Short",
+          "token": "Short"
+        },
+        {
+          "case": "Medium",
+          "token": "Medium"
+        },
+        {
+          "case": "Long",
+          "token": "Long"
+        },
+        {
+          "case": "Full",
+          "token": "Full"
+        }
+      ]
+    },
+    {
+      "name": "DateVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Date",
+          "token": "Date"
+        },
+        {
+          "case": "Time",
+          "token": "Time"
+        },
+        {
+          "case": "DateTime",
+          "token": "DateTime"
+        }
+      ]
+    },
+    {
+      "name": "DeterminismSource",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Deterministic",
+          "token": "Deterministic"
+        },
+        {
+          "case": "Clock",
+          "token": "Clock"
+        },
+        {
+          "case": "Random",
+          "token": "Random"
+        },
+        {
+          "case": "Network",
+          "token": "Network"
+        }
+      ]
+    },
+    {
+      "name": "DurationStyle",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Compact",
+          "token": "Compact"
+        },
+        {
+          "case": "Clock",
+          "token": "Clock"
+        },
+        {
+          "case": "Long",
+          "token": "Long"
+        }
+      ]
+    },
+    {
+      "name": "DurationUnit",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Seconds",
+          "token": "Seconds"
+        },
+        {
+          "case": "Minutes",
+          "token": "Minutes"
+        },
+        {
+          "case": "Hours",
+          "token": "Hours"
+        }
+      ]
+    },
+    {
+      "name": "EmbedPermission",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "AllowScripts",
+          "token": "AllowScripts"
+        },
+        {
+          "case": "AllowSameOrigin",
+          "token": "AllowSameOrigin"
+        },
+        {
+          "case": "AllowForms",
+          "token": "AllowForms"
+        },
+        {
+          "case": "AllowFullscreen",
+          "token": "AllowFullscreen"
+        }
+      ]
+    },
+    {
+      "name": "Emphasis",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Quiet",
+          "token": "Quiet"
+        },
+        {
+          "case": "Normal",
+          "token": "Normal"
+        },
+        {
+          "case": "Loud",
+          "token": "Loud"
+        }
+      ]
+    },
+    {
+      "name": "FileReadEncoding",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Text",
+          "token": "Text"
+        },
+        {
+          "case": "Base64",
+          "token": "Base64"
+        },
+        {
+          "case": "DataUrl",
+          "token": "DataUrl"
+        }
+      ]
+    },
+    {
+      "name": "FontVoice",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Default",
+          "token": "Default"
+        },
+        {
+          "case": "Display",
+          "token": "Display"
+        },
+        {
+          "case": "Structural",
+          "token": "Structural"
+        }
+      ]
+    },
+    {
+      "name": "HashStrictness",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "StrictReplay",
+          "token": "StrictReplay"
+        },
+        {
+          "case": "AdvisoryWarning",
+          "token": "AdvisoryWarning"
+        },
+        {
+          "case": "Enforced",
+          "token": "Enforced"
+        }
+      ]
+    },
+    {
+      "name": "HeadingVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Standard",
+          "token": "Standard"
+        },
+        {
+          "case": "Eyebrow",
+          "token": "Eyebrow"
+        },
+        {
+          "case": "Caption",
+          "token": "Caption"
+        },
+        {
+          "case": "Lead",
+          "token": "Lead"
+        }
+      ]
+    },
+    {
+      "name": "HostEffect",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Pure",
+          "token": "Pure"
+        },
+        {
+          "case": "ReadsHost",
+          "token": "ReadsHost"
+        },
+        {
+          "case": "WritesHost",
+          "token": "WritesHost"
+        }
+      ]
+    },
+    {
+      "name": "IconSize",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Small",
+          "token": "Small"
+        },
+        {
+          "case": "Medium",
+          "token": "Medium"
+        },
+        {
+          "case": "Large",
+          "token": "Large"
+        }
+      ]
+    },
+    {
+      "name": "ImageAspect",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Natural",
+          "token": "Natural"
+        },
+        {
+          "case": "Square",
+          "token": "Square"
+        },
+        {
+          "case": "FourThree",
+          "token": "FourThree"
+        },
+        {
+          "case": "ThreeTwo",
+          "token": "ThreeTwo"
+        },
+        {
+          "case": "SixteenNine",
+          "token": "SixteenNine"
+        }
+      ]
+    },
+    {
+      "name": "ImageFit",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Natural",
+          "token": "Natural"
+        },
+        {
+          "case": "Cover",
+          "token": "Cover"
+        },
+        {
+          "case": "Contain",
+          "token": "Contain"
+        }
+      ]
+    },
+    {
+      "name": "ImageLoading",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Eager",
+          "token": "Eager"
+        },
+        {
+          "case": "Lazy",
+          "token": "Lazy"
+        }
+      ]
+    },
+    {
+      "name": "ImageVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Default",
+          "token": "Default"
+        },
+        {
+          "case": "Avatar",
+          "token": "Avatar"
+        },
+        {
+          "case": "Rounded",
+          "token": "Rounded"
+        }
+      ]
+    },
+    {
+      "name": "MathDisplay",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Inline",
+          "token": "Inline"
+        },
+        {
+          "case": "Block",
+          "token": "Block"
+        }
+      ]
+    },
+    {
+      "name": "ModalityKind",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Modal",
+          "token": "Modal"
+        },
+        {
+          "case": "Popover",
+          "token": "Popover"
+        }
+      ]
+    },
+    {
+      "name": "Motion",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "None",
+          "token": "None"
+        },
+        {
+          "case": "PulseDuringLoad",
+          "token": "PulseDuringLoad"
+        },
+        {
+          "case": "FadeInOnMount",
+          "token": "FadeInOnMount"
+        },
+        {
+          "case": "SlideInFromBelow",
+          "token": "SlideInFromBelow"
+        },
+        {
+          "case": "ShakeOnError",
+          "token": "ShakeOnError"
+        },
+        {
+          "case": "RotateOnRefresh",
+          "token": "RotateOnRefresh"
+        },
+        {
+          "case": "SlideInFromRight",
+          "token": "SlideInFromRight"
+        },
+        {
+          "case": "ExpandCollapse",
+          "token": "ExpandCollapse"
+        },
+        {
+          "case": "CrossFade",
+          "token": "CrossFade"
+        },
+        {
+          "case": "SlideBetween",
+          "token": "SlideBetween"
+        }
+      ]
+    },
+    {
+      "name": "NavigateTarget",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Self",
+          "token": "Self"
+        },
+        {
+          "case": "Blank",
+          "token": "Blank"
+        }
+      ]
+    },
+    {
+      "name": "Orientation",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Vertical",
+          "token": "Vertical"
+        },
+        {
+          "case": "Horizontal",
+          "token": "Horizontal"
+        }
+      ]
+    },
+    {
+      "name": "RelativeTimeUnit",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Second",
+          "token": "Second"
+        },
+        {
+          "case": "Minute",
+          "token": "Minute"
+        },
+        {
+          "case": "Hour",
+          "token": "Hour"
+        },
+        {
+          "case": "Day",
+          "token": "Day"
+        },
+        {
+          "case": "Week",
+          "token": "Week"
+        },
+        {
+          "case": "Month",
+          "token": "Month"
+        },
+        {
+          "case": "Year",
+          "token": "Year"
+        }
+      ]
+    },
+    {
+      "name": "ScrollOrientation",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Vertical",
+          "token": "Vertical"
+        },
+        {
+          "case": "Horizontal",
+          "token": "Horizontal"
+        },
+        {
+          "case": "Both",
+          "token": "Both"
+        }
+      ]
+    },
+    {
+      "name": "StyleRole",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "None",
+          "token": "None"
+        },
+        {
+          "case": "Eyebrow",
+          "token": "Eyebrow"
+        },
+        {
+          "case": "Data",
+          "token": "Data"
+        },
+        {
+          "case": "Lede",
+          "token": "Lede"
+        },
+        {
+          "case": "Caption",
+          "token": "Caption"
+        }
+      ]
+    },
+    {
+      "name": "StyleWeight",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Compact",
+          "token": "Compact"
+        },
+        {
+          "case": "Standard",
+          "token": "Standard"
+        },
+        {
+          "case": "Spacious",
+          "token": "Spacious"
+        }
+      ]
+    },
+    {
+      "name": "TextAnchor",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Start",
+          "token": "Start"
+        },
+        {
+          "case": "Middle",
+          "token": "Middle"
+        },
+        {
+          "case": "End",
+          "token": "End"
+        }
+      ]
+    },
+    {
+      "name": "TimeGrain",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Second",
+          "token": "Second"
+        },
+        {
+          "case": "Minute",
+          "token": "Minute"
+        },
+        {
+          "case": "Hour",
+          "token": "Hour"
+        },
+        {
+          "case": "Day",
+          "token": "Day"
+        }
+      ]
+    },
+    {
+      "name": "ToneVariant",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Default",
+          "token": "Default"
+        },
+        {
+          "case": "Subdued",
+          "token": "Subdued"
+        },
+        {
+          "case": "Brand",
+          "token": "Brand"
+        },
+        {
+          "case": "Success",
+          "token": "Success"
+        },
+        {
+          "case": "Warning",
+          "token": "Warning"
+        },
+        {
+          "case": "Critical",
+          "token": "Critical"
+        },
+        {
+          "case": "Info",
+          "token": "Info"
+        }
+      ]
+    },
+    {
+      "name": "TrackKind",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Subtitles",
+          "token": "Subtitles"
+        },
+        {
+          "case": "Captions",
+          "token": "Captions"
+        },
+        {
+          "case": "Descriptions",
+          "token": "Descriptions"
+        },
+        {
+          "case": "Chapters",
+          "token": "Chapters"
+        }
+      ]
+    },
+    {
+      "name": "TrendPolarity",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "HigherIsBetter",
+          "token": "HigherIsBetter"
+        },
+        {
+          "case": "LowerIsBetter",
+          "token": "LowerIsBetter"
+        }
+      ]
+    }
+  ]
+}

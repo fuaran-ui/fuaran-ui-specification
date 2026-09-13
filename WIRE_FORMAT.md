@@ -5215,6 +5215,29 @@ The manifest's `renderText` pointer names [`wire-format-fixtures/render-text.jso
 - **Conformance.** A conformant host's render suite reads THIS artefact's `vectors` — never a list beside its own checkers — and for each one decodes the named fixture, resolves the named slot under the pinned sources, and asserts byte-equality with `expectedText`. A slot outside its reader's vocabulary is REPORTED by name with the vector id, never skipped silently. A stale-artefact guard on the authoring side asserts byte-equality between the committed file and a fresh emission, so a fixture edit that moves a pinned slot fails for the author who made it.
 - **Growth.** Vectors are additive within a major version and land under the §11 forward-coupling rule: a new vector, or a new entry in `slotVocabulary`, is a change to this artefact and to every adopting host's reader in the same change-set. The seeded set covers the locale-independent slots first — every `Binding.Now` grain, the `Format.Since` cases (auto-selected unit, declared unit, future, zero, no clock) and `Format.RelativeTime`.
 
+### Enum wire-token table artefact (`enum-tokens.json`) — Phase 1691
+
+The manifest's `enumTokens` pointer names [`wire-format-fixtures/enum-tokens.json`](./enum-tokens.json), the flat, per-case rendering of the closed bare-string enum vocabularies [§3.5](#35-bare-string-enums) enumerates.
+
+**It exists because §3.5 states the WIRE side alone.** That list is exhaustive and normative about which strings are legal, and it is generated from [`idl.json`](idl.json), so it cannot fall behind the vocabulary. What it does not carry — what no list of tokens can carry — is which HOST CASE each token belongs to. For most of this vocabulary that is not a question: the token *is* the case name. For six enums it is not, and those six are where an emitter goes wrong:
+
+| Enum | Cases → tokens |
+|---|---|
+| `CompareOp` | `Eq`→`"eq"`, `Neq`→`"neq"`, `Lt`→`"lt"`, `Lte`→`"lte"`, `Gt`→`"gt"`, `Gte`→`"gte"` |
+| `LinkProtection` | `Email`→`"email"` |
+| `LiveRegionKind` | `Polite`→`"polite"`, `Assertive`→`"assertive"`, `Off`→`"off"` |
+| `SortDirection` | `Asc`→`"asc"`, `Desc`→`"desc"` |
+| `TextDirection` | `Auto`→`"auto"`, `Ltr`→`"ltr"`, `Rtl`→`"rtl"` |
+| `TextFormat` | `Email`→`"email"`, `Url`→`"url"`, `Tel`→`"tel"` |
+
+**The failure this addresses is silent in the direction that still builds.** An emitter that derives the token from the case name compiles, passes its own type checks, and writes `"Polite"` where every conformant host expects `"polite"`. It was found in a reference-host projection leg by deliberately reverting one enum's mapping and re-running the corpus — not by any gate — which is precisely the shape of defect a published artefact is for.
+
+- **Shape.** `version` (the *encoding* version, bumped when this artefact's shape changes, never when the vocabulary does), `source` (the artefact it is derived from), `description`, then `enums`: an array of `{ name, mapped, cases: [ { case, token } ] }`. `mapped` is `true` exactly when the enum declares a non-identity mapping, so a consumer never has to compare strings to learn what it is holding. **Ordering is a contract, so the artefact is diffable:** mapped entries come first, each group Ordinal by name, and within an entry the cases are in declaration order — the same order [`idl.json`](idl.json) preserves and the same order a generated encoder's branches follow.
+- **A seventh non-identity mapping is a DECLARATION, not a discovery.** Every enum appears here, including the forty whose mapping is the identity, so an enum that acquires one changes this file visibly rather than changing an emitter's behaviour invisibly.
+- **Generated, not hand-authored.** Derived from [`idl.json`](idl.json) and co-emitted by the same `--emit-corpus` command that writes the fixtures, `schema.json` and the copy it is derived from — so the artefact the manifest names is written by the command that writes everything else the manifest names.
+- **Conformance.** The reference host's suite drives, per case, its generated encoder and decoder, its hand-written policy decoders, the `enum` arrays of `schema.json`, and its render-fidelity token mirror against this table; for a mapped enum it also asserts each decoder REFUSES the host case name, because a decoder that accepts both spellings is what lets a derived-token emitter pass a round trip while writing bytes no other host reads. A host adopting the artefact reads `enums` and checks its own codec the same way; a host that does not may instead show that its existing round-trip vectors already exercise every token, which is the same claim by a longer route.
+- **Relationship to §3.5 and to `idl.json`.** All three are projections of one declaration and none supersedes another: §3.5 is the normative prose statement of the closed sets, `idl.json` is the full structural model, and this is the pairing an emitter needs without reading either. Where they disagree, the corpus fixtures are the arbiter, as everywhere else in this document.
+
 ---
 
 ## 14. Markdown rendering (render-only; not a wire concern)
