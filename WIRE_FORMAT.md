@@ -4980,7 +4980,7 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->551<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->573<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->230<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->164<!-- /fuaran:count --> `reject`,
@@ -5243,6 +5243,34 @@ The manifest's `enumTokens` pointer names [`wire-format-fixtures/enum-tokens.jso
 - **Generated, not hand-authored.** Derived from [`idl.json`](idl.json) and co-emitted by the same `--emit-corpus` command that writes the fixtures, `schema.json` and the copy it is derived from — so the artefact the manifest names is written by the command that writes everything else the manifest names.
 - **Conformance.** The reference host's suite drives, per case, its generated encoder and decoder, its hand-written policy decoders, the `enum` arrays of `schema.json`, and its render-fidelity token mirror against this table; for a mapped enum it also asserts each decoder REFUSES the host case name, because a decoder that accepts both spellings is what lets a derived-token emitter pass a round trip while writing bytes no other host reads. A host adopting the artefact reads `enums` and checks its own codec the same way; a host that does not may instead show that its existing round-trip vectors already exercise every token, which is the same claim by a longer route.
 - **Relationship to §3.5 and to `idl.json`.** All three are projections of one declaration and none supersedes another: §3.5 is the normative prose statement of the closed sets, `idl.json` is the full structural model, and this is the pairing an emitter needs without reading either. Where they disagree, the corpus fixtures are the arbiter, as everywhere else in this document.
+
+### Style-observer conformance family (`style-observer/`) — Phase 1752
+
+The manifest's `style-observer` fixture rows name the vectors under [`style-observer/`](./style-observer/), the executable half of the resolved-style observability contract. It is a family of files rather than a single artefact — the render-text precedent one directory down — because its three tiers ask three different questions and each needs its own evidence.
+
+**What it pins, and what it is not.** The observer reports what a rendered tree actually LOOKS like: the composited foreground, the opaque surface behind it after the ancestor walk, the WCAG contrast between them, and a small closed vocabulary of legibility interpretations derived from those. Those interpretations are carried to an AI consumer as JSON, and that JSON is a wire the same way a node tree is: two hosts that disagree about its bytes disagree about what the model reads. This family is not, however, a claim about RENDERING — nothing here says what a host must paint. It says what a host must REPORT, given resolved colours it was handed.
+
+**Why it exists.** Before it, the byte-identical `StyleFlag` / `StyleObservation` encode was a cross-host law only in the sense that four hosts had each written the same literals into their own test files: the Python cases were ported into Rust by hand and the Go tier was measured by eye. Four suites that agree are not an oracle. A fifth host has nothing to certify against but the other four's tests; a change to any one of them is caught only if somebody remembers to change the rest; and a regression introduced in all four at once — by the port that created them — is invisible from every one of them.
+
+- **Shape.** One JSON document per case, carrying `id`, `description`, a `tier`, and the evidence and expectations that tier needs. Every expectation is a STRING holding the exact bytes the encoder must produce, never a re-parsed object: the claim is about bytes, so comparing anything else would let two hosts agree while writing different documents.
+
+  | `tier` | Evidence | Expectations |
+  |---|---|---|
+  | `observation` | `options` (the three thresholds), `nodeId`, `input` (`foreground`, `backgroundLayers` element-first, `fontFamily`, `emittedTone`) | `expectedFlags` — the encoded manifest-free flag list, in derivation order; `expectedObservation` — the whole encoded snapshot |
+  | `per-node-manifest` | `manifest` (see below), `observation` (a snapshot's fields, flags excluded) | `expectedManifestFlags` — the encoded manifest-aware per-node flag list |
+  | `usage-budget` | `manifest`, `nodeAreas` (each an `observation` paired with its rendered `area` in px²) | `expectedBudgetFlags` — the encoded tree-level budget flag list |
+
+- **The manifest is a STRING, deliberately.** A manifest-aware vector needs a theme manifest, and every host reaches one through its own `decode(json)`. Carrying it as a nested JSON object would oblige each host to re-serialise before decoding, and re-serialisation is exactly where hosts differ — key order, number rendering, escape choices. Fed verbatim to each decoder, the field also pins that the manifest wire form is decodable by all of them, which no other vector in this corpus asserts.
+- **Generated, and the generator PROVES it.** The cases are authored in `fuaran-dotnet` (`src/Fuaran.UI.StyleObserver.Tests/StyleObserverCorpus.fs`), beside the reference implementation of the derivation. Each case declares the flag KINDS it exists to exhibit, and the writer refuses — before a single file is touched — when the reference derivation disagrees, so the family cannot publish a regression as an expectation. The bytes are the implementation's; the claim is the case author's. The first run of that gate earned its keep immediately: it refuted an authored case that four hosts' own suites had left unasserted.
+
+  ```
+  cd fuaran-dotnet
+  dotnet run --project src/Fuaran.UI.StyleObserver.Tests -- --emit-style-observer ..\wire-format-fixtures
+  ```
+
+  It is deliberately NOT part of the wholesale corpus emit, and `style-observer/` is deliberately not a directory that emitter owns — the `teleport/` and `laws/` arrangement — so a regeneration can neither rewrite nor delete the family. Its manifest rows carry a `kind` the wholesale emitter does not author, which is what carries them across a regeneration.
+- **Conformance.** A conformant host reads the rows from `manifest.json`, loads each named document, reconstructs the evidence its tier names, runs its OWN derivation, and asserts byte-equality against the expectations. A tier or a flag kind outside its vocabulary is REPORTED by name with the vector id, never skipped silently: not checked is not passed. A host's own inline literals are kept only as go-red partners — a checker that cannot fail certifies nothing, and a byte comparison falls silently into that state whenever the corpus is absent, the enumeration is empty, or the list was skipped.
+- **Growth.** Vectors are additive and land under the [§11](#11-forward-coupling-rule-load-bearing) forward-coupling rule: a flag case added to the vocabulary, a field added to the snapshot, or a change to any encoded rendering moves the derivation, this family, and every adopting host's checker in the same change-set.
 
 ---
 
