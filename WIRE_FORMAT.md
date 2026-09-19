@@ -1124,6 +1124,36 @@ well-formed transforms and so could not ask the question. `nodes/grid-transform-
 is the document that asks it: perfectly legal wire, byte-identical on round trip, and a strict error
 to evaluate. A host that returns rows for it has the other reading.
 
+**UNDECLARED CHIP names, the same question one level out (normative, Phase 1784).** The paragraph
+above is about a param the `params` array does not declare. This one is about a `params` entry that
+IS declared and whose `from` names a **filter chip no `Filters` node declares** — and the two are
+distinct, because the first defect is inside the transform and the second is in the document's
+wiring. The rule is the same in shape and for the same reason: a declared filter edge naming a chip
+nothing declares is a document defect, and a defective document must not quietly behave as though
+the author had written no filter.
+
+An **UNSET** chip and an **UNDECLARED** chip are not the same thing, and only the first one is
+lenient. A chip that exists and holds no value constrains nothing — that is the one lenient UI rule,
+and it is what makes an empty selection show the unfiltered table. A chip that does not exist at all
+is a name that can never be set, so the edge it declares can never fire; treating it as merely unset
+means a typo silently widens the result set for the life of the document. A conformant host's
+pre-emit validation MUST therefore refuse it, at ERROR severity, as `DanglingFilterReference` — the
+defect the `validator/defect-vocabulary.json` entry names. The obligation attaches to the two
+**declared edges** (`Query.dependsOn`, and a `params` entry whose `from` is a `Binding.Filter`) and
+NOT to a plain `Binding.Filter` value read, which a host may legitimately feed itself without any
+chip declaring the name.
+
+`nodes/filters-param-source-undeclared.json` is the document that asks it, and
+`nodes/filters-param-source-declared.json` is its control — the same document with the missing chip
+present, so the pair isolates exactly one variable. Both are perfectly legal wire and both round-trip
+byte-identically; what separates them is only what a host DOES. The sharp part is that **resolution
+alone cannot tell them apart**: the undeclared name resolves to nothing, the lenient prune above drops
+the dependent `filter` step, and the unfiltered rows come back — from both documents, identically. A
+host that reports nothing for the negative has not implemented the reading; it has implemented the
+absence of one, and until this pair landed no fixture in this corpus could say so. Eight documents
+carried a `Filters` node, six carried a declared filter edge, and exactly one carried both, with every
+edge resolving.
+
 **LIST-valued `Binding.Transform` params (Phase 610).** A `params` entry is not restricted to a scalar source. Where the pipeline reads the name through the membership test's `param` form – `{"$type":"in","expr":<ColExpr>,"param":"<name>"}`, the `in` spelling that carries `param` in place of `items` – the entry is a **list param**, and its `from` binding resolves to a JSON **array** of scalars. A list param resolves by **substitution**, not through the evaluation env: the host rewrites each `in`/`param` occurrence to the literal `in`/`items` form before evaluating, exactly as `fuaran-core#91` specifies, so a pipeline reaching the evaluator with an `in`/`param` still in it names an unbound param and is a strict error rather than a silent pass. An **EMPTY selection is UNBOUND**, never `items: []`: the dependent `filter` step prunes under the same lenient "unset ⇒ no constraint" rule an unset scalar chip already gets, so deselecting everything shows the **unfiltered** table rather than an empty one. One rule covers both param kinds because a substituted step names no param at all, while an unsubstituted one still names its own – the prune is derived from the pipeline's params either way, and the reactivity edge with it. The canonical chip wiring is a `Select` with `"multiple":true` whose `values` binding names a filter and whose `onChangeMulti` is omitted (the write-back stores the selection there), with the param's `from` naming that same filter: the shared name is the whole wiring. See `nodes/multiselect-chip-list-param.json`.
 
 **Host adoption of the list-param wiring.** Recorded here rather than inferred, on the §11.0 convention: the wire form is decoded by every codec host that decodes `ColExpr` (it is Core vocabulary, not a new node kind), but *resolving* a list param — substitution, the empty-selection prune, and the reactivity edge — is host-side and adopted per host. A host that has not adopted is **not thereby exempt**; it owes the behaviour and has simply not made its answer visible.
