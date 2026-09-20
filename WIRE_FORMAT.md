@@ -1790,6 +1790,47 @@ normalises to the canonical name. Pinned cross-host by the `lenient/lenient-alia
 
 (`title` is scoped: `Chart.title` and `Drawing.title` are *real canonical fields* and take no alias.)
 
+**The column-naming members of a `Binding.Transform` pipeline (0.28.0).** A wire member of the
+dataframe algebra whose only honest name is "the column" or "the columns" is **spelled out in full** —
+`column` for one, `columns` for a list — and never abbreviated; every other member is named for the
+ROLE its columns play in the step, which is why `groupBy.keys`, `sort.by`, `window.of` / `partitionBy`
+/ `as`, an aggregate's `of` / `name`, `derive.name`, `join.on`, `pivot.index` / `on` / `values` and
+`unpivot.idVars` / `valueVars` are untouched by it. Two members moved, and a host MUST accept both
+spellings of each:
+
+| Site | Alias in (decode-only) | Canonical |
+|---|---|---|
+| `project` step — the rename list | `cols` | `columns` |
+| a `sort` key, and a `window`'s `orderBy` entry | `col` | `column` |
+
+Three things about this pair differ from every other row in the table above, and each is easy to get
+wrong:
+
+- **The alias direction is the REVERSE of `Grid` layout's**, three rows up. A `Grid` / `Masonry`
+  container's `cols` is a column COUNT on a LAYOUT, is canonical, and does **not** move; its `columns`
+  is the alias. The two members share a spelling and nothing else, so a host that renames both has
+  read the rule as being about the string rather than about what the member names.
+- **The `col` EXPRESSION's `$type` tag is NOT a member name and does not move.**
+  `{"$type":"col","name":"amount"}` is unchanged everywhere it appears, a `sort` key's own `column`
+  included.
+- **Both spellings present is REFUSED as ambiguous** (`WRONG_TYPE` at the pipeline slot), never
+  resolved to one — the two could carry different columns and no reading of the document says which
+  the author meant. This is the refusal every other aliased member of this algebra already makes;
+  it is what the `reject/reject-transform-project-columns-and-cols` and
+  `reject/reject-transform-sort-key-column-and-col` fixtures pin. Note this differs from the
+  "canonical name wins when both are present" rule stated for the table above, which governs the
+  UI-local field aliases and not the dataframe codec's.
+
+These two are **decode aliases kept for documents written before the rename**, and they are therefore
+not admitted on §16's own ground — §16 admits a shorthand only on evidence that models emit it, and
+rules out backward compatibility as an admission ground. They are listed here because a conformant
+host MUST implement them and the corpus pins them (`lenient/lenient-transform-column-member-legacy`),
+and because the decision is the shared dataframe codec's rather than this profile's: the per-step
+shape of a `Transform` pipeline is owned and conformance-certified there (§5), so this table records
+what that codec decided rather than extending §16. Each alias is kept until a major version says
+otherwise, is accepted on decode, and is **never emitted** — a pre-0.28.0 document decodes to the same
+tree and normalises to the spelled-out name the first time it is re-encoded.
+
 The **enum-value** aliases above apply inside a `TonedPill`'s `map` values and its `default` exactly
 as they do at a `tone` field (`Danger`→`Critical`, `Positive`→`Success`, `Neutral`→`Default`) – the map
 values are an ordinary `ToneVariant` position, and a host that read them through a second, private
@@ -4377,7 +4418,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->164<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -5010,11 +5051,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->575<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->578<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->232<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->164<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->72<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->73<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
