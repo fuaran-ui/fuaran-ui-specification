@@ -9948,6 +9948,38 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "style-observer/budget-same-valued-tokens-attribute-path-first.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/style-observer/budget-same-valued-tokens-attribute-path-first.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "style-observer/budget-same-valued-tokens-attribute-path-first.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/style-observer/budget-same-valued-tokens-attribute-path-first.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "style-observer/budget-same-valued-tokens-order-is-segment-wise.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/style-observer/budget-same-valued-tokens-order-is-segment-wise.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "style-observer/budget-same-valued-tokens-order-is-segment-wise.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/style-observer/budget-same-valued-tokens-order-is-segment-wise.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "style-observer/budget-within-tolerance.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/style-observer/budget-within-tolerance.json"
