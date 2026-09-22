@@ -858,6 +858,28 @@
       ]
     },
     {
+      "name": "TimeStyle",
+      "mapped": false,
+      "cases": [
+        {
+          "case": "Short",
+          "token": "Short"
+        },
+        {
+          "case": "Medium",
+          "token": "Medium"
+        },
+        {
+          "case": "Long",
+          "token": "Long"
+        },
+        {
+          "case": "Full",
+          "token": "Full"
+        }
+      ]
+    },
+    {
       "name": "ToneVariant",
       "mapped": false,
       "cases": [

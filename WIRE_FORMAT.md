@@ -1210,7 +1210,7 @@ Three shapes are **decode errors**, each a relation between slots rather than a 
 
 The vocabulary of record is `validator/defect-vocabulary.json`; this section names the three because a reader arriving at `rule` from the form side would otherwise meet only the decode errors and conclude the slot is fully specified by them.
 
-`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (`dateStyle` bare-enum), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
+`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (OPTIONAL `dateStyle` bare-enum + OPTIONAL `timeStyle` bare-enum — Phase 1810: `dateStyle` alone is a date, `timeStyle` alone a time of day, both a date-time, each at its own breadth; alphabetical field order; NEITHER present decodes structurally and is refused by the validator as `FUARAN155`, never by the codec), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
 
 #### 3.3.1 The host instant — `Binding.Now`, its grain, and `Format.Since`
 
@@ -1432,7 +1432,8 @@ parse back from what the reader typed, and a buffer that writes `1,234.5` where 
 
 Every other case is a **decode refusal** (`WRONG_TYPE` at the `codec` path), and each for a stated
 reason rather than by omission. `Currency` prepends a locale-chosen symbol. `Date`'s four
-`DateStyle` cases are all locale renditions with no parse. `RelativeTime`, `Since` and `Duration`
+`DateStyle` cases are all locale renditions with no parse, and its four `TimeStyle` cases (Phase
+1810) are the same at the time-of-day half. `RelativeTime`, `Since` and `Duration`
 render a phrase, not a number. `Percent` is refused for a narrower reason worth recording, since it
 looks admissible: its inverse needs a x100 / /100 scale whose IEEE round-trip is not exact
 (`0.42 * 100` is `42.000000000000004`), so specifying it would mean specifying a rounding to the bit
@@ -1604,7 +1605,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `ChartLegendPosition`: `"Top"` / `"Right"` / `"Bottom"` / `"None"`
 - `ChartXScale`: `"Category"` / `"Temporal"`
 - `CompareOp`: `"eq"` / `"neq"` / `"lt"` / `"lte"` / `"gt"` / `"gte"`
-- `DateStyle` (inside `Format.Date.dateStyle`): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
+- `DateStyle` (inside `Format.Date.dateStyle` — OPTIONAL since Phase 1810, so that `timeStyle` can stand alone): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
 - `DateVariant`: `"Date"` / `"Time"` / `"DateTime"`
 - `DeterminismSource`: `"Deterministic"` / `"Clock"` / `"Random"` / `"Network"`
 - `DurationStyle`: `"Compact"` / `"Clock"` / `"Long"`
@@ -1637,6 +1638,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextDirection`: `"auto"` / `"ltr"` / `"rtl"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
 - `TimeGrain` (inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on): `"Second"` / `"Minute"` / `"Hour"` / `"Day"`
+- `TimeStyle` (inside `Format.Date.timeStyle` (Phase 1810) — alone, a time of day; with `dateStyle`, a date-time): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
 - `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
@@ -1714,6 +1716,19 @@ read-compat):
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
 <!-- /fuaran:spec-omit-defaults -->
+
+**`CellFormat.Date` ruling (Phase 1810 — the open question carried from requirement
+`adaptive-card-borrowings`'s elicitation).** When `Binding.Format`'s `Date` gained the
+`dateStyle` / `timeStyle` pair, the question was whether the grid cell's `CellFormat.Date` should take
+the same pair or keep its `format`. **It keeps `format`, a pattern string, and gains no `timeStyle`.**
+The two cases already differ in kind — the binding's case names a locale-database RENDITION by
+breadth, the cell's names a host-formatter PATTERN (`"yyyy-MM-dd"`, `"HH:mm"`, `"dd MMM yyyy HH:mm"`)
+— and a pattern string already expresses a time of day, so a style pair beside it would be two ways
+to say one thing on one case, which is the confusion the charter's variant-vs-kind rule refuses. A
+time in a grid cell is `{"$type":"Date","format":"HH:mm"}`; a date-time is a pattern carrying both.
+The distinction the two vocabularies were built on (`code` vs `isoCode`, `format` vs `dateStyle`)
+therefore stands, and this paragraph is where a later reader finds that it was decided rather than
+overlooked.
 
 `CellFormat`'s own per-case payloads (`Currency.code`, `Date.format`, `SignificantDigits.digits`)
 stay **required** – only the parent *field* is omittable, never a DU payload. Note the table carries
@@ -5051,8 +5066,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->582<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->234<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->583<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->235<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->73<!-- /fuaran:count --> `lenient-accept`,
