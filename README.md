@@ -130,8 +130,9 @@ revision named there, which the report banners as "not a report about `main`".
 
 Every host additionally runs some of the sub-corpora that carry their own manifests
 (`merge-conformance/`, `dag/`, `chain/`, `laws/`, and others), and which of them is per host. The
-relay fixtures in [`devtools-relay/`](devtools-relay/) are run by **no** host gate; they are exercised
-by relay implementations, which are not codec hosts and are not on this roster.
+relay fixtures in [`devtools-relay/`](devtools-relay/) are run by the `fuaran` and `fuaran-ts` legs
+and by no other — they carry their own manifest and their own `kind` vocabulary, and a relay peer
+need not be a codec host at all, so they are not part of what the roster above measures.
 
 **Why "the corpus path it reads" is a question at all.** Two of the five certify against a snapshot
 bundled in their own repository, and one of those prefers the sibling checkout but falls back to its
