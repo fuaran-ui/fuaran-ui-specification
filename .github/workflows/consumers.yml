@@ -97,15 +97,20 @@ name: Consumer conformance
 # evidence.
 #
 # ── Triggers, and the two that are deliberately absent ───────────────────────
-# `push` is the trigger the phase is about. `workflow_dispatch` takes a host +
-# ref override so the mechanism's go-red can be re-proved at will against a
-# deliberately drifted branch, rather than having been proved once.
+# `push` is the trigger the phase is about. `workflow_dispatch` takes the two
+# go-red overrides — a host + `ref`, and `perturb` — so BOTH of the mechanism's
+# claims can be re-proved at will rather than having been proved once: that the
+# report can say "drift" (point a host at a branch that is behind), and that a
+# leg reads this corpus at all (plant a disagreement in it). The second is
+# Phase 1831's; the input block below says why one does not imply the other.
 #
-# No `pull_request`: this repository lands changes by direct push, so a PR
-# trigger would double the cost of every corpus change to produce a report the
-# push already produces. No `schedule`: the cross-host gate this repository
-# dispatches into already carries the nightly drift catch, and a second nightly
-# over the same five hosts would measure the same thing twice.
+# `pull_request` landed in Phase 1670 and its reasoning is at the trigger
+# itself. This paragraph used to say "No `pull_request`" and was left saying it
+# — corrected in Phase 1831, which had to establish what the triggers actually
+# were before it could say what the legs actually run. No `schedule`: the
+# cross-host gate this repository dispatches into already carries the nightly
+# drift catch, and a second nightly over the same five hosts would measure the
+# same thing twice.
 #
 # No `concurrency` group either, and that is a choice rather than an omission: a
 # report is per COMMIT and is read for attribution, so coalescing two corpus
@@ -142,9 +147,39 @@ on:
           - fuaran-go
           - fuaran-rs
       ref:
-        description: 'Measure that ONE host at this git ref instead of `main` (the go-red input; requires a single host).'
+        description: 'Measure that ONE host at this git ref instead of `main` (a go-red input; requires a single host).'
         type: string
         default: ''
+      # Phase 1831 — the SECOND go-red input, and the one that proves the thing
+      # this workflow actually claims.
+      #
+      # `ref` above proves the REPORT can say "drift": point a host at a branch
+      # that is behind and the table says so. What it cannot prove is that a leg
+      # ever OPENED this repository's corpus. Two of the five hosts bundle their
+      # own snapshot of it, so "the host's gate passed beside our checkout" and
+      # "the host's gate read our checkout" are different claims, and a leg that
+      # quietly stopped reading it would report `pass` for exactly as long as the
+      # host's own copy stayed self-consistent.
+      #
+      # This input plants a disagreement in the corpus checkout THIS workflow
+      # makes — one leading space in one canonical fixture file, still valid
+      # JSON, still the same value, no longer the canonical bytes — and then
+      # INVERTS every measured leg's verdict: a leg that fails has proved it
+      # reads this corpus, and a leg that passes is the finding. Nothing is
+      # committed and no fixture in this repository is touched; the perturbation
+      # lives for one job, in one runner's workspace.
+      #
+      # ON DISPATCH RATHER THAN ON EVERY PUSH, and on the same trade `ref` above
+      # already makes. The registry job's two go-red proofs run on every run
+      # because they are hermetic and cost seconds; this one runs five hosts'
+      # whole gates a second time. What the repository's own bar asks of an
+      # expensive proof is that it be re-provable AT WILL rather than proved
+      # once, which an input meets and a one-off branch experiment does not. The
+      # README says how to run it.
+      perturb:
+        description: 'Go-red proof: perturb a canonical fixture byte in this corpus checkout; every measured leg must FAIL on it.'
+        type: boolean
+        default: false
 
 # Least privilege, stated rather than inherited. Every checkout below is of a
 # public repository and reads anonymously; nothing here writes anywhere.
@@ -459,6 +494,52 @@ jobs:
           test -d wire-format-fixtures/nodes
           echo "Corpus present at wire-format-fixtures/ (sibling of ${{ matrix.dir }}/)."
 
+      # ── The go-red proof, per leg (Phase 1831) ─────────────────────────────
+      #
+      # Runs only under the `perturb` dispatch input, BEFORE the host's gate and
+      # AFTER the layout assert above — so a leg that could not see the corpus
+      # at all has already failed for that reason rather than for this one.
+      #
+      # WHICH FILE is read from the manifest rather than named here: the
+      # manifest is the authoritative enumeration, so the proof follows a
+      # regenerated corpus instead of pinning a path that a family rename can
+      # quietly turn into "no such file" — and this repository renamed five
+      # fixtures as recently as Phase 1821. `node-round-trip` because every
+      # codec host certifies that family by construction (WIRE_FORMAT.md §11.0).
+      #
+      # WHAT IS CHANGED is one leading space. JSON tolerates it, so nothing
+      # rejects the file for being malformed and no decoder reports a different
+      # VALUE — what moves is the canonical BYTES, which is precisely the law a
+      # round-trip fixture carries, and precisely what a bundled snapshot is
+      # guarded against byte-for-byte. A semantic edit would not do: an input
+      # that is also its own expected output round-trips a changed value back to
+      # itself and the leg stays green, which would read as a blind leg and is
+      # not one.
+      - name: "Go-red proof: perturb the corpus bytes this leg reads"
+        id: perturb
+        if: inputs.perturb
+        run: |
+          set -euo pipefail
+          target=$(jq -r 'first(.fixtures[] | select(.kind == "node-round-trip") | .expectedFile)' \
+            wire-format-fixtures/manifest.json)
+          if [ -z "$target" ] || [ "$target" = 'null' ] || [ ! -f "wire-format-fixtures/$target" ]; then
+            echo "::error title=Go-red proof could not plant a disagreement::the manifest names no readable node-round-trip fixture (\`$target\`)"
+            exit 1
+          fi
+          before=$(sha256sum "wire-format-fixtures/$target" | cut -d' ' -f1)
+          tmp=$(mktemp)
+          { printf ' '; cat "wire-format-fixtures/$target"; } > "$tmp"
+          mv "$tmp" "wire-format-fixtures/$target"
+          after=$(sha256sum "wire-format-fixtures/$target" | cut -d' ' -f1)
+          if [ "$before" = "$after" ]; then
+            echo '::error title=Go-red proof planted nothing::the fixture bytes did not change'
+            exit 1
+          fi
+          echo "Perturbed wire-format-fixtures/$target (one leading space)."
+          echo "  before sha256 $before"
+          echo "  after  sha256 $after"
+          echo "file=$target" >> "$GITHUB_OUTPUT"
+
       - name: Setup .NET
         if: matrix.toolchain == 'dotnet'
         uses: actions/setup-dotnet@v4
@@ -529,6 +610,17 @@ jobs:
       #                revision. Reported, never a gate on this repository.
       #   unmeasured — it did not run, or was cancelled. No answer was produced,
       #                and this is the one outcome the report fails on.
+      #
+      # Under the `perturb` go-red proof the question is a different one, so the
+      # verdict vocabulary is different too rather than being overloaded —
+      # `pass` under a planted disagreement would be a catastrophe wearing the
+      # same word as the ordinary good news:
+      #   proof-ok    — the gate FAILED on the planted disagreement, so this leg
+      #                 demonstrably reads this repository's corpus checkout.
+      #   proof-blind — the gate PASSED with the corpus disagreeing with itself.
+      #                 The leg is not measuring what the report says it is, and
+      #                 the report FAILS on it.
+      #   unmeasured  — as above, and still the mechanism admitting no answer.
       - name: Record the verdict
         if: always()
         env:
@@ -539,13 +631,25 @@ jobs:
           HOST_REF: ${{ matrix.ref }}
           GATE: ${{ matrix.gate }}
           CORPUS_SHA: ${{ github.sha }}
+          PERTURB: ${{ inputs.perturb }}
+          PERTURBED_FILE: ${{ steps.perturb.outputs.file }}
         run: |
           set -euo pipefail
-          case "$OUTCOME" in
-            success) status=pass ;;
-            failure) status=drift ;;
-            *)       status=unmeasured ;;
-          esac
+          if [ "${PERTURB:-false}" = 'true' ]; then
+            mode=go-red
+            case "$OUTCOME" in
+              failure) status=proof-ok ;;
+              success) status=proof-blind ;;
+              *)       status=unmeasured ;;
+            esac
+          else
+            mode=report
+            case "$OUTCOME" in
+              success) status=pass ;;
+              failure) status=drift ;;
+              *)       status=unmeasured ;;
+            esac
+          fi
           host_sha=$(git -C "${{ matrix.dir }}" rev-parse HEAD 2>/dev/null || echo unknown)
           mkdir -p "$GITHUB_WORKSPACE/verdicts"
           jq -n \
@@ -558,10 +662,13 @@ jobs:
             --arg status "$status" \
             --arg outcome "$OUTCOME" \
             --arg corpusSha "$CORPUS_SHA" \
+            --arg mode "$mode" \
+            --arg perturbed "${PERTURBED_FILE:-}" \
             '{ host: $host, language: $language, repo: $repo, ref: $ref, hostSha: $hostSha,
-               gate: $gate, status: $status, stepOutcome: $outcome, corpusSha: $corpusSha }' \
+               gate: $gate, status: $status, stepOutcome: $outcome, corpusSha: $corpusSha,
+               mode: $mode, perturbedFixture: $perturbed }' \
             > "$GITHUB_WORKSPACE/verdicts/$HOST.json"
-          echo "$HOST: $status (gate step outcome: ${OUTCOME:-<did not run>})"
+          echo "$HOST: $status (mode: $mode, gate step outcome: ${OUTCOME:-<did not run>})"
 
       - name: Publish the verdict
         if: always()
@@ -606,6 +713,7 @@ jobs:
           CORPUS_SHA: ${{ github.sha }}
           CORPUS_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PERTURB: ${{ inputs.perturb }}
         run: |
           set -uo pipefail
 
@@ -623,7 +731,8 @@ jobs:
             exit 1
           fi
 
-          rows=$(mktemp); drifted=$(mktemp); missing=$(mktemp); overridden=$(mktemp)
+          rows=$(mktemp); drifted=$(mktemp); missing=$(mktemp); overridden=$(mktemp); blind=$(mktemp)
+          goRed=false; [ "${PERTURB:-false}" = 'true' ] && goRed=true
 
           while IFS= read -r id; do
             f="verdicts/$id.json"
@@ -647,6 +756,11 @@ jobs:
             case "$status" in
               pass)  mark='✅ pass' ;;
               drift) mark='⚠️ **drift**'; printf '%s (gate `%s` failed at %s %s)\n' "$id" "$gate" "$ref" "${hostSha:0:12}" >> "$drifted" ;;
+              proof-ok) mark='🔴 **red on the planted disagreement** (proof-ok)' ;;
+              proof-blind)
+                mark='❌ **proof-BLIND** (passed with the corpus disagreeing with itself)'
+                printf '%s (gate `%s` passed although %s was perturbed — this leg does not read this corpus)\n' \
+                  "$id" "$gate" "$(jq -r '.perturbedFixture // "<unrecorded>"' "$f")" >> "$blind" ;;
               *)     mark='❔ **unmeasured**'; printf '%s (gate did not run: %s)\n' "$id" "$(jq -r '.stepOutcome // "<none>"' "$f")" >> "$missing" ;;
             esac
             printf '| `%s` | %s | `%s` @ `%s` | `%s` | %s | |\n' \
@@ -657,10 +771,27 @@ jobs:
           done < <(jq -r '.[].id' <<< "$ROSTER")
 
           {
-            echo '## Consumer conformance — per host, against this corpus commit'
+            if [ "$goRed" = 'true' ]; then
+              echo '## Consumer conformance — GO-RED PROOF, not a report'
+            else
+              echo '## Consumer conformance — per host, against this corpus commit'
+            fi
             echo
             echo "Corpus commit under report: [\`${CORPUS_SHA:0:12}\`]($CORPUS_URL)"
             echo
+            if [ "$goRed" = 'true' ]; then
+              echo '> **GO-RED PROOF — this run says nothing about whether the hosts conform.**'
+              echo '> One canonical fixture file was given a leading space in the corpus checkout each'
+              echo '> leg reads, and every measured leg is expected to FAIL on it. A leg that passed'
+              echo '> is the finding: it is not reading this corpus, so its ordinary `pass` would mean'
+              echo '> nothing. Nothing was committed and no fixture in this repository was touched.'
+              echo '>'
+              echo '> **The RUN is green when every leg went red.** The verdicts are inverted, not the'
+              echo '> conclusion: a proof run that failed whenever it held would be indistinguishable'
+              echo '> from a broken one. The per-leg reds are in the table; the run says whether the'
+              echo '> proof held.'
+              echo
+            fi
             if [ -s "$overridden" ]; then
               echo '> **REF OVERRIDE — this run is not a report about `main`.**'
               sed 's/^/> - /' "$overridden"
@@ -670,6 +801,17 @@ jobs:
             echo '| --- | --- | --- | --- | --- | --- |'
             cat "$rows"
             echo
+            if [ -s "$blind" ]; then
+              echo '### Legs that are NOT reading this corpus'
+              echo
+              sed 's/^/- /' "$blind"
+              echo
+              echo 'Each of these passed its own gate while the corpus checkout beside it disagreed'
+              echo 'with itself. Whatever that leg measures, it is not this repository — so its'
+              echo '`pass` in an ordinary run carries no information about a corpus move. This FAILS'
+              echo 'the proof run.'
+              echo
+            fi
             if [ -s "$drifted" ]; then
               echo '### Hosts that do not certify against this corpus commit'
               echo
@@ -679,6 +821,14 @@ jobs:
               echo 'is behind is the host'"'"'s obligation — the point of this report is only that it'
               echo 'is visible now, attached to the corpus commit, rather than surfacing later on'
               echo 'an unrelated push in a repository whose author cannot attribute it.'
+              echo
+            elif [ "$goRed" = 'true' ]; then
+              if [ -s "$blind" ]; then
+                echo 'Not every leg proved it reads this corpus — see above.'
+              else
+                echo 'Every measured leg failed on the planted disagreement, so every one of them'
+                echo 'reads this corpus rather than a copy of its own.'
+              fi
               echo
             else
               echo 'Every rostered host certifies against this corpus commit.'
@@ -708,6 +858,21 @@ jobs:
             [ -n "$line" ] && echo "::warning title=Host does not certify against this corpus commit::$line"
           done < "$drifted"
 
+          # A blind leg is a fault in the MECHANISM, exactly like an unmeasured
+          # one, so it is an error rather than a warning and it fails the run. It
+          # is checked before `missing` because it is the stronger statement: an
+          # unmeasured leg produced no answer, a blind leg produced a confident
+          # wrong one, and a run carrying both should name the second first.
+          blind_rc=0
+          if [ -s "$blind" ]; then
+            echo 'LEGS NOT READING THIS CORPUS:'
+            sed 's/^/  - /' "$blind"
+            while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error title=Leg does not read this corpus::$line"
+            done < "$blind"
+            blind_rc=1
+          fi
+
           if [ -s "$missing" ]; then
             {
               echo
@@ -728,4 +893,10 @@ jobs:
             exit 1
           fi
 
-          echo "All rostered hosts were measured. Report: $RUN_URL"
+          [ "$blind_rc" -ne 0 ] && exit 1
+
+          if [ "$goRed" = 'true' ]; then
+            echo "Every measured leg failed on the planted disagreement. Proof: $RUN_URL"
+          else
+            echo "All rostered hosts were measured. Report: $RUN_URL"
+          fi

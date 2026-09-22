@@ -1,11 +1,23 @@
 name: Notify downstream conformance gate
 
-# This repository has no push-to-main build CI of its own (releases go through
-# publish-packages.yml on tag pushes); this minimal workflow exists solely to fire
-# a DOWNSTREAM cross-implementation wire-format conformance gate when the wire
-# format could have changed here. Path filters in the consuming repository cannot
-# see pushes to THIS one, so we POST a `wire-conformance` repository_dispatch to
-# it (it listens on `repository_dispatch: types: [wire-conformance]`).
+# This workflow exists solely to fire a DOWNSTREAM cross-implementation
+# wire-format conformance gate when the wire format could have changed here.
+# Path filters in the consuming repository cannot see pushes to THIS one, so we
+# POST a `wire-conformance` repository_dispatch to it (it listens on
+# `repository_dispatch: types: [wire-conformance]`).
+#
+# This paragraph used to open "this repository has no push-to-main build CI of
+# its own (releases go through publish-packages.yml on tag pushes)". Both halves
+# were wrong by Phase 1831 and are corrected here: `consumers.yml` landed beside
+# this file and DOES run on every push to `main`, and there is no
+# `publish-packages.yml` in this repository and never has been — this repository
+# publishes no package and carries no release tag; the sentence was inherited
+# from the sibling implementation's workflow this one is modelled on.
+#
+# `consumers.yml` and this file are NOT substitutes, and the difference is stated
+# in that file's own header: it reports each host's verdict ON this corpus
+# commit, in this repository's check list; this one fires a cross-host gate whose
+# verdict lands in another repository's run history.
 #
 # The dispatch TARGET is a repository variable, `CONFORMANCE_DISPATCH_REPO`,
 # rather than a literal. Two reasons, and the second is the durable one: a

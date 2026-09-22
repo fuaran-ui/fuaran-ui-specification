@@ -102,6 +102,91 @@ meaningless drawn from a reference compared against itself. It is the reserved-n
 [`SPEC_CONVENTIONS.md`](SPEC_CONVENTIONS.md) applied to absence: a family recorded there is not
 missing, and a host reading the manifest can tell a decision from an oversight.
 
+## Continuous integration
+
+Two workflows run here, and they answer different questions. Neither is a substitute for the other.
+
+| Workflow | Trigger | What it answers |
+|---|---|---|
+| [`consumers.yml`](.github/workflows/consumers.yml) — *Consumer conformance* | push to `main`, pull request to `main`, manual dispatch | Per host, against **this** corpus commit: does that host's own gate still pass? Plus this repository's own defect-code registry checks. |
+| [`notify-conformance.yml`](.github/workflows/notify-conformance.yml) — *Notify downstream conformance gate* | push to `main` | Nothing, by itself. It POSTs a `repository_dispatch` so a cross-host gate elsewhere runs; that verdict lands in another repository's run history, not here. Operator-gated: it skips when its credentials are not granted. |
+
+### What each leg actually runs
+
+`consumers.yml` reassembles the side-by-side layout every host resolves the corpus in — this
+repository at the commit under report, each host beside it — and runs **that host's own declared
+blocking gate**, nothing else. Nothing in this workflow defines conformance.
+
+Each leg checks the host out at `main` — or, under the `ref` dispatch override, at the single
+revision named there, which the report banners as "not a report about `main`".
+
+| Leg | Corpus it reads | Codec families its gated suite runs |
+|---|---|---|
+| `fuaran` (F#) | The sibling checkout only — `FUARAN_WIRE_FIXTURES` if set, else an upward walk for a `wire-format-fixtures/` holding `manifest.json`. No bundled snapshot. A set-but-wrong env var raises rather than falling back. | All fifteen. |
+| `fuaran-ts` (TypeScript) | **Both, in two different suites.** The gated wire suite reads the sibling checkout directly and does *not* skip when it is absent — it fails. The published kit certifies the snapshot bundled in that repository, which a separate gated test compares byte-for-byte against the sibling checkout (and which does skip when that is absent). | node/op round-trip, reject, lenient-accept, both envelope families, all four elicitation families; the kit adds both contract-card families. `teleport-decode`, `teleport-reject` and `style-observer` are deliberately not run here and are pinned as such in that repository, not merely absent. |
+| `fuaran-py` (Python) | The sibling checkout **when it is present**, and the snapshot bundled in that repository when it is not. A set-but-wrong env var is refused rather than ignored. | node/op round-trip, reject, lenient-accept, both envelope families, all four elicitation families, style-observer. Not the contract-card or teleport families. |
+| `fuaran-go` (Go) | The sibling checkout only, by upward walk. No bundled snapshot, and deliberately undeclared in [`copies.json`](copies.json). Its gate is a residue gate: it runs the whole suite and compares the set that failed against a named list, red in **either** direction, so a newly-passing entry is a finding too. | node/op round-trip, reject, lenient-accept, both envelope families, all four elicitation families, style-observer. Not the contract-card or teleport families. |
+| `fuaran-rs` (Rust) | The sibling checkout only. It is the strictest of the five about absence: a missing corpus *beside sibling hosts* panics rather than skipping, on the ground that a corpus-driven suite silently skipping in an assembled workspace is a disabled oracle rather than a standalone clone. | node/op round-trip, reject, lenient-accept, both envelope families, all four elicitation families, style-observer. Not the contract-card or teleport families. |
+
+Every host additionally runs some of the sub-corpora that carry their own manifests
+(`merge-conformance/`, `dag/`, `chain/`, `laws/`, and others), and which of them is per host. The
+relay fixtures in [`devtools-relay/`](devtools-relay/) are run by **no** host gate; they are exercised
+by relay implementations, which are not codec hosts and are not on this roster.
+
+**Why "the corpus path it reads" is a question at all.** Two of the five certify against a snapshot
+bundled in their own repository, and one of those prefers the sibling checkout but falls back to its
+snapshot when the sibling is absent. So "this host's gate passed beside our checkout" and "this
+host's gate read our checkout" are genuinely different claims, and no amount of reading the workflow
+settles the second. Two mechanisms do: the layout assert each leg runs before its gate, which fails
+the leg outright if the corpus is not where that host resolves it; and the `perturb` go-red proof
+below, which is the only thing that establishes a leg would have NOTICED.
+
+### The reports are green by construction — read the table, not the tick
+
+Every host job carries `continue-on-error: true`, because a host that is behind is that host's
+obligation and this repository is the specification. That flag **rewrites the job's conclusion to
+success**, so the check list shows a green tick beside every host whatever its verdict. The verdict
+itself is in the run's **job summary table** and in the `verdict-<host>` artifact, and a host that
+does not certify is additionally raised as a `::warning` annotation naming it.
+
+This is worth stating plainly because it has misled a reader at least once: at the Phase 1821 corpus
+commit four of the five hosts reported **drift** — correctly, since that commit moved five fixtures'
+canonical bytes and no host had adopted the rename yet — while the check list showed five green
+ticks. Reading the job conclusions reproduces the wrong answer; reading the table gives the right
+one.
+
+The one job that **can** fail the run about the corpus's content is the defect-code registry, which
+measures this repository's obligations about itself. The report job fails on exactly two things: a
+rostered host that produced no verdict at all, and — under the go-red proof below — a leg that
+passed when it should not have. Both are the mechanism admitting it did not measure what it claims.
+
+### Proving the checks can still fail
+
+A check that has stopped being able to fail reports a clean estate exactly as a clean estate does, so
+each of these is proved rather than assumed.
+
+- **Hermetic, on every run.** `validator/check-coverage-selftest.mjs` and
+  `validator/check-message-parity-selftest.mjs` run before the checks they are about, against
+  committed fixture hosts under `validator/go-red/`. They read no real checkout.
+- **A leg can report drift** — dispatch `consumers.yml` with a single `host` and a `ref` naming a
+  revision of it that is behind the corpus. The table must show that host, and only that host, as
+  drift.
+- **A leg actually reads THIS corpus** — dispatch `consumers.yml` with `perturb` set. One canonical
+  fixture file named by `manifest.json` is given a leading space in the corpus checkout each leg
+  reads: still valid JSON, still the same value, no longer the canonical bytes. Every measured leg is
+  then expected to go **red**, and a leg that passes is reported as `proof-blind` and fails the run.
+  Nothing is committed and no fixture in this repository is touched — the perturbation lives for one
+  job, in one runner's workspace.
+
+  ```
+  gh workflow run consumers.yml --ref main -f perturb=true
+  ```
+
+  The proof exists because "the host's gate passed beside our checkout" and "the host's gate read our
+  checkout" are different claims, and two of the five hosts certify against a snapshot bundled in
+  their own repository. The run is **green when every leg went red**: the verdicts are inverted, not
+  the conclusion.
+
 ## Licence
 
 Apache-2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

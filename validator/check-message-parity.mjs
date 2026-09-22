@@ -294,26 +294,60 @@ for (const h of HOSTS) {
   const src = readFileSync(srcPath, 'utf8');
   const templates = new Map();
   for (const m of src.matchAll(h.re)) {
-    // Keep the FIRST site per code: a code raised from several places states the
-    // same defect each time, and the first is the canonical wording.
-    if (!templates.has(m[1])) templates.set(m[1], m[2]);
+    // EVERY site per code, not the first.
+    //
+    // Until Phase 1831 this kept the first and called it canonical, on the
+    // premise that "a code raised from several places states the same defect
+    // each time, and the first is the canonical wording". That premise is
+    // false, and it was false in the tree on the day the corpus's own consumer
+    // job first ran this check: a host may raise one code from several sites
+    // for distinct SUB-CASES of one rule, each stating the shared concept in
+    // its own sub-case's vocabulary — and which site comes first is an accident
+    // of where the newest sub-case happened to be inserted. A new sub-case
+    // added ABOVE an existing one therefore moved a host from conformant to
+    // drifted without any message changing its meaning, and the reported
+    // template was not the one the contract was authored against.
+    //
+    // What the contract fixes is what the CODE means, so a host satisfies it
+    // when the message it raises for that defect conveys every group SOMEWHERE
+    // in its construction sites. A finding is real only when NO site does, and
+    // that is what is reported below — with the count of sites read, so a
+    // single-site host (where this rule is identical to the old one) and a
+    // multi-site host are never confused for each other.
+    if (!templates.has(m[1])) templates.set(m[1], []);
+    templates.get(m[1]).push(m[2]);
   }
 
   let checked = 0;
   for (const [code, spec] of Object.entries(parity.codes)) {
-    const template = templates.get(code);
-    if (template === undefined) continue; // not implemented here — coverage's job, not this one
+    const sites = templates.get(code);
+    if (sites === undefined) continue; // not implemented here — coverage's job, not this one
     checked++;
-    const hay = template.toLowerCase();
-    const missing = spec.mustConvey.filter((group) => !group.some((word) => hay.includes(word.toLowerCase())));
+    const missingPerSite = sites.map((template) => {
+      const hay = template.toLowerCase();
+      return spec.mustConvey.filter((group) => !group.some((word) => hay.includes(word.toLowerCase())));
+    });
+    // The site that withholds least. A code conforms when some site withholds
+    // nothing; when none does, this is the one worth printing, because it is the
+    // wording closest to satisfying the contract and therefore the one an author
+    // would edit.
+    let best = 0;
+    for (let i = 1; i < sites.length; i += 1) {
+      if (missingPerSite[i].length < missingPerSite[best].length) best = i;
+    }
+    const missing = missingPerSite[best];
     if (missing.length > 0) {
       failures.push(
-        `${h.host} ${code}: message does not convey ${JSON.stringify(missing)}\n` +
+        `${h.host} ${code}: no construction site conveys ${JSON.stringify(missing)} ` +
+          `(${sites.length} site(s) read)\n` +
           `      note: ${spec.note}\n` +
-          `      template: ${template.replace(/\s+/g, ' ').trim().slice(0, 160)}`
+          `      closest template: ${sites[best].replace(/\s+/g, ' ').trim().slice(0, 160)}`
       );
     }
-    if (verbose) console.log(`  ${h.host.padEnd(14)} ${code.padEnd(16)} ${missing.length === 0 ? 'ok' : 'MISSING'}`);
+    if (verbose) {
+      const where = sites.length > 1 ? ` (${sites.length} sites)` : '';
+      console.log(`  ${h.host.padEnd(14)} ${code.padEnd(16)} ${missing.length === 0 ? 'ok' : 'MISSING'}${where}`);
+    }
   }
   // A non-exempt host that extracted NOTHING for codes it declares is a broken
   // extractor, not a clean pass. Without this the two are indistinguishable in the
