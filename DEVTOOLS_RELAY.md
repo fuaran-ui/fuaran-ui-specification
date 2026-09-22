@@ -1,4 +1,4 @@
-# Fuaran DevTools relay contract (`relay@1.4`)
+# Fuaran DevTools relay contract (`relay@1.5`)
 
 The **page ↔ extension relay**: a `postMessage` envelope that carries a Fuaran host's already-shipped
 in-page introspection surface across the page/extension boundary, so a browser extension (or any
@@ -66,7 +66,7 @@ not an extension of it. It borrows three things and nothing else:
 | Canonical `TreeOp` JSON | §2, §3 | The `apply` request's `op` payload (§8.2) |
 | Canonical `Node` JSON | §2, §3 | The `read.nodeJson` response's `node` payload (§7.7) |
 
-The relay profile is `relay@1.4`. It versions **independently** of the wire profile `core@1.0`: a
+The relay profile is `relay@1.5`. It versions **independently** of the wire profile `core@1.0`: a
 host may advance its wire profile without advancing its relay profile, and the reverse. The two
 profile names are distinct namespaces, so a peer that confuses them negotiates `Foreign` and refuses
 — which is the correct outcome.
@@ -208,6 +208,7 @@ The full closed set of request types:
 | `read.findNodes` | `read.findNodes` | `read.findNodes.ok` |
 | `read.affordances` *(since `relay@1.1`)* | `read.affordances` | `read.affordances.ok` |
 | `read.nodeJson` *(since `relay@1.3`)* | `read.nodeJson` | `read.nodeJson.ok` |
+| `hatches` *(since `relay@1.5`)* | `hatches` | `hatches.ok` |
 | `apply` | `apply` | `apply.ok` |
 | `subscribe` | `subscribe` | `subscribe.ok` |
 | `unsubscribe` | `subscribe` | `unsubscribe.ok` |
@@ -215,6 +216,11 @@ The full closed set of request types:
 **Every request type except `hello` is named identically to the capability that gates it.** A page
 peer's authorisation check is therefore a set membership test on `type`, not a lookup table — one
 fewer place for a capability and its entry point to drift apart.
+
+`read.*` is a prefix for reads **of the tree or of what the tree rendered**, which is what §7.1–§7.7
+are. `hatches` (§7.8) asks the host about its own posture rather than about anything a tree
+contains, so it is a bare token alongside `apply` and `subscribe` rather than a `read.` one. Nothing
+in the authorisation rule turns on the prefix — the capability is still the type, spelled the same.
 
 The one event type is `changed` (§8.4).
 
@@ -225,7 +231,7 @@ The one event type is `changed` (§8.4).
 ### 5.1 Grammar
 
 `<name>@<major>.<minor>`, exactly as [`WIRE_FORMAT.md`](./WIRE_FORMAT.md) §15.1 defines it. The relay
-namespace is `relay`; the profile defined by this document is **`relay@1.4`**.
+namespace is `relay`; the profile defined by this document is **`relay@1.5`**.
 
 A peer's profile id is the **highest** profile it can serve. Within one major, a peer is a superset
 of every earlier minor of that major, so a peer MUST be able to serve any minor at or below its own —
@@ -426,8 +432,8 @@ this document one row and one subsection.
 ## 7. Read entry points
 
 All seven are non-mutating. Each takes the payload below and returns `<type>.ok` with the stated
-payload, or `refusal`. §7.1–§7.5 are `relay@1.0`; §7.6 is the `relay@1.1` addition and §7.7 the
-`relay@1.3` one.
+payload, or `refusal`. §7.1–§7.5 are `relay@1.0`; §7.6 is the `relay@1.1` addition, §7.7 the
+`relay@1.3` one and §7.8 the `relay@1.5` one.
 
 ### 7.1 `read.nodeState`
 
@@ -749,6 +755,102 @@ against, arriving by a different door. A client that wants structure without pay
 `read.tree` (§7.2), whose payload-size precedent this read matches.
 
 **Refusals:** `NODE_NOT_FOUND`, `ENCODE_FAILED`.
+
+### 7.8 `hatches` *(since `relay@1.5`)*
+
+Every read above asks about the **tree**, or about what the tree rendered. This one asks about the
+**host**: which of the places arbitrary behaviour can enter this deployment are actually open, right
+now, on the process answering.
+
+The answer is a document this contract does not define and deliberately does not own — the
+`hatchSection` document, whose shape is stated where it is produced, and which two independent
+producers emit: a **composition** section, projected over a composition's own registrations by a
+walk that runs before anything is served, and a **runtime** section, reported by a running host
+because no static walk can see a registration made at startup. **A relay peer serves the runtime
+section and only ever the runtime section.** It has no access to the other and must not synthesise,
+merge or stand in for it; a client that wants both obtains the composition half from whatever walked
+the composition and joins the two itself.
+
+**Why this is a relay entry point at all.** The same document is already reported on a host's in-page
+introspection surface, so a tool sitting in the page can read it there. A tool that speaks the relay
+cannot: §11.3's no-side-door rule means it has no reach into page globals, and §1.1's boundary is the
+whole reason it does not. Without this entry point, "are this deployment's hatches open?" is
+answerable only by whoever has the page open — which makes the answer a property of an operator's
+browser session rather than of the deployment. It is the deployment's property, and this is how a
+client asks for it.
+
+**Request payload:** `{}` — the payload object is required and MUST be an object (§4), and it carries
+no field. The question has no parameters: "which doors are open on this host" is answered by the
+whole section or not at all, and a narrowing argument would let a client read a partial section as a
+complete one, which is precisely the misreading the document's three-valued vocabulary exists to
+prevent.
+
+**Response payload:** the `hatchSection` document itself, unchanged, as an embedded object — the same
+direction §7.7 rule 1 and §8.2 take, and for the same reason:
+
+```json
+{
+  "kind": "hatchSection",
+  "version": 1,
+  "section": "runtime",
+  "findings": [
+    {
+      "predicate": "custom-renderer-registered",
+      "hatch": 2,
+      "state": "open",
+      "account": "<prose naming what admitted it>"
+    }
+  ]
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | string | `"hatchSection"`. The document names itself, so a consumer that finds one can tell what it is without knowing who wrote it. |
+| `version` | number | The document's own version, `1` at `relay@1.5`. **It versions independently of this profile**, exactly as the wire profile does (§1.3) — a host may serve a later document version over this same entry point, and §10.3 governs what a client does with a version it does not know. |
+| `section` | string | `"runtime"` from a relay peer, always. `"composition"` is the other producer's and never reaches a client this way. |
+| `findings` | array | One object per predicate, each with `predicate` (string, the predicate's own stable name), `hatch` (number, the inventory entry it mechanises — the NUMBER, because a title copied into a payload is a second copy of a sentence that will move), `state` (string) and `account` (string). |
+
+Three rules bind a peer, and each exists because breaking it would turn a report into a claim nobody
+checked.
+
+**1. The document is carried, not re-described.** A peer MUST emit the document its host's own
+producer built, with the members that producer emits and no others. It MUST NOT add a member of its
+own — a summary line, a host label, an observation timestamp — and MUST NOT drop one. The document is
+the unit of meaning and is joined across tiers **by shape**: the composition-section producer lives
+in a different tier entirely and reads this shape without taking a dependency on the runtime
+producer's types. A peer that re-describes it has minted a second vocabulary, and the next reader
+cannot tell which one they hold.
+
+**2. `state` is three-valued and `"undecided"` is never rendered as `"closed"`.** The closed set is
+`"open"` | `"closed"` | `"undecided"`. `"closed"` is a POSITIVE statement — the walk looked and found
+nothing — and is what makes the document worth reading when every finding is one. `"undecided"` says
+the walk could not see the door, and a host that cannot decide MUST report it rather than omit the
+finding: an omitted finding and a closed one are indistinguishable to a reader. A client MUST NOT
+collapse the three to two, and MUST treat an unrecognised fourth value under §10.3 — never as
+`"closed"`. `account` is populated on every state, saying what admitted the hatch, what was checked,
+or why it could not be decided.
+
+**3. It is observed at the request, never cached.** The findings are observations of live process
+state, and a registration made after a peer was installed changes the answer. A peer MUST ask its
+host's producer per request. The revision token is deliberately NOT carried here: `treeRevision`
+(§5.4) tracks the TREE, and this section is a property of the host that does not move when the tree
+does, so attaching one would invite a client to invalidate a correct report on an unrelated change —
+and would say nothing about a registration, which is the thing that does change it.
+
+**Refusals:** none of its own. The generic ones apply unchanged — `NOT_OPTED_IN` (§11.1),
+`CAPABILITY_ABSENT` where the session's minor predates `relay@1.5` (§6.3), `MALFORMED_MESSAGE` for a
+payload that is not an object.
+
+**What this does not disclose, and why that is consistent with §11.4.** A hatch report tells a client
+which doors this deployment opened. It is reachable only behind the opt-in and the capability, like
+every other entry point — and a peer serving it is by construction a peer that has already disclosed
+far more through §7.1–§7.7. The `account` prose is written for a reader auditing a deployment and
+names what was registered; a host that judges a particular account too disclosing narrows what its
+producer writes, which is a decision at the producer and not at the relay boundary. This contract
+adds no redaction seam, because a redaction the client cannot detect would make the document say
+"closed" about something it had merely been told not to mention — rule 2's failure, wearing a
+different hat.
 
 ---
 
@@ -1244,7 +1346,14 @@ in those terms; the list of what is waiting is kept here, because a number canno
 **Waiting on a second implementation, at `relay@1.4`:** `read.affordances` (§7.6, added at 1.1) is
 specified and served by one host. `attribution.actorClass` (§8.2.1, added at 1.2) is an optional
 field a host reads for nothing, so a fixture for it would pin a client's behaviour rather than a
-host's; it lands with the second client that emits it.
+host's; it lands with the second client that emits it. `hatches` (§7.8, added at 1.5) is specified
+and served by one host, and its fixtures land with the second — a request vector, a response from a
+host with a guest renderer registered (one finding `"open"`), a response from a host that handed over
+no registry (that finding `"undecided"`, never `"closed"`), and the capability's own `hello`
+advertisement at `relay@1.5`. They are enumerated here rather than written now because the family's
+`profile` is what would have to move with them, and moving it against one implementation turns every
+other host's gate red over an entry point it never claimed — which is the exact outcome this
+subsection's rule exists to prevent.
 
 `treeSource` and `UPSTREAM_UNAVAILABLE` (§6.5, §9.3, added at 1.4) are **not** on that list: two
 hosts serve them, which is why the family's `profile` moved to `relay@1.4` with their fixtures. What
