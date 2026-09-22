@@ -138,7 +138,7 @@ Every DU position on the wire is a JSON object carrying a `"$type"` string + tha
 
 ### 3.1 Node envelope
 
-A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, `accessibility`, `tooltip` and `visible` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
+A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`, `accessibility`, `tooltip`, `visible` and `fallback` are **optional** and omitted when empty / all-default / `None`. A fully-default node is just `{ "id": …, "kind": … }`.
 
 ```json
 { "id": "<non-empty string>",
@@ -147,13 +147,26 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   "style": <SemanticStyle>,          // optional — omitted when all-default
   "accessibility": <Accessibility>,  // optional — omitted when None
   "tooltip": <TextSource>,           // optional — omitted when None
-  "visible": <Binding<bool>>         // optional — omitted when None
+  "visible": <Binding<bool>>,        // optional — omitted when None
+  "fallback": <Node>                 // optional — omitted when None (Phase 1812; §15.3)
 }
 ```
 
 - `state` (`StateBehaviour`) is an object with optional keys `onLoading` (Node), `onEmpty` (Node), `onError` (always the `"<closure>"` sentinel when present – the `ErrorPayload -> Node` callback is unobservable). **Omitted entirely from the node when all three are `None`** (the common case); a decoder restores the empty `StateBehaviour` on absence.
 - `style` (`SemanticStyle`) is `{ "emphasis": <Emphasis>, "tone": <ToneVariant>, "weight": <StyleWeight> }`, each a bare enum string (§3.5), plus the Phase 147 `role`/`voice`. **Omitted entirely when all fields are the default** (`emphasis` = `"Normal"`, `tone` = `"Default"`, `weight` = `"Standard"`, `role`/`voice` default); a decoder restores the default on absence. Each of `emphasis`/`tone`/`weight` is **individually** omitted-when-default on both boundaries (§3.6, Phase 460), matching `role`/`voice`: an absent field restores its identity default on decode, and the encoder omits a field at its identity default even when the object is emitted for the other fields. The Phase 1472 `direction` (`TextDirection`, default `"auto"`) joins them on exactly those terms and is documented below — it is the one member of this record that is not presentational.
-- `accessibility` carries optional keys `label` (`Binding<string>`), `labelledBy` (NodeId string), `describedBy` (NodeId string), `role` (ARIA role string), `liveRegion` (`"polite"`/`"assertive"`/`"off"`), `hidden` (`Binding<bool>`). Omitted entirely when `None`.
+- `accessibility` carries optional keys `label` (`Binding<string>`), `labelledBy` (NodeId string), `describedBy` (NodeId string), `role` (ARIA role string), `liveRegion` (`"polite"`/`"assertive"`/`"off"`), `hidden` (`Binding<bool>`), and — since Phase 1812 — `speak` (`TextSource`). Omitted entirely when `None`.
+
+  **`speak` (Phase 1812) is the node's SPOKEN rendering for a voice surface**: what a speech
+  projection reads aloud for this node, as authored, translated content — a `TextSource`, exactly as
+  `tooltip` is, with the same bare-string canonical form for a literal. It is **inert to every visual
+  renderer**: a conformant host MUST NOT let it reach `aria-label`, `aria-describedby`, the visible
+  text or any other emitted attribute — the accessible NAME is `label`, and a speech line that leaked
+  into the name would rename the node for every screen reader — and a node with `speak` MUST produce
+  byte-identical visual and ARIA output to the same node without it. Its consumer is the speech
+  projection, which is a separate render target rather than a member of the projection below.
+  `nodes/a11y-speak.json` pins the wire; the `a11y-speak` behaviour vector in
+  [`a11y-contract.json`](./a11y-contract.json) pins the inertness, by listing the projection
+  exhaustively without it. Charter §2.1 field tier: no new kind, no new case.
 
   > **Ruling (2026-08-25): the trait's `Binding` slots are ordinary `Binding` slots, and the §3.6
   > bare-scalar shape coercion applies to them — stated here explicitly because two hosts have
@@ -192,6 +205,8 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
   5. MUST take these decisions identically on the server and on the client it hydrates, from the
      same seeded sources — the property hydration depends on, stated for the same reason it is
      stated for `visible`.
+  6. MUST NOT project `speak` (Phase 1812) into any attribute or text: it is not a member of this
+     projection, and the projection's attribute list is exhaustive with it absent.
 
   **Why this is stated normatively rather than left to the slot's type.** It was left to the type,
   and all five hosts read the name slot through their generic binding path while `hidden` was routed
@@ -204,6 +219,57 @@ A `Node` has exactly two **required** keys – `id` and `kind`. `state`, `style`
 
 - `tooltip` (`TextSource`) is a supplementary **hint** about the node — the text a reader is shown on hover or focus, and which assistive technology receives as the node's description. Omitted entirely when absent. It takes every `TextSource` arm, and note that the CANONICAL encoding of a literal hint is a BARE STRING (`"tooltip": "Updated nightly."`) rather than an object: `Literal` is `TextSource`'s transparent case wherever it appears, and `Bound` / `I18n` are the arms that carry a `$type` envelope. The `{"$type":"Literal","text":…}` spelling is decode-accepted and normalises to the bare form on re-encode, exactly as at every other `TextSource` slot.
 - `visible` (`Binding<bool>`) decides whether the node is **present in the rendered output at all**. A resolved `false` removes it — no element, no layout, no accessibility-tree entry; any other outcome, including an unresolved or errored predicate, renders it. Omitted entirely when absent. It is NOT `accessibility.hidden`, which is `aria-hidden` over a node that IS rendered; the two are set out side by side below.
+- `fallback` (`Node`, Phase 1812) is the **author-declared degraded rendering**: a full node that a reader **behind** this node's kind — one whose decoder meets the kind as a transport-only `Unknown` (§15.3) — renders **in place of** its labelled placeholder. Omitted entirely when absent. It sits on the envelope and not in the kind's spec for the one reason that decides it: a reader that does not understand the kind cannot open the spec, and the envelope is the only place it can still find something to show. The rules are set out below.
+
+#### The author-declared fallback — `fallback` (Phase 1812)
+
+**What each reader does with it.** A **current** reader — one that decodes the node's kind — decodes
+`fallback`, preserves it (it re-encodes byte-for-byte like any other envelope field) and **never
+renders it**: it has the real node. A **behind** reader lifts it out of the `Unknown`'s preserved
+payload — through the same policy-gated node decoder a top-level node meets, so a `DecodePolicy`
+(§23) that refuses a kind refuses it inside a fallback exactly as at the root, and the §21 bounds
+apply — and renders it where the placeholder would have gone. **The lift does not edit the preserved
+bytes**: must-ignore-but-preserve (§15.3) is untouched, the unknown payload re-encodes verbatim with
+its `fallback` inside it, and the op-stream hash chain is unaffected. A fallback that is authored but
+does not decode on the behind reader degrades to the placeholder — never a partial render, never a
+crash. `envelope/envelope-unknown-fallback.json` pins the preservation; `nodes/envelope-fallback.json`
+pins the current reader's round-trip.
+
+**Three shape rules, enforced by the emitter (pre-emit), not the decoder** — each is semantic over a
+structurally legal shape, and §8.1's reasoning about whole-tree properties applies:
+
+1. **The fallback must be readable at a profile strictly lower than the node's own** (§15.1): a
+   fallback the behind reader also cannot read is no fallback. A host enforces this against its
+   vocabulary's per-kind profile table where it carries one; every host MUST at minimum refuse a
+   fallback whose subtree carries the very kind it stands in for — the one kind the behind reader is
+   known to lack — and that is the reference host's **`FUARAN156`** (Error). Today the whole
+   vocabulary sits at one profile (`core@1.0`, §15.1) and no per-kind table exists, so the same-kind
+   check IS the computable rule; the profile form is stated so that a later minor does not have to
+   re-derive it.
+2. **No nested `fallback`** — **`FUARAN157`** (Error). A behind reader lifts one level, the fallback
+   of the node it cannot read; a fallback's own fallback has no reader, and admitting it would make
+   the depth a fallback can hide unbounded.
+3. **NodeId uniqueness (§8.1) holds across the fallback subtree.** The fallback is walked like any
+   subtree: its ids share the document's one id space, and a duplicate is `FUARAN` duplicate-id like
+   any other.
+
+**Ops address into it.** A `TreeOp` path that names a node inside a fallback is **legal and targets
+it like any child position** — the ids are document-unique, so the target is unambiguous, and the
+fallback is reached through the same lens as the `state.onEmpty` / `state.onLoading` arms, which are
+alternative renderings too. The fallback's ROOT is a slot, not a list member, and behaves exactly as
+a State arm's root does. A behind reader, which holds the carrier as verbatim `Unknown` bytes, cannot
+apply an op addressed inside it — exactly as it cannot apply one into any unknown payload, which is
+§15.3's existing rule and not a new one.
+
+**A current reader's reactive walk does not subscribe the fallback's bindings**, because it never
+renders it; its analysis walk does see them, because a dangling reference inside the fallback is the
+defect the behind reader meets first. A behind reader that lifts it subscribes the lifted node like
+any other.
+
+**Emit it sparingly.** A fallback costs bytes on every reader and is shown by none that is current;
+an emitter reaches for it only when it knows it is emitting a kind above the floor profile its
+readers may hold. Charter §2.1 field tier: no new kind, no new case; every pre-1812 document is
+byte-unchanged.
 
 #### Conditional presence — `visible` (Phase 1535)
 
@@ -4508,8 +4574,9 @@ The same rules apply at nested NodeId positions (e.g. an `InsertChild` child's `
 any slot — may carry the same `"id"`. Ids are scoped to the document, so the same id appearing in two
 separate documents is unrelated and legal.
 
-Two constructs are **isolation boundaries** and so start a fresh id space rather than extending the
-host tree's: `Mount` (§3.2 — the guest interior is a separate scope, produced host-side by the guest
+The Phase 1812 envelope `fallback` is **not** a boundary: it is walked, and its ids share the
+document's one space (§3.1). Two constructs are **isolation boundaries** and so start a fresh id
+space rather than extending the host tree's: `Mount` (§3.2 — the guest interior is a separate scope, produced host-side by the guest
 loader, and is never inlined into the host document) and `FragmentRef` (the referenced body is not
 part of the referring tree). `FragmentDecl` is *not* a boundary — its `body` is walked, so uniqueness
 there is **pre-expansion**: at render time interior ids are namespaced by the referring node, so one
@@ -5066,12 +5133,12 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->583<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->235<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->586<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->237<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->73<!-- /fuaran:count --> `lenient-accept`,
-<!-- fuaran:count kind=envelope-round-trip -->4<!-- /fuaran:count --> `envelope-round-trip`,
+<!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
 <!-- fuaran:count kind=elicitation-reject -->15<!-- /fuaran:count --> `elicitation-reject`,
@@ -5480,7 +5547,9 @@ When a `Behind` consumer's decoder meets a discriminator it does not recognise, 
 - **`payload`** is the **verbatim parsed object**. Re-encoding it with the canonical renderer (§2) reproduces the producer's bytes exactly – **must-ignore-but-preserve**: an old client that doesn't understand a kind round-trips its bytes intact, so it **cannot destroy data a newer producer authored**. This is load-bearing for op-stream / collaboration, and the hash chain (§4 consequence) makes the preservation verifiable – a preserved-but-unrendered subtree hashes identically through an old client.
 - **`$requiredProfile`** (the reserved key of §15.1 – when the artifact declared one) lets the consumer render a labelled placeholder ("needs `core@1.4`") rather than a blank.
 
-A behind consumer thus has three honest responses to an unknown kind: **detect** it (negotiate → `Behind`, decode → `Unknown`), **preserve** it (re-encode the verbatim payload), or **degrade** it (render a labelled placeholder). Crashing is no longer one of them. A genuinely malformed object – no discriminator at all – still fails the decode (the tolerance is for *unknown* kinds, not *invalid* ones).
+- **`fallback`** (Phase 1812, §3.1) — when the producer authored one, the behind consumer **lifts** it out of the preserved payload (the `fallback` key of the verbatim object, decoded through its ordinary policy-gated node decoder) and renders it **in place of** the labelled placeholder. The lift reads the payload and never edits it, so the preservation bullet above holds exactly as before — the re-encoded bytes carry the fallback. `envelope/envelope-unknown-fallback.json` is the vector: an unknown kind, a `requiredProfile`, and an authored fallback, preserved verbatim.
+
+A behind consumer thus has three honest responses to an unknown kind: **detect** it (negotiate → `Behind`, decode → `Unknown`), **preserve** it (re-encode the verbatim payload), or **degrade** it (render the author-declared `fallback` where one was authored, else a labelled placeholder). Crashing is no longer one of them. A genuinely malformed object – no discriminator at all – still fails the decode (the tolerance is for *unknown* kinds, not *invalid* ones).
 
 ### 15.4 Evolution policy – what moves the profile, and what does not
 

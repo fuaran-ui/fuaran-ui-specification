@@ -10,7 +10,8 @@
     "rule": "accessibility.label (Binding<string>) and accessibility.hidden (Binding<bool>) are ordinary scalar slots: a conformant host MUST resolve each through the same scalar path a Binding in any other scalar slot takes (WIRE_FORMAT 3.6 / 3.3.2), so a Transform yielding exactly one cell and an Expr both work. Resolving either through a row-shaped generic path is non-conformant: it throws on a typed host, yields the rows array on an erased one, and in both cases the slot silently renders nothing.",
     "emptyName": "A name that resolves to the empty string emits NO aria-label. An empty accessible name is worse than none, because it silences the content that would otherwise have named the node.",
     "unresolvedName": "A name that does not resolve, or whose resolution errors, emits no aria-label. It never emits a placeholder, and it never falls back to the visible text.",
-    "hiddenPolarity": "aria-hidden is emitted only on a resolved true. An explicit Static false, an unresolved binding and an errored one all emit nothing — distinct on the wire from an omitted hidden, and a host that collapses them loses the author's explicit 'this is NOT hidden'."
+    "hiddenPolarity": "aria-hidden is emitted only on a resolved true. An explicit Static false, an unresolved binding and an errored one all emit nothing — distinct on the wire from an omitted hidden, and a host that collapses them loses the author's explicit 'this is NOT hidden'.",
+    "speak": "accessibility.speak (TextSource, Phase 1812) is the node's SPOKEN rendering for a voice surface and is NOT a member of the visual projection: a conformant host MUST NOT let it reach aria-label, aria-describedby, the visible text or any emitted attribute, and a node carrying speak MUST produce byte-identical visual and ARIA output to the same node without it. The accessible name is label; a speech line that leaked into it would rename the node for every screen reader. Its consumer is the speech projection, a separate render target."
   },
   "behaviour": {
     "$comment": "Cross-host behaviour vectors for the accessibility projection, keyed by node-fixture id (nodes/<fixture>.json). HAND-AUTHORED, deliberately, on the message-parity.json precedent in validator/: vectors derived from the reference host's own projection could not falsify the reference, and the reference is one of the five hosts this table checks. Consumers verified today: the reference host's own corpus-driven a11y suite, fuaran-ts, fuaran-py, fuaran-go and fuaran-rs. Additive growth, so `version` above does not move.",
@@ -76,6 +77,16 @@
         "forwards": true,
         "attributes": [["aria-hidden", "true"]],
         "note": "The decorative shape — empty alt plus hidden Static true, on the img the body renders. No name at all is the point."
+      },
+      {
+        "fixture": "a11y-speak",
+        "forwards": false,
+        "attributes": [
+          ["aria-label", "Service status"],
+          ["role", "status"],
+          ["aria-live", "polite"]
+        ],
+        "note": "Phase 1812 — `speak` beside a Static name. The list is exhaustive WITHOUT the speech line: a host that projected speak into aria-label (or anywhere else) fails here, because the name must be 'Service status' and nothing may carry the spoken text."
       }
     ]
   }
