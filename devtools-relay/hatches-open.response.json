@@ -1,0 +1,31 @@
+{
+  "$relay": "relay@1.5",
+  "dir": "response",
+  "id": "c-51",
+  "type": "hatches.ok",
+  "payload": {
+    "kind": "hatchSection",
+    "version": 1,
+    "section": "runtime",
+    "findings": [
+      {
+        "predicate": "custom-renderer-registered",
+        "hatch": 2,
+        "state": "open",
+        "account": "1 custom renderer(s) registered: charts/sparkline (root scope, content hash registered)"
+      },
+      {
+        "predicate": "custom-hash-floor-permissive",
+        "hatch": 2,
+        "state": "closed",
+        "account": "the process content-hash floor is 'enforced': a guest whose declared hash disagrees with the registered renderer's is REFUSED rather than rendered. A guest declaring no hash at all still renders — the common legitimate case."
+      },
+      {
+        "predicate": "development-surface-live",
+        "hatch": 12,
+        "state": "closed",
+        "account": "neither half of the introspection surface's opt-in is present on this host, so it registers nothing and the relay it would publish is not installed."
+      }
+    ]
+  }
+}

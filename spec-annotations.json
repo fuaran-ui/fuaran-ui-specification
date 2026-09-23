@@ -18,13 +18,13 @@
       "Tree": "Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5."
     },
     "enums": {
-      "DateStyle": "inside `Format.Date.dateStyle` — OPTIONAL since Phase 1810, so that `timeStyle` can stand alone",
+      "DateStyle": "inside `Format.DateTime.dateStyle` — OPTIONAL since Phase 1810, so that `timeStyle` can stand alone; the case was `Format.Date` until Phase 1811, and `DateStyle` itself did NOT move — it still styles only the date part",
       "FileReadEncoding": "inside `Action.ReadFileBody.encoding`",
       "HashStrictness": "inside `Custom.contentHash.strictness`",
       "Motion": "a closed vocabulary that never reaches the wire — `Node.motion` is host-only, §9",
       "RelativeTimeUnit": "inside `Format.RelativeTime.unit` and the optional `Format.Since.unit`",
       "TimeGrain": "inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on",
-      "TimeStyle": "inside `Format.Date.timeStyle` (Phase 1810) — alone, a time of day; with `dateStyle`, a date-time"
+      "TimeStyle": "inside `Format.DateTime.timeStyle` (Phase 1810) — alone, a time of day; with `dateStyle`, a date-time"
     },
     "omitDefaults": {
       "default=Default": "The tone for a value the `map` does not mention.",

@@ -1343,21 +1343,27 @@ addition still served by one host — so the honest reading of `profile` is "the
 fixtures reach", never "every minor up to this one is covered". §12.3 states the coverage obligation
 in those terms; the list of what is waiting is kept here, because a number cannot carry it.
 
-**Waiting on a second implementation, at `relay@1.4`:** `read.affordances` (§7.6, added at 1.1) is
+**Waiting on a second implementation, at `relay@1.5`:** `read.affordances` (§7.6, added at 1.1) is
 specified and served by one host. `attribution.actorClass` (§8.2.1, added at 1.2) is an optional
 field a host reads for nothing, so a fixture for it would pin a client's behaviour rather than a
-host's; it lands with the second client that emits it. `hatches` (§7.8, added at 1.5) is specified
-and served by one host, and its fixtures land with the second — a request vector, a response from a
-host with a guest renderer registered (one finding `"open"`), a response from a host that handed over
-no registry (that finding `"undecided"`, never `"closed"`), and the capability's own `hello`
-advertisement at `relay@1.5`. They are enumerated here rather than written now because the family's
-`profile` is what would have to move with them, and moving it against one implementation turns every
-other host's gate red over an entry point it never claimed — which is the exact outcome this
-subsection's rule exists to prevent.
+host's; it lands with the second client that emits it.
 
-`treeSource` and `UPSTREAM_UNAVAILABLE` (§6.5, §9.3, added at 1.4) are **not** on that list: two
-hosts serve them, which is why the family's `profile` moved to `relay@1.4` with their fixtures. What
-is still waiting behind them is the PROXIED half — a treeless peer that advertises a tree read and
+`hatches` (§7.8, added at 1.5) has **left** that list: a second host serves it, so its fixtures
+landed and the family's `profile` moved to `relay@1.5` with them, in the same window as that host.
+They are the four vectors the list named while it waited — the request (`hatches-open`,
+`hatches-undecided`), a response from a host with a guest renderer registered (`hatches-open`: that
+finding `"open"`, the other two `"closed"`), a response from a host that handed its producer no
+registry (`hatches-undecided`: that finding `"undecided"`, never `"closed"`), and the capability's
+own `hello` advertisement at `relay@1.5` (`hello-hatches`). A runner pins `predicate`, `hatch` and
+`state` BY VALUE and the findings by position — they are the closed vocabulary §7.8 rule 2 exists to
+keep three-valued — and compares `account` by type, as it compares `message`: it is prose written by
+the host's producer, and two hosts whose facts differ (a floor that is process-wide on one and
+per-renderer on the other, say) owe different sentences about them. The accounts in these fixtures
+are the first host's own, so that host can hold the payload to byte equality.
+
+`treeSource` and `UPSTREAM_UNAVAILABLE` (§6.5, §9.3, added at 1.4) are **not** on the waiting list
+either: two hosts serve them, which is why the family's `profile` moved to `relay@1.4` with their
+fixtures. What is still waiting behind them is the PROXIED half — a treeless peer that advertises a tree read and
 answers it from upstream. That needs a correlated response on the channel carrying the question, and
 until such a channel ships the `"upstream"` fixtures pin a peer advertising `read.renderedDom` only.
 A capability set growing later is exactly what §5.3 and §6.3 are built to absorb.

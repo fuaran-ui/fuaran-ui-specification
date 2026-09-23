@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "profile": "relay@1.4",
+  "profile": "relay@1.5",
   "spec": "../DEVTOOLS_RELAY.md",
   "description": "Fuaran DevTools relay conformance corpus. Self-enumerated: these fixtures are NOT indexed by the corpus root manifest.json, which indexes the canonical wire-format codec families only — the merge-conformance/ precedent. relay-exchange: feed requestFile to the page peer, assert the response type is the request type + \".ok\" and every declared payload field is present with the stated JSON type. relay-refusal: as above, but the response must be type \"refusal\" with payload.class == expectedClass. relay-event: an unsolicited event envelope a client must accept. These are SHAPE fixtures, not byte-parity fixtures — treeRevision tokens, geometry numbers, resolved binding values and message strings are environment-specific and must be compared by shape, not bytes. The profile above is the HIGHEST minor these fixtures reach, not a claim that every minor below it is covered: a minor's fixtures land when a SECOND host serves that minor's addition, and minors do not reach their second host in order (section 12.1 keeps the waiting list). The relay@1.0 fixtures stay at relay@1.0 deliberately — answering them unchanged is the only evidence in this corpus that profile selection kept every minor bump backward-compatible. An entry MAY carry an optional \"peer\" (\"page\" or \"upstream\"; absent means \"page\") naming the PEER SHAPE the fixture addresses — since relay@1.4 the contract describes two, and a page-tree peer can never answer an \"upstream\" fixture at any version. A runner that cannot present the declared shape reports that fixture as out of reach WITH A REASON, never as a pass and never as a failure, and asserts its partition is total so a fixture added upstream cannot go silently unexercised (section 12.2, 12.3). See ../DEVTOOLS_RELAY.md section 12.",
   "fixtures": [
@@ -103,6 +103,27 @@
       "requestFile": "read-node-json-subtree.request.json",
       "responseFile": "read-node-json-subtree.response.json",
       "description": "Whole-subtree fidelity (DEVTOOLS_RELAY 7.7 rule 3): a parent's encoding carries its descendants, with no depth limit and no elided variant. The rule needs its own fixture because an elided encoding is WELL-FORMED wire JSON for a different node, so a runner checking only well-formedness would pass exactly what the rule forbids. A runner should assert that every child the peer itself reports for this node appears inside the encoding it returned; the node kinds and child sets differ legitimately between hosts, so that is the host-agnostic form of the check."
+    },
+    {
+      "id": "hello-hatches",
+      "kind": "relay-exchange",
+      "requestFile": "hello-hatches.request.json",
+      "responseFile": "hello-hatches.response.json",
+      "description": "Detection handshake at relay@1.5: the session profile is relay@1.5 and the hatches capability is advertised at it. A bare token beside apply and subscribe, not a read.* one, because it asks the host about its own posture rather than about the tree (DEVTOOLS_RELAY 4.2, 7.8). The two relay@1.0 handshakes and the relay@1.3 one keep their envelopes and must NOT name it (6.3)."
+    },
+    {
+      "id": "hatches-open",
+      "kind": "relay-exchange",
+      "requestFile": "hatches-open.request.json",
+      "responseFile": "hatches-open.response.json",
+      "description": "The runtime escape-hatch report from a host with one guest renderer registered: the hatchSection document carried unchanged as the payload (7.8 rule 1 - no member added or dropped, no revision token), custom-renderer-registered \"open\" and its account naming what admitted it, the other two findings \"closed\". predicate, hatch and state are pinned BY VALUE and the three findings by position; account is prose and host-specific - a host whose facts differ words it differently - and is compared by type (12.3)."
+    },
+    {
+      "id": "hatches-undecided",
+      "kind": "relay-exchange",
+      "requestFile": "hatches-undecided.request.json",
+      "responseFile": "hatches-undecided.response.json",
+      "description": "The same read from a host that handed its producer NO custom-renderer registry: custom-renderer-registered is \"undecided\", never \"closed\" and never omitted (7.8 rule 2) - a walk that could not see a door says so, because an omitted finding and a closed one are indistinguishable to a reader."
     },
     {
       "id": "apply-accepted",
