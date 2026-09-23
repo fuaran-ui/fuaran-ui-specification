@@ -5569,6 +5569,31 @@ The reference host wires this to the one command a deliberate vocabulary change 
 
 This makes "is this change breaking?" a computed property of the IDL delta, not a reviewer's judgement call – the same posture as the §11 forward-coupling gate, extended across version boundaries.
 
+**The temporal-vocabulary rename (Phase 1811) — the operator ruling on the vehicle, recorded before
+any renamed byte (2026-09-23, operator ruling, driver session).** Phase 1811 renames four `$type`
+discriminators and two type names so the temporal family says what it already does: the form-field
+kinds `Date` → `DateTime` and `DateRange` → `DateTimeRange`, the formatters `Format.Date` →
+`Format.DateTime` and `CellFormat.Date` → `CellFormat.DateTime`, the enum `DateVariant` →
+`DateTimeVariant` (cases unchanged) and the pair record `DateRangePair` → `DateTimeRangePair`;
+`DateStyle` does not move. The removal/rename row above names a **major** as the step, and the phase's
+first task was to rule on the vehicle: **(a)** a profile major (`core@2.0`, a new `/vN/` + `$id`,
+`Foreign` refusal for every old consumer, a generated shim per host) or **(b)** a coordinated
+clean-break revision on the 0.2.0 precedent (§1.1). **Ruled (b).** The ground: no *released*
+consumer reads the old names — the reference host's `0.86.0` slot is an untagged draft, pinned by no
+public-path consumer and already minted BREAKING by Phase 1810, so 1811 rides it (the reference
+host's `docs/DECISIONS.md` D8 carries the full record). Spending the profile's major counter on a
+pre-1.0 rename that no shipped reader has to negotiate would make the counter say something no
+consumer can act on — the optional-field exemption's reasoning, applied one row down. Every host in
+the §11.0 roster moves in ONE change-set, the corpus is regenerated on the new bytes in that
+change-set, and the old `$type`s survive **only as §16 lenient-ingest aliases**, never emitted — a
+departure from the pure 0.2.0 form that §16 records on the same footing as the 0.28.0 column-member
+aliases. **The consequence this vehicle carries, stated per §15.3:** a **behind** reader meets
+`DateTime` / `DateTimeRange` (and `Format` / `CellFormat` `DateTime`) as a discriminator it does not
+recognise, materialises a transport-only `Unknown`, preserves the bytes verbatim and renders the
+placeholder or the author-declared `fallback` — it does not refuse, and it cannot destroy what the
+newer producer authored. That is the price of (b) instead of (a)'s `Foreign` refusal, and it is paid
+knowingly.
+
 ### 15.5 Cross-host coordination
 
 This contract is part of the wire format, so it is a **cross-host change** like any §11 addition: each host implements the same envelope shape (§15.1), the same negotiation table (§15.2), and the same transport-only-`Unknown` + preserve rule (§15.3) – the envelope and tolerance are conformance-corpus-certified, not host-private. The substrate primitives live once in `Fuaran.Core.Wire.Versioning` (the F# reference); a host in another language re-implements them against this section + the corpus, exactly as it does the rest of the codec.
