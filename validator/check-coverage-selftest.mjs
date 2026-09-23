@@ -34,8 +34,23 @@
 //      an arm reduced to "is it in the vocabulary", which would be green on the
 //      fixtures above and red on every real host.
 //
-// Nothing here writes, copies or perturbs anything committed: assertion 4 builds
-// its perturbed declaration in a temporary directory the run removes, and the
+// Phase 1845 adds the same proof for the REFERENCE arm — the one that refuses a
+// `posture: "reference"` declaration omitting a code the vocabulary defines,
+// which is what a raised code missing from a generated declaration looks like
+// from here. No committed fixture is needed: the reference declaration is built
+// from `defect-vocabulary.json` itself, so it cannot go stale against it.
+//
+//   5. the WHOLE-vocabulary reference declaration PASSES — the green twin, so
+//      assertion 6's red is about the omission and not about the fixture;
+//   6. the same declaration with ONE code dropped is REFUSED, naming the code;
+//   7. moving that code into `abstained`, with a reason, is STILL refused. A
+//      subset host may abstain; the reference may not, because its declaration
+//      is generated from the same source as the vocabulary. This is the
+//      assertion that would catch the reference arm reduced to the generic
+//      "implemented or abstained" accounting every host gets.
+//
+// Nothing here writes, copies or perturbs anything committed: assertions 4-7
+// build their declarations in a temporary directory the run removes, and the
 // two fixtures are read-only inputs reached by an explicit host-directory
 // argument. A self-test that mutated the corpus would be a defect of its own (§8
 // again).
@@ -69,7 +84,7 @@ const check = (name, ok, detail) => {
   failures.push(`${name}\n      ${detail}`);
 };
 
-console.log('\nValidator coverage — go-red proof for the citation arm (Phase 1692)\n');
+console.log('\nValidator coverage — go-red proof for the citation arm (Phase 1692) and the reference arm (Phase 1845)\n');
 
 // 1. The stale citation is refused, and the refusal is specific.
 {
@@ -130,10 +145,65 @@ console.log('\nValidator coverage — go-red proof for the citation arm (Phase 1
   }
 }
 
+// 5-7. The reference arm: a generated declaration cannot omit a vocabulary code,
+//      and cannot account for one by abstaining.
+{
+  const vocab = JSON.parse(readFileSync(join(here, 'defect-vocabulary.json'), 'utf8'));
+  const codes = [...new Set(vocab.codes.map((c) => c.code))].sort();
+  const dropped = codes[codes.length - 1];
+  const reference = (implemented, abstained) => ({
+    version: 1,
+    host: 'fuaran-dotnet',
+    family: vocab.family,
+    vocabulary: 'wire-format-fixtures/validator/defect-vocabulary.json',
+    posture: 'reference',
+    postureReason: 'Self-test fixture: a reference declaration built from the vocabulary it is checked against.',
+    implemented,
+    abstentionDefault: 'Not applicable — the reference implements the whole vocabulary by definition.',
+    abstained,
+    otherFamilies: {},
+    machineChecked: true,
+  });
+  const tmp = mkdtempSync(join(tmpdir(), 'fuaran-reference-selftest-'));
+  const runWith = (decl) => {
+    const hostDir = join(tmp, 'fuaran-dotnet');
+    mkdirSync(hostDir, { recursive: true });
+    writeFileSync(join(hostDir, 'validator-coverage.json'), `${JSON.stringify(decl, null, 2)}\n`);
+    return run(CHECKER, hostDir);
+  };
+  try {
+    const whole = runWith(reference(codes, {}));
+    check(
+      'a reference declaration implementing the WHOLE vocabulary passes',
+      whole.exit === 0,
+      `expected exit 0, got ${whole.exit}\n${whole.out}`
+    );
+
+    const omitted = runWith(reference(codes.filter((c) => c !== dropped), {}));
+    check(
+      'the same reference declaration missing ONE code is refused, naming it',
+      omitted.exit === 1 && omitted.out.includes(`omits 1 vocabulary code(s): ${dropped}`),
+      `expected exit 1 naming ${dropped}, got ${omitted.exit}\n${omitted.out}`
+    );
+
+    const abstaining = runWith(
+      reference(codes.filter((c) => c !== dropped), { [dropped]: 'Self-test: a reason the reference may not give.' })
+    );
+    check(
+      'the reference cannot account for that code by ABSTAINING from it',
+      abstaining.exit === 1 && abstaining.out.includes(`omits 1 vocabulary code(s): ${dropped}`),
+      `expected exit 1 naming ${dropped}, got ${abstaining.exit}\n${abstaining.out}`
+    );
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 if (failures.length > 0) {
   console.error(`\n${failures.length} assertion(s) failed:\n`);
   for (const f of failures) console.error(`  - ${f}`);
   process.exit(1);
 }
 
-console.log('\nthe citation arm goes red on a stale citation, green on a corrected one, and reads the declaration\n');
+console.log('\nthe citation arm goes red on a stale citation, green on a corrected one, and reads the declaration;');
+console.log('the reference arm refuses an omitted code, and refuses it again when the omission is dressed as an abstention\n');

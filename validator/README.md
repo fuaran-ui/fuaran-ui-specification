@@ -27,12 +27,31 @@ entirely. What a host may **not** do is diverge silently, which is what the
 declaration and its gate exist to prevent. An abstention with a stated reason is a
 decision; an unlisted code is drift.
 
+**How a declaration stays true — one shape for every host** (Phase 1845). A
+declaration has two halves, and they are kept true in different ways.
+`implemented` is a FACT about the host's code, so it is derived or checked, never
+remembered. The reference emits its whole file from the same reflection that emits
+the vocabulary, and its own suite fails on any byte difference from a fresh
+emission; it has no `abstained` entries to preserve, because the reference arm of
+the gate refuses one. A subset host whose findings carry the code as a value
+recovers the raised set by scanning its validator source, and its own suite fails
+on a code raised but not declared or declared but not raised (the Go and Python
+hosts do this today); where a rule has a marked negative/control fixture pair, the
+declaration is held to what the validator actually does on the pair (the Rust host,
+FUARAN075 first). `abstained` and the prose fields are JUDGEMENTS: each
+abstention's reason is authored by hand, and any regeneration or check carries it
+through untouched rather than synthesising one. So: derive `implemented`, author
+`abstained`, and put the comparison in the host's OWN gate, with a failure message
+naming the one command that repairs it — the corpus gate here then reads the file as
+it stands. A host that cannot yet recover its raised codes, because the code lives
+in message prose, says `machineChecked: false` rather than claim either route.
+
 ## Running the gate
 
 ```
 node validator/check-coverage.mjs           # check
 node validator/check-coverage.mjs --matrix  # check, and print the coverage table
-node validator/check-coverage-selftest.mjs  # the go-red proof for the citation arm
+node validator/check-coverage-selftest.mjs  # the go-red proof for the citation and reference arms
 ```
 
 Node only, no build step, no dependencies, so any host's CI can run it. With no
