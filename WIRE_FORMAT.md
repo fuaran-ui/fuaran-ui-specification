@@ -1242,21 +1242,21 @@ A pending host is **unchanged, not broken**: a tree carrying no list param behav
 
 `Binding.Invoke` / `Action.Invoke` (Phase 283) are the invocable-capability cases – the binding dispatches a host-registered compute capability for a value, the action for an effect: `{"$type":"Invoke","args":[{"addr":<string>,"value":<string>}…],"capabilityId":<string>}`. `capabilityId` references a capability the host registry enumerates (the compute analogue of node-introspection); `args` are scalar `(addr, value)` pairs the host validates against the capability's signature before dispatch (default-deny by shape). **The body is never on the wire** – only the typed declaration + this invocation. A `Binding.Invoke`'s value is async (a `Deferred`) and renders through the existing `StateBehaviour` surface (`onLoading` until ready, `onError` on failure) – no new node concept, no `Deferred` wire DU. A non-deterministic invocation's realized value is journaled through the determinism-capture seam for exact replay.
 
-`FormFieldKind.Date` (Phase 288) is the date/time field case: `{"$type":"Date","onChange"?:"<closure>","value":<Binding>,"variant":"Date"|"Time"|"DateTime","min"?:<string>,"max"?:<string>,"step"?:<number>}` (`onChange` optional per Phase 426). `value` is a `Binding<string>` carrying an ISO-8601 string (`YYYY-MM-DD` / `HH:MM` / `YYYY-MM-DDTHH:MM` per `variant`); `min` / `max` are ISO strings and `step` is in seconds – all three optional, omitted when `None` (rule 4), mirroring `RangedNumber`. See `nodes/form-date.json`.
+`FormFieldKind.DateTime` (Phase 288; **`Date` until Phase 1811**, renamed so the name says what the field already accepts — a date, a time of day, or both) is the date/time field case: `{"$type":"DateTime","onChange"?:"<closure>","value":<Binding>,"variant":"Date"|"Time"|"DateTime","min"?:<string>,"max"?:<string>,"step"?:<number>}` (`onChange` optional per Phase 426). The pre-rename `$type` `Date` and the invented `Time` are §16 decode aliases (the temporal-alias table there); the canonical encoder emits `DateTime` only. `value` is a `Binding<string>` carrying an ISO-8601 string (`YYYY-MM-DD` / `HH:MM` / `YYYY-MM-DDTHH:MM` per `variant`); `min` / `max` are ISO strings and `step` is in seconds – all three optional, omitted when `None` (rule 4), mirroring `RangedNumber`. See `nodes/form-date.json`.
 
 **`Binding.Filter.defaultValue` (0.2.0).** The Filter binding gains an OPTIONAL `defaultValue`: `{"$type":"Filter","defaultValue"?:<typed static>,"name":<string>}`. It is the value the resolver yields – and the renderer seeds the filter store with – **before the filter is first written** (the pre-selected-filter gap: "default to the last 30 days"). The payload is typed via the slot's own static encoding (the same seam as `State.defaultValue`, Phase 429); omitted, behaviour is exactly pre-0.2.0 (`NotResolved` until written). A chip's auto binding (see the filters-unification note above) is `Filter(name)` with **no** default – a chip whose control carries an explicit `value` binding with a `defaultValue` keeps that `value` on the wire (the omission rule keys on the exact auto shape).
 
 **`FormFieldKind.Range` (0.2.0)** is the dual-thumb numeric range control (absorbing the retired `FilterKind.RangeFilter`): `{"$type":"Range","onChange"?:"<closure>","value":<Binding<float*float>>,"min"?:<number>,"max"?:<number>,"step"?:<number>}`. A `Static` pair rides as the **bare** `{"max":<number>,"min":<number>}` object – no `Static` envelope (the Phase 423 range shape, kept as the canonical bytes); a decoder also accepts the `[min,max]` two-element array leniently (the §3.6 bare-array coercion) and the enveloped form. In a filter context the `value` may be omitted per the auto-binding rule. `min`/`max`/`step` bounds are omitted when absent (rule 4).
 
-**`FormFieldKind.DateRange` (0.7.0)** is the single-control date range – `Range`'s pair mechanics with `Date`'s value conventions: `{"$type":"DateRange","onChange"?:"<closure>","value":<Binding<string*string>>,"variant":"Date"|"Time"|"DateTime","min"?:<string>,"max"?:<string>,"step"?:<number>}`. The pair is `(from, to)`, each an ISO-8601 string in the `variant`'s shape (`YYYY-MM-DD` / `HH:MM` / `YYYY-MM-DDTHH:MM`), and it is **ordered**: a *literal* pair whose `from` sorts after its `to` is a decode error (`WRONG_TYPE` at the `value` path, with a message naming the rule – see `reject/reject-daterange-unordered.json`). Same-variant ISO-8601 strings compare lexicographically in chronological order, so the check is an ordinal string compare – no date parsing, no locale, total for every variant. A bound pair is not checked; its ordering is a runtime concern.
+**`FormFieldKind.DateTimeRange` (0.7.0; `DateRange` until Phase 1811)** is the single-control date-time range – `Range`'s pair mechanics with `DateTime`'s value conventions: `{"$type":"DateTimeRange","onChange"?:"<closure>","value":<Binding<string*string>>,"variant":"Date"|"Time"|"DateTime","min"?:<string>,"max"?:<string>,"step"?:<number>}`. The pair is `(from, to)`, each an ISO-8601 string in the `variant`'s shape (`YYYY-MM-DD` / `HH:MM` / `YYYY-MM-DDTHH:MM`), and it is **ordered**: a *literal* pair whose `from` sorts after its `to` is a decode error (`WRONG_TYPE` at the `value` path, with a message naming the rule – see `reject/reject-daterange-unordered.json`). Same-variant ISO-8601 strings compare lexicographically in chronological order, so the check is an ordinal string compare – no date parsing, no locale, total for every variant. A bound pair is not checked; its ordering is a runtime concern.
 
 A `Static` pair rides as the **bare** `{"from":<iso>,"to":<iso>}` object – no `Static` envelope, exactly the `Range` posture above; a decoder also accepts the `[from,to]` two-element array leniently (the §3.6 bare-array coercion, `lenient/lenient-daterange-bare-array.json`) and the enveloped form (`lenient/lenient-daterange-static-envelope.json`). `variant` is always emitted; `min` / `max` (ISO strings) and `step` (seconds) bound **both** ends and are omitted when absent (rule 4), mirroring `RangedNumber`. In a filter context the `value` may be omitted per the auto-binding rule, and the pair then binds **one** filter param, not two – the reason the case exists rather than two coordinated `Date` fields. See `nodes/form-date-range.json` (all three variants + bound combinations) and `nodes/filters-date-range.json` (the auto-bound chip).
 
 **`FormField.rule` (Phase 864)** is a field's declared constraint — the **accepted set**, where `FormFieldKind` names the **control**. It is an OPTIONAL field on the `FormField` spec record, not a case in any discriminator family, so a form authored before it encodes byte-identically and a host that has never met it decodes the rest of the field unchanged: `{"id":…,"kind":…,"label":…,"required":…,"help"?:…,"rule"?:<FieldRule>}`. `FieldRule` is `{"compare"?:<CompareRule>,"format"?:"email"|"url"|"tel","maxLength"?:<int>,"message"?:<TextSource>,"minLength"?:<int>,"pattern"?:<string>}`, every slot optional; `CompareRule` is `{"against":<Binding>,"op":"eq"|"neq"|"lt"|"lte"|"gt"|"gte"}`, both required. `pattern` carries ECMA-262 source with HTML `pattern` semantics — implicitly anchored to the whole value — so the browser, a static projection and a native surface agree without a second definition.
 
-**The rule slot carries NO numeric or temporal bound, deliberately.** `RangedNumber` already carries `min`/`max` and `Date`/`DateRange` already carry theirs; a rule never duplicates a bound its control already holds, because two sources for one bound are free to disagree. `compare` does not duplicate them either, and the reason is exactly that its operand is a **`Binding`** where theirs is a literal — which is the whole cross-field mechanism rather than an accident of typing. Any read slot may take a `Binding`, and a form field with no `value` already auto-binds `State(<its own id>)`, so `{"$type":"State","key":"<sibling field id>"}` reads a sibling with no addressing vocabulary of its own. Six operators, one operand, and deliberately nothing else: no boolean combinators, no arithmetic, no nesting, no expression language. Ordering is borrowed wholesale from `DateRange` above — same-variant ISO-8601 strings compare lexicographically in chronological order, so a date comparison is an ordinal string compare with no parsing and no locale; numbers compare numerically. **A comparison between values of different shapes is UNMET, not an error**: a half-filled form is a normal state.
+**The rule slot carries NO numeric or temporal bound, deliberately.** `RangedNumber` already carries `min`/`max` and `DateTime`/`DateTimeRange` already carry theirs; a rule never duplicates a bound its control already holds, because two sources for one bound are free to disagree. `compare` does not duplicate them either, and the reason is exactly that its operand is a **`Binding`** where theirs is a literal — which is the whole cross-field mechanism rather than an accident of typing. Any read slot may take a `Binding`, and a form field with no `value` already auto-binds `State(<its own id>)`, so `{"$type":"State","key":"<sibling field id>"}` reads a sibling with no addressing vocabulary of its own. Six operators, one operand, and deliberately nothing else: no boolean combinators, no arithmetic, no nesting, no expression language. Ordering is borrowed wholesale from `DateRange` above — same-variant ISO-8601 strings compare lexicographically in chronological order, so a date comparison is an ordinal string compare with no parsing and no locale; numbers compare numerically. **A comparison between values of different shapes is UNMET, not an error**: a half-filled form is a normal state.
 
-Three shapes are **decode errors**, each a relation between slots rather than a shape, which is why none is expressible in the structural schema. A `rule` present with every constraint slot absent is `WRONG_TYPE` at the `…rule` path — a rule that constrains nothing is a defect and not a no-op, and `message` alone does not rescue it, since a message is the prose shown when some *other* slot is unmet (`reject/reject-fieldrule-empty.json`). A `minLength` above its `maxLength` is `WRONG_TYPE` at the same path — the `DateRange` ordered-pair rule applied to a length pair, where an inverted bound admits no value at all (`reject/reject-fieldrule-length-unordered.json`). And `validation` / `constraints` / `validate` on a `FormField` are refused **by name** at `…<key>`, pointing at `rule` — the enumerated near-miss narrowing of rule 2, which is right for a field a future profile may add and wrong for a near miss of one that exists, because the tree would otherwise decode and render while the constraint did nothing (`reject/reject-formfield-near-miss-validation.json`). See `nodes/form-field-rules.json` for the round trip.
+Three shapes are **decode errors**, each a relation between slots rather than a shape, which is why none is expressible in the structural schema. A `rule` present with every constraint slot absent is `WRONG_TYPE` at the `…rule` path — a rule that constrains nothing is a defect and not a no-op, and `message` alone does not rescue it, since a message is the prose shown when some *other* slot is unmet (`reject/reject-fieldrule-empty.json`). A `minLength` above its `maxLength` is `WRONG_TYPE` at the same path — the `DateTimeRange` ordered-pair rule applied to a length pair, where an inverted bound admits no value at all (`reject/reject-fieldrule-length-unordered.json`). And `validation` / `constraints` / `validate` on a `FormField` are refused **by name** at `…<key>`, pointing at `rule` — the enumerated near-miss narrowing of rule 2, which is right for a field a future profile may add and wrong for a near miss of one that exists, because the tree would otherwise decode and render while the constraint did nothing (`reject/reject-formfield-near-miss-validation.json`). See `nodes/form-field-rules.json` for the round trip.
 
 **What a declared rule OBLIGES (normative, and split by host class).** Stated as a semantic invariant rather than DOM or byte parity, on the §22 pattern and for the §22.2 reason: two hosts marking an invalid field differently is not a conformance failure, and two hosts disagreeing about whether the form *submits* is.
 
@@ -1276,7 +1276,7 @@ Three shapes are **decode errors**, each a relation between slots rather than a 
 
 The vocabulary of record is `validator/defect-vocabulary.json`; this section names the three because a reader arriving at `rule` from the form side would otherwise meet only the decode errors and conclude the slot is fully specified by them.
 
-`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `Date` (OPTIONAL `dateStyle` bare-enum + OPTIONAL `timeStyle` bare-enum — Phase 1810: `dateStyle` alone is a date, `timeStyle` alone a time of day, both a date-time, each at its own breadth; alphabetical field order; NEITHER present decodes structurally and is refused by the validator as `FUARAN155`, never by the codec), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
+`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `DateTime` (`Date` until Phase 1811 — an honest name once 1810 made it render a time; OPTIONAL `dateStyle` bare-enum + OPTIONAL `timeStyle` bare-enum — Phase 1810: `dateStyle` alone is a date, `timeStyle` alone a time of day, both a date-time, each at its own breadth; alphabetical field order; NEITHER present decodes structurally and is refused by the validator as `FUARAN155`, never by the codec), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
 
 #### 3.3.1 The host instant — `Binding.Now`, its grain, and `Format.Since`
 
@@ -1336,7 +1336,7 @@ and unreadable is a refusal, never a fallback to the default.
 
 **`Format.Since` reads its source as an INSTANT.** `Format.RelativeTime`'s numeric source is a signed
 COUNT of its unit, already computed by whoever produced it. `Since`'s source is an instant in whole
-Unix-epoch seconds — `Format.Date`'s convention — and the count is the delta the host takes against
+Unix-epoch seconds — `Format.DateTime`'s convention — and the count is the delta the host takes against
 its own furnished instant, so a timestamp column reads "3 hours ago" with no `Transform` and no
 arithmetic on the wire. The two are separate cases on purpose: widening `RelativeTime` to mean either
 would silently re-interpret every document that already uses it.
@@ -1497,7 +1497,7 @@ parse back from what the reader typed, and a buffer that writes `1,234.5` where 
   negative that rounds to zero renders as zero.
 
 Every other case is a **decode refusal** (`WRONG_TYPE` at the `codec` path), and each for a stated
-reason rather than by omission. `Currency` prepends a locale-chosen symbol. `Date`'s four
+reason rather than by omission. `Currency` prepends a locale-chosen symbol. `DateTime`'s four
 `DateStyle` cases are all locale renditions with no parse, and its four `TimeStyle` cases (Phase
 1810) are the same at the time-of-day half. `RelativeTime`, `Since` and `Duration`
 render a phrase, not a number. `Percent` is refused for a narrower reason worth recording, since it
@@ -1671,8 +1671,8 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `ChartLegendPosition`: `"Top"` / `"Right"` / `"Bottom"` / `"None"`
 - `ChartXScale`: `"Category"` / `"Temporal"`
 - `CompareOp`: `"eq"` / `"neq"` / `"lt"` / `"lte"` / `"gt"` / `"gte"`
-- `DateStyle` (inside `Format.Date.dateStyle` — OPTIONAL since Phase 1810, so that `timeStyle` can stand alone): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
-- `DateVariant`: `"Date"` / `"Time"` / `"DateTime"`
+- `DateStyle` (inside `Format.DateTime.dateStyle` — OPTIONAL since Phase 1810, so that `timeStyle` can stand alone; the case was `Format.Date` until Phase 1811, and `DateStyle` itself did NOT move — it still styles only the date part): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
+- `DateTimeVariant`: `"Date"` / `"Time"` / `"DateTime"`
 - `DeterminismSource`: `"Deterministic"` / `"Clock"` / `"Random"` / `"Network"`
 - `DurationStyle`: `"Compact"` / `"Clock"` / `"Long"`
 - `DurationUnit`: `"Seconds"` / `"Minutes"` / `"Hours"`
@@ -1704,7 +1704,7 @@ Each is a **closed** vocabulary: the list below is exhaustive, and an unrecognis
 - `TextDirection`: `"auto"` / `"ltr"` / `"rtl"`
 - `TextFormat`: `"email"` / `"url"` / `"tel"`
 - `TimeGrain` (inside `Binding.Now.grain`, §3.3.1 — a strict SUBSET of `RelativeTimeUnit`, because a calendar instant has no truncation to a week, a month or a year that every host agrees on): `"Second"` / `"Minute"` / `"Hour"` / `"Day"`
-- `TimeStyle` (inside `Format.Date.timeStyle` (Phase 1810) — alone, a time of day; with `dateStyle`, a date-time): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
+- `TimeStyle` (inside `Format.DateTime.timeStyle` (Phase 1810) — alone, a time of day; with `dateStyle`, a date-time): `"Short"` / `"Medium"` / `"Long"` / `"Full"`
 - `ToneVariant`: `"Default"` / `"Subdued"` / `"Brand"` / `"Success"` / `"Warning"` / `"Critical"` / `"Info"`
 - `TrackKind`: `"Subtitles"` / `"Captions"` / `"Descriptions"` / `"Chapters"`
 - `TrendPolarity`: `"HigherIsBetter"` / `"LowerIsBetter"`
@@ -1783,20 +1783,21 @@ read-compat):
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
 <!-- /fuaran:spec-omit-defaults -->
 
-**`CellFormat.Date` ruling (Phase 1810 — the open question carried from requirement
-`adaptive-card-borrowings`'s elicitation).** When `Binding.Format`'s `Date` gained the
+**`CellFormat.DateTime` ruling (Phase 1810 — the open question carried from requirement
+`adaptive-card-borrowings`'s elicitation; the case was `CellFormat.Date` until Phase 1811, and the
+ruling is unchanged by the rename).** When `Binding.Format`'s `Date` (now `DateTime`) gained the
 `dateStyle` / `timeStyle` pair, the question was whether the grid cell's `CellFormat.Date` should take
 the same pair or keep its `format`. **It keeps `format`, a pattern string, and gains no `timeStyle`.**
 The two cases already differ in kind — the binding's case names a locale-database RENDITION by
 breadth, the cell's names a host-formatter PATTERN (`"yyyy-MM-dd"`, `"HH:mm"`, `"dd MMM yyyy HH:mm"`)
 — and a pattern string already expresses a time of day, so a style pair beside it would be two ways
 to say one thing on one case, which is the confusion the charter's variant-vs-kind rule refuses. A
-time in a grid cell is `{"$type":"Date","format":"HH:mm"}`; a date-time is a pattern carrying both.
+time in a grid cell is `{"$type":"DateTime","format":"HH:mm"}`; a date-time is a pattern carrying both.
 The distinction the two vocabularies were built on (`code` vs `isoCode`, `format` vs `dateStyle`)
 therefore stands, and this paragraph is where a later reader finds that it was decided rather than
 overlooked.
 
-`CellFormat`'s own per-case payloads (`Currency.code`, `Date.format`, `SignificantDigits.digits`)
+`CellFormat`'s own per-case payloads (`Currency.code`, `DateTime.format`, `SignificantDigits.digits`)
 stay **required** – only the parent *field* is omittable, never a DU payload. Note the table carries
 `emphasis` **twice**, at two different types: the `Emphasis` style DU (`MetricSpec`, `SemanticStyle`)
 and a behavioural **bool** on `FactSpec` / `LabelValueRowSpec`. Both are omitted-when-default; they are
@@ -1911,6 +1912,39 @@ shape of a `Transform` pipeline is owned and conformance-certified there (§5), 
 what that codec decided rather than extending §16. Each alias is kept until a major version says
 otherwise, is accepted on decode, and is **never emitted** — a pre-0.28.0 document decodes to the same
 tree and normalises to the spelled-out name the first time it is re-encoded.
+
+**The temporal `$type` aliases (Phase 1811).** The temporal family was renamed so the names say what
+the controls already do — see §15.4's ruling record and the reference host's `docs/DECISIONS.md` D8 —
+and six `$type` spellings decode to the new names under the lenient profile. A host MUST accept each;
+the canonical encoder emits only the right-hand column:
+
+| Position | Alias in (decode-only) | Canonical | Ground |
+|---|---|---|---|
+| a form field's `kind.$type` | `Date` | `DateTime` | pre-rename spelling, kept by the D8 ruling |
+| a form field's `kind.$type` | `DateRange` | `DateTimeRange` | pre-rename spelling, kept by the D8 ruling |
+| a form field's `kind.$type` | `Time` | `DateTime`, `variant` **supplied** as `Time` when absent | §16's own — the spelling a model reaches for when it wants a time input |
+| a form field's `kind.$type` | `TimeRange` | `DateTimeRange`, `variant` **supplied** as `Time` when absent | §16's own — as `Time` |
+| a `Binding.Format`'s `format.$type` | `Date` | `DateTime` | pre-rename spelling, kept by the D8 ruling |
+| a `CellFormat` position's `$type` | `Date` | `DateTime` | pre-rename spelling, kept by the D8 ruling |
+
+Three rules, each pinned by the corpus (`lenient/lenient-1811-*`, `reject/reject-1811-*`):
+
+- **The two grounds are different, and the classification table records which is which.** `Time` and
+  `TimeRange` are admitted on §16's own ground — closing that discoverability gap (`Date{variant:"Time"}`
+  was a spelling nobody finds by looking for it) is what the rename is for. The four pre-rename
+  spellings are NOT admitted on that ground: §16 rules out backward compatibility, and they are kept
+  by the operator's ruling on the versioning vehicle, on the same footing as the 0.28.0 column-member
+  aliases above — accepted on decode, never emitted, never taught.
+- **The time aliases fix the variant, and a disagreeing member beside them is REFUSED, never
+  resolved.** `{"$type":"Time"}` with no `variant` decodes as `DateTime{variant:"Time"}`; with
+  `"variant":"Time"` beside it the member is redundant and accepted; with any other `variant` the
+  document is refused (`WRONG_TYPE` at the `variant` path — `reject/reject-1811-time-alias-variant-disagrees`),
+  because the two members disagree about which control this is and no reading says which the author
+  meant. Under `DateTime`, `Date`, `DateTimeRange` and `DateRange`, `variant` stays **required** exactly
+  as before — the legacy aliases change the tag and nothing else.
+- **`CellKind`'s `Date` (a data-cell kind) and `ChartAnnotationX`'s `Date` (an ISO address) are
+  different families and do NOT move**; neither takes an alias. A host that renames every `"Date"`
+  string it can find has read the rule as being about the string rather than about the case.
 
 The **enum-value** aliases above apply inside a `TonedPill`'s `map` values and its `default` exactly
 as they do at a `tone` field (`Danger`→`Critical`, `Positive`→`Success`, `Neutral`→`Default`) – the map
@@ -4092,7 +4126,7 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 | `MapSpec.source` | `MapMarker seq` | array of `{"label":<TextSource>,"latitude":<number>,"longitude":<number>}` | `[]` |
 | `GridSpec.source` / `ChartSpec.source` – the grid / chart / table **row feed** (Phase 665) | `Row seq`, where `Row` is an **open** `string`→scalar map (not a fixed record) | array of row objects – see *Row payloads* below | `[]` |
 | `FormFieldKind.Range.value` | `float * float` | bare `{"max":<number>,"min":<number>}` – no `Static` envelope (Phase 423 shape, kept at 0.2.0) | – (both bounds always present) |
-| `FormFieldKind.DateRange.value` | `string * string` | bare `{"from":<iso>,"to":<iso>}` – no `Static` envelope (the `Range` posture, 0.7.0); ordered, `from <= to` by ordinal compare | – (both ends always present) |
+| `FormFieldKind.DateTimeRange.value` | `string * string` | bare `{"from":<iso>,"to":<iso>}` – no `Static` envelope (the `Range` posture, 0.7.0); ordered, `from <= to` by ordinal compare | – (both ends always present) |
 
 The typed encoding applies at the binding's `State.defaultValue` position too, and recursively through `Local.initialFrom` – the whole `Binding` in a typed slot is typed, not just the `Static` case. **This is not a footnote for the row feed**: the canonical editable-grid authoring shape is a `State`-sourced rows array (`nodes/grid-editable-state.json`), so a host that routes only `Static.value` through its slot-typed parser leaves the *principal* case un-normalised. Route every value-carrying `Binding` arm.
 
@@ -4328,8 +4362,8 @@ longer exist; `NodeKind` is flat, and its 43 rows are below._
 | `FormFieldKind.RangedNumber` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.SegmentedChoice` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Combobox` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `allowFreeText` and the option source are DATA and survive intact; the erasure here is the handler alone |
-| `FormFieldKind.Date` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
-| `FormFieldKind.DateRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.DateTime` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
+| `FormFieldKind.DateTimeRange` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Rating` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot. `max` and `allowHalf` are DATA and survive intact; the erasure here is the handler alone |
 | `FormFieldKind.Color` | partial | omit the handler – the renderer's write-back default writes the change to the control's writable Binding.State / Binding.Filter value slot |
 | `FormFieldKind.Tokens` | partial | omit the handler – the renderer's write-back default rewrites the WHOLE token list into the control's writable Binding.State / Binding.Filter value slot on every add and remove, which is what preserves the reader's own chip order on a decoded tree. `allowFreeText` and the suggestion source are DATA and survive intact; the erasure here is the handler alone |
@@ -4361,7 +4395,7 @@ longer exist; `NodeKind` is flat, and its 43 rows are below._
 | `CellFormat.Currency` | survivable | – |
 | `CellFormat.Percent` | survivable | – |
 | `CellFormat.SignificantDigits` | survivable | – |
-| `CellFormat.Date` | survivable | – |
+| `CellFormat.DateTime` | survivable | – |
 | `CellFormat.Duration` | survivable | – |
 | `CellFormat.RelativeTime` | survivable | – |
 | `CellFormat.Custom` | host-only | – |
@@ -4499,7 +4533,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->167<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
 
 ---
 
@@ -5030,7 +5064,7 @@ from the encoded fixtures of the family's own carrier — the node fixtures for 
 node, the op fixtures for `ops` — and never hand-authored. Each codec host pins its own declared
 vocabulary against it in **both** directions — *the manifest names a case this host lacks* and *this
 host declares a case the corpus does not know*. Both failures name the offending case, so the report is
-"host X lacks `DateRange`", not a diff.
+"host X lacks `DateTimeRange`", not a diff.
 
 | Manifest array | Family | Wire position(s) | Attested in |
 |---|---|---|---|
@@ -5133,11 +5167,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->586<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->593<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->237<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->166<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->73<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->167<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
