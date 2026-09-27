@@ -4,7 +4,7 @@
   "annotations": {
     "kinds": {
       "Box": "`layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See \"The `Box` container\" below.",
-      "CodeBlock": "The parity-checked render is a deterministic `<pre><code>`; syntax highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff.",
+      "CodeBlock": "The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff.",
       "Custom": "The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary.",
       "DataGrid": "The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`.",
       "Image": "`src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory.",
