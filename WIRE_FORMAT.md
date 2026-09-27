@@ -1122,7 +1122,9 @@ position, a row height or a viewport size.
   past the end, exactly as a client-paged grid does from its own row count.
 
 **Who slices — the page rule, extended by one key.** The source shape decides, with no second
-declaration:
+declaration. A `dependsOn` entry naming the grid's OWN `pageStateKey` or `windowStateKey` is that
+re-run edge rather than a filter reference, so the dangling-filter rule (FUARAN075) does not fire on
+it — an entry naming any other undeclared name still does:
 
 | The grid's `source`… | The host returns | The grid slices | The window's range, and its total |
 |---|---|---|---|
@@ -5271,8 +5273,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->593<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->237<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->595<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->239<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->167<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
