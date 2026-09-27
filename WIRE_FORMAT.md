@@ -566,7 +566,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
-| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
+| `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
 | `ErrorBoundary` | _Meta_ | `child`, `fallback` |  |
@@ -1064,8 +1064,9 @@ column sets.
   query re-runs on a page change and returns the page, and the grid MUST NOT slice again. For every
   other source shape the grid resolves the whole set and slices it client-side.
 
-  A host-paged grid cannot know the row total, so it cannot state a page count; its pager gives
-  previous/next only. A declared total is not part of this version.
+  A host-paged grid cannot know the row total from the page it holds, so it states a page count
+  only when the document DECLARES the total through `rowTotal` (Phase 1892, below); without one its
+  pager gives previous/next only.
 
 - **A page past the end clamps to the last page**, rather than rendering empty. The row count can
   shrink under a filter while the position stays where the user left it; an empty grid there reads as
@@ -1085,6 +1086,109 @@ column sets.
 
 `nodes/grid-paged.json` is the canonical corner; `nodes/grid-paged-sorted.json` pins paging and
 sorting composed on one grid, which is where the one-rule claim is cashed in.
+
+##### Row window and declared total — `windowStateKey` / `rowTotal` (Phase 1892)
+
+A virtualised grid presents a **window** of its rows — the slice the viewport can show — rather than
+every row, so scrolling a 100,000-row grid costs one window and not the table. It is the fourth
+instance of the state-key rule above: the grid names a State key, the renderer writes the window
+into it as the viewport moves, and the grid reads it back. A document never carries a scroll
+position, a row height or a viewport size.
+
+- **`windowStateKey`** (`string`) — the State key carrying
+  `{"offset": <int ≥ 0>, "count": <int ≥ 1>}`: the 0-based index of the first row of the window and
+  how many rows it holds. An object rather than a pair of keys for the page descriptor's reason — a
+  later member is an additive field rather than a re-typing.
+
+  A decoder MUST NOT trust the value it finds there. A descriptor is **usable** only when it is an
+  object whose `offset` is an integer ≥ 0 and whose `count` is an integer ≥ 1 (a number with no
+  fractional part — `2.0` is `2`); any other value — absent, not an object, a member missing, of the
+  wrong type, negative or fractional — is **no window**, and the grid presents every row it would
+  have presented without the field. That is the honest default: a static host that never writes the
+  key renders exactly what it rendered before 1892, and no malformed value can hide a row.
+
+- **`rowTotal`** (`Binding` resolving to an integer ≥ 0) — the **declared** size of the whole result
+  set, for a grid whose host slices it. It is the answer to "a host-paged grid has no total": a host
+  that returns one page, or one window, knows how many rows its query matched, and this is where it
+  says so — typically a `Query` it populates beside the rows
+  (`{"$type":"Query","name":"orders.total"}`), or a `State` key it writes. A value that does not
+  resolve to an integer ≥ 0 is **no declared total**: the total is unknown, never guessed.
+
+  A grid that holds its whole set neither needs nor reads one: its total is the number of rows it
+  resolved, which is exact, and a declared figure that disagreed with it could only be wrong. So
+  `rowTotal` is read when, and only when, the host slices — the grid's `source` is a `Query` whose
+  `dependsOn` names the `windowStateKey` or the `pageStateKey`. For a host-paged grid a declared total
+  is what lets the pager state a page count (`⌈rowTotal / pageSize⌉`, at least 1) and clamp a page
+  past the end, exactly as a client-paged grid does from its own row count.
+
+**Who slices — the page rule, extended by one key.** The source shape decides, with no second
+declaration:
+
+| The grid's `source`… | The host returns | The grid slices | The window's range, and its total |
+|---|---|---|---|
+| is a `Query` whose `dependsOn` names the `windowStateKey` | the window itself | nothing — neither a page nor a window | the whole result set; total = `rowTotal`, else unknown |
+| is a `Query` whose `dependsOn` names the `pageStateKey` (and not the window key) | the page | the window, within the page | the page it returned; total = that page's row count |
+| is anything else | the whole set | the page (if paged), then the window | the rows it presents; total = their count |
+
+The order a client-sliced grid applies is fixed: **sort** (the effective order of `sortStateKey` /
+`defaultSort` above, over the resolved rows — any filter has already run in the binding, as a
+`Transform`'s `filter` step or a `Query`'s host predicate), then **page**, then **window**. The window
+therefore indexes the SORTED, FILTERED set the reader sees, never the source's authored positions: a
+window at offset 20 is "the 21st row in the order shown", whatever row that is.
+
+A host that windows a `Query` MUST apply the same order before it slices, so a window it returns is
+the window the grid would have cut from the whole set. A host whose query evaluates a Core `Transform`
+pipeline meets this by appending `limit` (`n` = the window's `count`, `offset` = its `offset`) after
+the pipeline's `filter` and `sort` steps: filter and sort produce a selection over the shared columns
+and `limit` takes the visible slice of that selection, so only the window's rows are materialised.
+
+**The window a client-sliced grid presents** — over a range of `n` rows, with a usable descriptor
+`(offset, count)`:
+
+- the offset **clamps** to `min(offset, max(0, n − count))`, and the rows presented are the range's
+  rows from the clamped offset, at most `count` of them;
+- a window **past the total** — an offset at or beyond `n`, which a filter that shrinks the set under
+  a scrolled viewport produces — therefore presents the **last full window** rather than an empty
+  grid, exactly as a page past the end clamps to the last page. A window that overlaps the end
+  presents the last full window too: the range's final `count` rows. An empty range presents nothing,
+  at offset 0;
+- a host-windowed grid performs no clamp — the rows are the host's — and reports the descriptor's
+  offset as the window's position.
+
+**What the renderer does with it.** A conformant interactive host writes the descriptor as the
+viewport moves — on mount, and whenever the first visible row or the number of visible rows changes —
+and SHOULD keep the scroll extent of the whole range (the rows before and after the window stand in as
+space) so the scrollbar describes the set rather than the window. Where a window is in effect the
+grid's table SHOULD carry `aria-rowcount` (the total plus the header row, or `-1` where the total is
+unknown) and each presented row its `aria-rowindex` (its 0-based index in the range plus 2, the header
+being row 1), which is how assistive technology learns that the rows it can reach are a slice. A
+static host performs the slice the seeded State determines and writes nothing.
+
+**Composition.** `windowStateKey` composes with `pageStateKey` / `pageSize` (the window ranges over
+the page), with `sortStateKey` / `defaultSort` (it ranges over the sorted rows), and with
+`editStateKey`, where the window's offset is added to a presented row's index exactly as the page
+offset is, so an edit commits to the row the reader saw. A grid declaring neither field is
+byte-identical to the pre-1892 form (rule 4), and a grid declaring `windowStateKey` with no usable
+descriptor in State presents what it presented before.
+
+`nodes/grid-windowed.json` is the canonical corner — a host-windowed `Query` with its declared total —
+and `nodes/grid-windowed-sorted.json` the client-sliced one under a sort. The behaviour, which rows a
+window presents, is pinned by the self-enumerated [`grid-window/`](./grid-window/) vector family
+(start, middle, end, past the total, under a sort over a filtered set, a malformed descriptor, within a
+page, and both host-sliced shapes), which every host with a grid renderer runs through its own window
+function.
+
+**Host adoption (the `grid-window/` family).** Recorded on the §11.0 convention:
+
+| Host | Adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — codec, the window function (`BindingResolver.presentWindow`), the declared-total page count, and the client renderer's slice and ARIA annotations. Its client renderer does not yet write the descriptor as the viewport moves, so that interactive obligation is not claimed; its server renderer emits a grid as a hydration placeholder and holds no rows to window |
+| `fuaran-ts` | **adopted** — codec, the window function, and the client renderer's viewport-driven window requests |
+| `fuaran-py` | **adopted** — codec and the window function; its rendering tier is the static floor, which slices by the seeded State |
+| `fuaran-go` | codec only — the window function is pending |
+| `fuaran-rs` | codec only — the window function is pending |
+
+A pending host is not exempt: it owes the behaviour and has simply not made its answer visible.
 
 ##### Editing — `editStateKey` / per-column `editable` (Phase 863)
 
