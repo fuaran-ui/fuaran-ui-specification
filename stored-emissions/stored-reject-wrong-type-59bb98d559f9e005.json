@@ -1,0 +1,5 @@
+{
+  "kind": "Markdown",
+  "id": "changelog-v3-2",
+  "body": { "binding": "Static", "value": "# v3.2 — 2026-05-28\n\nThis release ships team mentions and Slack notifications.\n\n- @mention support in comments\n- Slack integration for daily digests\n- Bug fix: filter chips no longer drop on tab switch" }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "stage-crew-control-panel",
+  "kind": {
+    "$type": "Box",
+    "children": [
+      {
+        "id": "equipment-status-grid",
+        "kind": {
+          "$type": "DataGrid",
+          "columns": [
+            {
+              "field": "equipment",
+              "kind": {
+                "$type": "Text"
+              },
+              "label": "Equipment"
+            },
+            {
+              "field": "severity",
+              "kind": {
+                "$type": "TonedPill",
+                "field": "severity",
+                "map": {
+                  "Operational": "Success",
+                  "Maintenance Required": "Warning",
+                  "Out of Service": "Critical",
+                  "Check Required": "Turquoise"
+                }
+              },
+              "label": "Severity"
+            }
+          ],
+          "rowKeyField": "equipment",
+          "source": {
+            "$type": "Transform",
+            "pipeline": [],
+            "source": {
+              "columns": {
+                "equipment": [
+                  "Lighting Rig 1",
+                  "Soundboard",
+                  "Projector",
+                  "Stage Elevator"
+                ],
+                "severity": [
+                  "Operational",
+                  "Check Required",
+                  "Out of Service",
+                  "Maintenance Required"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "layout": {
+      "$type": "Auto"
+    },
+    "role": "Dashboard"
+  }
+}

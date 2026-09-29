@@ -1,0 +1,30 @@
+{
+  "id": "revenue-with-freeze",
+  "kind": {
+    "$type": "Chart",
+    "kind": "Bar",
+    "source": {
+      "$type": "Static",
+      "value": [
+        { "quarter": "Q1", "revenue": 120 },
+        { "quarter": "Q2", "revenue": 150 },
+        { "quarter": "Q3", "revenue": 90 },
+        { "quarter": "Q4", "revenue": 175 }
+      ]
+    },
+    "stacked": false,
+    "xField": "quarter",
+    "yFields": ["revenue"],
+    "title": "Revenue by quarter",
+    "xScale": "Category",
+    "annotations": [
+      {
+        "$type": "Band",
+        "axis": "X",
+        "from": "Q2",
+        "to": "Q3",
+        "label": "Hiring freeze"
+      }
+    ]
+  }
+}

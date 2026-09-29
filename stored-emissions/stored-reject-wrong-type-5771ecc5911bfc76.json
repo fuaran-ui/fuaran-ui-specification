@@ -1,0 +1,46 @@
+{
+  "kind": "Stack",
+  "id": "activity-timeline",
+  "direction": "Vertical",
+  "children": [
+    {
+      "kind": "Heading",
+      "id": "date-2026-05-28",
+      "text": "2026-05-28",
+      "level": 3,
+      "variant": "Eyebrow"
+    },
+    {
+      "kind": "Markdown",
+      "id": "event-pr142",
+      "body": { "binding": "Static", "value": "**09:42** — **Alice** merged PR #142 \"Add OAuth flow\"" }
+    },
+    {
+      "kind": "Markdown",
+      "id": "event-issue87",
+      "body": { "binding": "Static", "value": "**09:15** — **Bob** commented on issue #87" }
+    },
+    {
+      "kind": "Markdown",
+      "id": "event-pr143",
+      "body": { "binding": "Static", "value": "**08:50** — **Carol** opened PR #143 \"Fix race condition\"" }
+    },
+    {
+      "kind": "Heading",
+      "id": "date-2026-05-27",
+      "text": "2026-05-27",
+      "level": 3,
+      "variant": "Eyebrow"
+    },
+    {
+      "kind": "Markdown",
+      "id": "event-deploy",
+      "body": { "binding": "Static", "value": "**17:22** — **Dave** deployed v2.4.1 to production" }
+    },
+    {
+      "kind": "Markdown",
+      "id": "event-issue84",
+      "body": { "binding": "Static", "value": "**16:08** — **Eve** closed issue #84 as resolved" }
+    }
+  ]
+}

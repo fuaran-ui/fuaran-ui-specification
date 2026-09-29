@@ -1,0 +1,23 @@
+InsertChild appends, so to place the caption after the video I insert under "media-root" then reorder to fix position 1.
+
+{
+  "$type": "Batch",
+  "ops": [
+    {
+      "$type": "InsertChild",
+      "parentId": "media-root",
+      "child": {
+        "id": "clip-caption",
+        "kind": {
+          "$type": "Markdown",
+          "text": { "$type": "Literal", "text": "Recorded in the boatyard, March 1912." }
+        }
+      }
+    },
+    {
+      "$type": "ReorderChildren",
+      "parentId": "media-root",
+      "newOrder": ["clip-walkthrough", "clip-caption", "clip-commentary"]
+    }
+  ]
+}

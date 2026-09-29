@@ -1,0 +1,92 @@
+{
+  "$type": "InvoiceScreen",
+  "languageSettings": {
+    "defaultLanguage": "English",
+    "supportedLanguages": ["English", "Arabic"],
+    "direction": {
+      "English": "LTR",
+      "Arabic": "RTL"
+    }
+  },
+  "layout": {
+    "mirroring": {
+      "enabledForLanguages": ["Arabic"],
+      "elements": [
+        {
+          "$type": "LabeledValue",
+          "labelPosition": {
+            "English": "left",
+            "Arabic": "right"
+          }
+        },
+        {
+          "$type": "TotalsColumn",
+          "position": {
+            "English": "right",
+            "Arabic": "left"
+          }
+        },
+        {
+          "$type": "PaymentProgress",
+          "stepDirection": {
+            "English": "LTR",
+            "Arabic": "RTL"
+          }
+        },
+        {
+          "$type": "NavigationIcon",
+          "direction": {
+            "English": "right",
+            "Arabic": "left"
+          }
+        }
+      ]
+    }
+  },
+  "elements": [
+    {
+      "$type": "TextElement",
+      "text": {
+        "English": "Next",
+        "Arabic": "التالي"
+      }
+    },
+    {
+      "$type": "Button",
+      "icon": "NavigationIcon"
+    },
+    {
+      "$type": "Table",
+      "columns": [
+        {
+          "name": "Item",
+          "label": {
+            "English": "Item",
+            "Arabic": "البند"
+          }
+        },
+        {
+          "name": "Quantity",
+          "label": {
+            "English": "Quantity",
+            "Arabic": "الكمية"
+          }
+        },
+        {
+          "name": "Price",
+          "label": {
+            "English": "Price",
+            "Arabic": "السعر"
+          }
+        },
+        {
+          "name": "Total",
+          "label": {
+            "English": "Total",
+            "Arabic": "المجموع"
+          }
+        }
+      ]
+    }
+  ]
+}

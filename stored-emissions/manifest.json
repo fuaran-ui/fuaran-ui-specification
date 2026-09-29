@@ -1,0 +1,312 @@
+{
+  "kind": "stored-emission-sample",
+  "version": 1,
+  "description": "A fixed, committed sample of real model emissions drawn from the stored evaluation corpus, with the verdict every conformant node decoder returns for each. See README.md.",
+  "snapshot": {
+    "counted": "2026-09-29",
+    "uniqueEmissions": 12707,
+    "acceptedByBothHosts": 7667,
+    "acceptedByOneHostOnly": 282,
+    "note": "Counted over every unique stored emission. With decode-time recovery off, the two measured hosts accept exactly the same set; every one-host accept is the reference host repairing malformed JSON (see openQuestions)."
+  },
+  "openQuestions": [
+    {
+      "id": "decode-time-recovery",
+      "recoveries": [
+        "implied-node-close",
+        "over-close-unique"
+      ],
+      "description": "Whether a conformant node decoder may, or must, repair a malformed JSON document before decoding it. WIRE_FORMAT.md specifies neither repair. A fixture carrying referenceRecovery is one the reference host decodes under its default recovery policy and every host refuses with recovery off; its verdict is the recovery-off answer, and it pins no ruling on the question."
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "stored-accept-008ab9aabe774a74",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-008ab9aabe774a74.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-0a63416ccbd5d864",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-0a63416ccbd5d864.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-0c45c190e5118722",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-0c45c190e5118722.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-0fc231a7e41be413",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-0fc231a7e41be413.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-106dcdb9a433ce24",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-106dcdb9a433ce24.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-1f562b08a2db6a83",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-1f562b08a2db6a83.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-72ed6bce3bf0ab94",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-72ed6bce3bf0ab94.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-8328271b4f39f0b6",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-8328271b4f39f0b6.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-8927ba23f22a919c",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-8927ba23f22a919c.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-bd5602255b5660aa",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-bd5602255b5660aa.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-c61b5195d4bf3f18",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-c61b5195d4bf3f18.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-accept-ec938da8ca6de0cd",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-accept-ec938da8ca6de0cd.json",
+      "verdict": "accept"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-13c7200b28bef9c4",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-13c7200b28bef9c4.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-1b1265e9c7d45cfc",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-1b1265e9c7d45cfc.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-34697f91034c9eef",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-34697f91034c9eef.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-efc4bdb9574b9c07",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-efc4bdb9574b9c07.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "implied-node-close"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-0d54ea00073bcb90",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-0d54ea00073bcb90.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "over-close-unique"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-31d910c889f944bb",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-31d910c889f944bb.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "over-close-unique"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-62782c6f2c99a7da",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-62782c6f2c99a7da.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "over-close-unique"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-f0fd79a8d930022a",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-f0fd79a8d930022a.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "referenceRecovery": "over-close-unique"
+    },
+    {
+      "id": "stored-reject-invalid-json-42e0db740143550d",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-invalid-json-42e0db740143550d.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$"
+    },
+    {
+      "id": "stored-reject-invalid-json-5b35c2c4b8b2b4ca",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-invalid-json-5b35c2c4b8b2b4ca.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$"
+    },
+    {
+      "id": "stored-reject-invalid-json-73b2d780cf659179",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-invalid-json-73b2d780cf659179.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$"
+    },
+    {
+      "id": "stored-reject-missing-field-1839ccf2a78b8b2d",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-missing-field-1839ccf2a78b8b2d.json",
+      "verdict": "reject",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.children[0].kind.children[0].kind.children[0].kind.value"
+    },
+    {
+      "id": "stored-reject-missing-field-a76fe90045ffc88d",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-missing-field-a76fe90045ffc88d.json",
+      "verdict": "reject",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.id"
+    },
+    {
+      "id": "stored-reject-missing-field-f36a0e1dad90bde1",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-missing-field-f36a0e1dad90bde1.json",
+      "verdict": "reject",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.id"
+    },
+    {
+      "id": "stored-reject-missing-field-f568b6faedcc0a89",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-missing-field-f568b6faedcc0a89.json",
+      "verdict": "reject",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.id"
+    },
+    {
+      "id": "stored-reject-unknown-du-case-63974c729d462da6",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-unknown-du-case-63974c729d462da6.json",
+      "verdict": "reject",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.annotations[0].$type"
+    },
+    {
+      "id": "stored-reject-unknown-du-case-70107c3a3137c89e",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-unknown-du-case-70107c3a3137c89e.json",
+      "verdict": "reject",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.children[1].kind.children[0].kind.value.$type"
+    },
+    {
+      "id": "stored-reject-unknown-du-case-7e36d5aa2f0fd622",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-unknown-du-case-7e36d5aa2f0fd622.json",
+      "verdict": "reject",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.children[0].kind.columns[1].kind.map.Check Required"
+    },
+    {
+      "id": "stored-reject-unknown-du-case-f9b1972f0bc0cb32",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-unknown-du-case-f9b1972f0bc0cb32.json",
+      "verdict": "reject",
+      "expectedErrorCode": "UNKNOWN_DU_CASE",
+      "expectedPath": "$.kind.children[2].kind.children[0].kind.children[0].kind.columns[2].kind.$type"
+    },
+    {
+      "id": "stored-reject-wrong-node-kind-1e548734b00f3447",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-node-kind-1e548734b00f3447.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_NODE_KIND",
+      "expectedPath": "$.kind.children[1].kind.children[0].kind.$type"
+    },
+    {
+      "id": "stored-reject-wrong-node-kind-8dbdae822e31aede",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_NODE_KIND",
+      "expectedPath": "$.kind.children[0].kind.children[0].kind.$type"
+    },
+    {
+      "id": "stored-reject-wrong-node-kind-9496377b1b16a91c",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-node-kind-9496377b1b16a91c.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_NODE_KIND",
+      "expectedPath": "$.kind.children[1].kind.$type"
+    },
+    {
+      "id": "stored-reject-wrong-type-5771ecc5911bfc76",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-type-5771ecc5911bfc76.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind"
+    },
+    {
+      "id": "stored-reject-wrong-type-59bb98d559f9e005",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-type-59bb98d559f9e005.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind"
+    },
+    {
+      "id": "stored-reject-wrong-type-73c12c231ab9e1f7",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-type-73c12c231ab9e1f7.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind"
+    },
+    {
+      "id": "stored-reject-wrong-type-fe1d98719ad8ed7e",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-reject-wrong-type-fe1d98719ad8ed7e.json",
+      "verdict": "reject",
+      "expectedErrorCode": "WRONG_TYPE",
+      "expectedPath": "$.kind"
+    }
+  ]
+}

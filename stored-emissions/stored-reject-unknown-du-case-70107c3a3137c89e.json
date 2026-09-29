@@ -1,0 +1,79 @@
+{
+  "id": "profile-root",
+  "kind": {
+    "$type": "Box",
+    "layout": { "$type": "Flex", "direction": "Vertical", "wrap": false, "gap": 16 },
+    "role": "Group",
+    "children": [
+      {
+        "id": "profile-heading",
+        "kind": {
+          "$type": "Heading",
+          "level": 1,
+          "text": { "$type": "Literal", "text": "Profile" },
+          "variant": "Standard"
+        }
+      },
+      {
+        "id": "profile-stats",
+        "kind": {
+          "$type": "SummaryList",
+          "children": [
+            {
+              "id": "stat-followers",
+              "kind": {
+                "$type": "LabelValueRow",
+                "label": { "$type": "Literal", "text": "Followers" },
+                "value": { "$type": "Literal", "text": "12,480" }
+              }
+            },
+            {
+              "id": "stat-following",
+              "kind": {
+                "$type": "LabelValueRow",
+                "label": { "$type": "Literal", "text": "Following" },
+                "value": { "$type": "Literal", "text": "312" }
+              }
+            },
+            {
+              "id": "stat-posts",
+              "kind": {
+                "$type": "LabelValueRow",
+                "label": { "$type": "Literal", "text": "Posts" },
+                "value": { "$type": "Literal", "text": "1,047" }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "profile-badges",
+        "kind": {
+          "$type": "Box",
+          "layout": { "$type": "Flex", "direction": "Horizontal", "wrap": true, "gap": 8 },
+          "role": "Group",
+          "children": [
+            {
+              "id": "badge-tier",
+              "kind": {
+                "$type": "Badge",
+                "label": { "$type": "Literal", "text": "Pro" },
+                "variant": "Brand"
+              },
+              "tooltip": { "$type": "Literal", "text": "Account tier" }
+            },
+            {
+              "id": "badge-verified",
+              "kind": {
+                "$type": "Badge",
+                "label": { "$type": "Literal", "text": "Verified" },
+                "variant": "Success"
+              },
+              "tooltip": { "$type": "Literal", "text": "Identity has been confirmed" }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

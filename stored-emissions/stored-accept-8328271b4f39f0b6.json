@@ -1,0 +1,79 @@
+{
+  "id": "station-status-card",
+  "kind": {
+    "$type": "Box",
+    "children": [
+      {
+        "id": "station-title",
+        "kind": {
+          "$type": "Heading",
+          "level": 3,
+          "text": "Grand Central Terminal",
+          "variant": "Standard"
+        }
+      },
+      {
+        "id": "station-warning-callout",
+        "kind": {
+          "$type": "Callout",
+          "body": "High demand expected after 5 PM.",
+          "tone": "Warning"
+        }
+      },
+      {
+        "id": "station-metrics-container",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "metric-available-bikes",
+              "kind": {
+                "$type": "Metric",
+                "label": "Available bikes",
+                "value": {
+                  "$type": "Static",
+                  "value": 4
+                }
+              }
+            },
+            {
+              "id": "metric-empty-docks",
+              "kind": {
+                "$type": "Metric",
+                "label": "Empty docks",
+                "value": {
+                  "$type": "Static",
+                  "value": 18
+                }
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Grid",
+            "cols": 2
+          },
+          "role": "Group"
+        }
+      },
+      {
+        "id": "station-capacity-progress",
+        "kind": {
+          "$type": "Progress",
+          "caveat": "4 of 22 bikes available",
+          "fraction": {
+            "$type": "Static",
+            "value": 0.1818
+          },
+          "label": "Station capacity"
+        }
+      }
+    ],
+    "layout": {
+      "$type": "Flex",
+      "direction": "Vertical",
+      "gap": 16,
+      "wrap": false
+    },
+    "role": "Card"
+  }
+}

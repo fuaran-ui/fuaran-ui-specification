@@ -1,0 +1,21 @@
+{
+  "id": "orders-grid",
+  "kind": {
+    "$type": "DataGrid",
+    "columns": [],
+    "source": {
+      "$type": "Static",
+      "value": []
+    },
+    "staticRows": {
+      "headers": [
+        "id",
+        "customer",
+        "total",
+        "status",
+        "created_at"
+      ],
+      "rows": []
+    }
+  }
+}

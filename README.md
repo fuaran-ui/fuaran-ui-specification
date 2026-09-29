@@ -16,6 +16,7 @@ conformance corpus**.
 | [`manifest.json`](manifest.json) | The authoritative index of every **wire-format codec** fixture family and count. |
 | Fixture directories (`nodes/`, `ops/`, `reject/`, `lenient/`, `envelope/`, `cards/`, `markdown/`, …) | The executable conformance suite: round-trip, reject, and lenient-accept families. A conformant codec must pass every assertion the manifest enumerates. |
 | [`DEVTOOLS_RELAY.md`](DEVTOOLS_RELAY.md) + [`devtools-relay/`](devtools-relay/) | The **DevTools relay contract** — a companion specification and its own fixture family. See below. |
+| [`stored-emissions/`](stored-emissions/) | **Real model emissions** — a fixed, committed sample of documents models actually emitted, with the verdict every conformant node decoder gives each one, so a host that moves its answer on a real emission reddens its own gate. Sampled rather than generated, and enumerated by its own manifest, which also records the one open question the sample surfaced (decode-time recovery of malformed JSON). See its README. |
 | [`laws/`](laws/) | **Conformance-law vectors** — the (input, expected) pairs a `Fuaran.Core` conformance law family draws from a declared seed, so a host that is not the reference can run the same family over the same sample. Its own fixture family, enumerated by its own manifest. See below. |
 
 ## Conformance

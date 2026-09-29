@@ -1,0 +1,41 @@
+{
+  "$type": "DataImportScreen",
+  "components": [
+    {
+      "$type": "ProgressBar",
+      "label": "Import Progress",
+      "percentageComplete": 0
+    },
+    {
+      "$type": "NotificationSystem",
+      "enabled": true,
+      "notifyOnCompletion": true,
+      "notificationMessage": "Your data import has completed successfully."
+    }
+  ],
+  "actions": [
+    {
+      "$type": "StartImportAction",
+      "label": "Start Import",
+      "onClick": "beginImportProcess"
+    }
+  ],
+  "events": [
+    {
+      "$type": "ExternalNotificationEvent",
+      "name": "ImportCompletion",
+      "trigger": "dataImportComplete",
+      "channels": [
+        {
+          "$type": "DesktopNotificationChannel",
+          "message": "Data import is complete."
+        }
+      ]
+    }
+  ],
+  "status": {
+    "$type": "ImportStatus",
+    "currentState": "pending",
+    "estimatedTimeRemaining": "20 minutes"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "patient-status-root",
+  "kind": {
+    "$type": "Box",
+    "children": [
+      {
+        "id": "status-heading",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "Patient Status",
+          "variant": "Standard"
+        }
+      },
+      {
+        "id": "status-badge",
+        "kind": {
+          "$type": "Badge",
+          "label": "Ready for Discharge",
+          "variant": "Success"
+        }
+      }
+    ],
+    "heading": "Patient Status",
+    "layout": {
+      "$type": "Flex",
+      "direction": "Vertical",
+      "wrap": false
+    },
+    "role": "Card"
+  }
+}
