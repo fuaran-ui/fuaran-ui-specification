@@ -1030,6 +1030,14 @@ the emitter's order and be handed the declared one instead. A malformed descript
 lands in the same row and reads the same way — validated rather than trusted, never an arbitrary
 order.
 
+**An ACTION column has no field (Phase 1909).** A column whose cell kind is `Button` or
+`ButtonGroup` draws its own label and hands the whole row to its handler, so it never displays a
+field, and it carries none: `nodes/grid-action-column-clean.json` is the canonical corner. A
+pre-existing document that still declares a `field` on one keeps rendering exactly as before; every
+reader of the field ignores it — no host offers a sort affordance on an action column, a sort
+descriptor naming one leaves the authored order standing, and a host that exports the grid omits the
+column. The declared field is a pre-emit warning (`FUARAN163`, "drop it"), never a grounding error.
+
 A grid may declare `defaultSort` with **no** `sortStateKey`: an initial presentation order without
 interactive re-sorting, exactly as a static table may. `nodes/grid-bound-sort.json` is the canonical
 corner, and carries a column opting out.
