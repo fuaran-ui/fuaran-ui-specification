@@ -4,6 +4,14 @@
   "note": "GENERATED — do not hand-edit the records. Each bundled-corpus record is (re)written by the host that bundles the snapshot: fuaran-ts via `pnpm --filter @fuaran-ui/conformance declare-corpus`, fuaran-py via `python conformance/sync_corpus.py --declare`. Each writer replaces only the records whose copy lives under its own snapshot, so the two co-own this file without clobbering each other. fuaran-go and fuaran-rs are DELIBERATELY UNDECLARED: they bundle no snapshot and read this corpus directly from the workspace (their CI checks it out to ../wire-format-fixtures), so there is no copy of it that can go stale.",
   "records": [
     {
+      "source": "a11y-contract.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/a11y-contract.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
       "source": "cards/card-bundle.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/cards/card-bundle.json"
