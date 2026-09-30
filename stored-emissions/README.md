@@ -12,12 +12,18 @@ store, which nothing did in CI.
 
 ## What a host asserts
 
-For every entry in `manifest.json`, a host's node decoder, **with decode-time recovery off**, must:
+For every entry in `manifest.json`, a host's node decoder, which is **strict** (WIRE_FORMAT.md 28.1),
+must:
 
 | `verdict` | Required answer |
 |---|---|
 | `accept` | the decode succeeds |
 | `reject` | the decode fails with exactly `expectedErrorCode` at exactly `expectedPath` |
+
+A host that implements repair (28) additionally asserts each entry's `repair` member: what `repair`
+returns for the emission (`repaired` with the `applied` catalogue ids, or `not-repairable` with its
+refusal token), and `repairedVerdict`, the strict decode of the repaired text. A document that
+already parses is repaired to itself with nothing applied.
 
 A host certifies against this family the same way it certifies against the others: its own suite
 reads the committed declaration and asserts its answers. Two hosts that each match the declaration
@@ -26,37 +32,33 @@ on a real emission reddens that host's gate.
 
 The sample is fixed and small (38 emissions), and it is committed, so the evaluation store is never a
 CI dependency. It is stratified: accepts (with and without a chart or data grid), refusals of every
-decode error class the store produced, and the recovery class below.
+decode error class the store produced, and the repair class below.
 
-## The open question: decode-time recovery (`openQuestions`)
+## Repair, resolved (`repair`)
 
 Measured on 2026-09-29 over every unique stored emission (12,707), the reference host accepted 282
-documents the TypeScript host refused. All 282 are malformed JSON the reference host **repairs**
-before decoding, by one of two bounded recoveries:
+documents the TypeScript host refused. All 282 were malformed JSON the reference host repaired
+**inside decode**, by one of two recoveries: `implied-node-close` (a node wrapper's dropped closing
+brace re-inserted) and `over-close-unique` (a surplus closer deleted when exactly one deletion
+decodes). The specification described neither, so this family first recorded it as an open question.
 
-- `implied-node-close` — a node wrapper's closing brace dropped at a `children[]` / `cases[]`
-  boundary, re-inserted;
-- `over-close-unique` — a surplus closing bracket, deleted when exactly one deletion decodes.
+The ruling (2026-09-30, WIRE_FORMAT.md 28): **decode is strict on every host, and repair is a
+separate, specified function a caller invokes deliberately**, naming every repair it applies. The
+reference host's default decoder no longer repairs anything. Re-measured over the same 12,707 on
+2026-09-30 (`snapshot`): the two hosts' strict decoders accept exactly the same set (7,667); `repair`
+returns byte-identical text, identical ids and identical refusals on both hosts for every emission;
+316 emissions are repaired, and 282 of those then decode.
 
-With recovery off, the two hosts accept exactly the same set. The disagreement is therefore one
-question and not 282 bugs: **may, or must, a conformant node decoder repair malformed JSON before it
-decodes?** WIRE_FORMAT.md specifies neither repair, and §16 lists no JSON-syntax leniency, so the
-specification is silent. The answer is a specification decision, not a host fix, and this family
-does not pre-empt it.
-
-A fixture carrying `referenceRecovery` is one of those documents. Its `verdict` is the recovery-off
-answer, `INVALID_JSON` at `$`, which every measured host returns today. The reference host
-additionally asserts that its default decoder repairs it by the named recovery and nothing else, so
-the size of the open question cannot grow without a gate noticing.
-
-One of the four `over-close-unique` fixtures (`stored-recovery-over-close-unique-62782c6f2c99a7da`)
-is worth reading beside §20.2 row 2: its surplus closer falls after the root value, so a
-recovery-off parse sees **content after the root value**, the input class row 2 requires
-`INVALID_JSON` for.
+A fixture whose `repair.applied` is non-empty is one of those documents. Its `verdict` is the strict
+answer, `INVALID_JSON` at `$`. One of the four `over-close-unique` fixtures
+(`stored-recovery-over-close-unique-62782c6f2c99a7da`) is worth reading beside 20.2 row 2: its
+surplus closer falls after the root value, so the strict parser sees **content after the root
+value** and refuses it, exactly as row 2 requires, and `repair` returns it repaired with
+`over-close-unique` named. The `repair/` family pins the repaired bytes of all eight.
 
 ## Regenerating
 
 The sample is chosen, not generated: re-drawing it is a deliberate change to a conformance
 declaration. A regeneration re-measures the whole store on every host, keeps only emissions the
-hosts answer identically with recovery off (same code, same path), and records the new counts in
+hosts answer identically with their strict decoders (same code, same path), and records the new counts in
 `manifest.json` `snapshot`.

@@ -6454,19 +6454,16 @@ beside row 4 which refuses the same three values written as bare literals. That 
 inconsistency. `1e999` is a well-formed JSON number whose value is not representable, and IEEE-754
 already specifies what a finite decimal that overflows becomes; `NaN` is not a JSON token at all.
 
-**A documented REPAIR layer above the parser is not a §20 breach, and the distinction is worth
-stating because it looks like one.** A host may sit a repair pass over its strict decode — §16 is one
-such layer, and the reference host carries two more for a malformed-emission class its measurements
-identified. Ratifying row 2 changed what that host's *parser* does with a surplus closing brace: it
-refuses now, where before it stopped at the root value and silently ignored the remainder. The repair
-layer then reconstructs the document and admits it through a uniqueness gate. Same *acceptance*,
-completely different *act* — an attributed, counted, single-candidate repair instead of a silent
-truncation nothing recorded.
-
-Three obligations keep that honest, and they are §20.1's: the repair must be **documented**, it must
-be **observable** in the host's own instrumentation, and the strict path underneath it must answer
-the §20 row. A host whose repair layer is undocumented, or which cannot say which of the two accepted
-a given document, has an undeclared entry point rather than a repair layer.
+**Repair is not decode, and §28 is where it lives.** Ratifying row 2 changed what the reference
+host's *parser* does with a surplus closing brace: it refuses now, where before it stopped at the root
+value and silently ignored the remainder. For a while that host then re-admitted such a document
+through a repair pass inside its default decode. Phase 1923 took that pass out of decode: **every
+decode entry point is strict** (§28.1), and the two repairs that host carried are now a separate,
+specified function — `repair`, with a closed catalogue of named repairs (§28.2) — that a caller
+invokes deliberately and whose every repair is named in its result. A host that keeps an opt-in
+lenient posture defines it as `repair` followed by the strict decode, and never makes it the default.
+So a §20 row is answered by the decoder, always; what `repair` makes of the same bytes is a
+different act with a different, attributed result.
 
 **Rows 3 and 6 are enforced on the way down**, per the same principle §21.2 rule 4 states for depth:
 a grammar check applied after a platform parser has already accepted the token measures that
@@ -8148,6 +8145,180 @@ harness that consumes one, in the same change-set.
 
 ---
 
+## 28. Deliberate repair (Phase 1923)
+
+Models emitting canonical JSON drop or add a closing bracket often enough to be worth measuring:
+over 12,707 stored emissions, 316 are malformed in one of the two shapes this section catalogues, and
+282 of those decode once the bracket is put right. Each is a saved turn of an authoring loop. What
+this section settles is **where** that value is taken: in a separate function the caller invokes and
+can see, never silently inside decode.
+
+**This section is non-normative for decode and normative for any host that offers repair.** A host
+need not offer repair at all (§28.5). A host that does implements exactly this catalogue, with these
+ids, these admissibility conditions and these output bytes.
+
+### 28.1 Decode is strict
+
+A conformant node decoder is **strict**: a document the parser refuses is `INVALID_JSON` (§6, §20),
+and no decoder repairs a document by default. §20.2 row 2 in particular binds every decode entry
+point: a surplus closer after the root value is `INVALID_JSON`, whatever repair would make of it.
+
+A host may keep a **named, opt-in** decode posture that repairs, for callers that relied on an
+earlier lenient default. Such a posture MUST be exactly `repair` (§28.3) followed by the strict
+decode of what it returns: one implementation, never a second copy of a repair, and never the
+default. It MUST report which catalogue ids it applied to each document it decoded.
+
+### 28.2 The catalogue
+
+The catalogue is **closed and versioned**. Catalogue version: **1**. Its entries, in the order
+`repair` tries them:
+
+| Id | Act | Touches |
+|---|---|---|
+| `implied-node-close` | inserts the closing `}` a node wrapper owes | insertion only |
+| `over-close-unique` | deletes one or two surplus closers, iff exactly one deletion decodes | deletion only |
+
+Every repair is **structural**: it inserts or deletes closing brackets (`}` / `]`) and nothing else.
+No key, value, opening bracket or separator is ever invented, edited or removed. A new repair, or a
+change to an existing entry's admissibility or output, is a specification change with fixtures, and
+it moves the catalogue version.
+
+Positions below are **UTF-16 code unit** offsets into the input text, and lengths are counted in
+UTF-16 code units. The scans below are over the raw text and are **string-aware**: inside a string
+literal (from an unescaped `"` to the next unescaped `"`), a `\` skips the character after it, and
+no bracket counts.
+
+#### 28.2.1 `implied-node-close`
+
+The class: a node wrapper's closing brace dropped at the end of an element of a `children` or `cases`
+array — typically after a run of closers, the emission closes the nested value and `kind` and stops
+one brace short of the node's own `}` — or the root node left open at end of input.
+
+**Scan.** A pushdown scan over the text, starting at the first non-whitespace character, which MUST
+be `{` (otherwise the entry does not apply). It tracks, for each open container, whether it is an
+object or an array, its position in the JSON grammar (expecting a key, a `:`, a value, or `,`/closer),
+the key of the member currently being read (objects), and — for an array — the key of the object
+member whose value it is. Scalars are skipped as maximal runs of `-+.0-9a-zA-Z`; their validity is
+the parser's concern, not the scan's. The scan closes **owed wrappers** at two tokens:
+
+1. `]` read while the innermost open container is an object between members (after `{` or after a
+   complete member), or
+2. `,` read in an object after a complete member and followed (after whitespace) by `{` — an object
+   continuation must be a key, so `,{` there is only legal at an enclosing array.
+
+At either token the **owed chain** is: the innermost object, then every enclosing object that is
+awaiting a value (its value being the object above it), ending at the first enclosing array. The
+close is **admissible** only if that array exists and is the value of a member keyed `children` or
+`cases`. Then one `}` is inserted at the token's offset for each object in the chain, the chain is
+popped, and the array's pending element is complete. Any other token that does not fit the grammar,
+an inadmissible chain, an unterminated string, or content after the root value makes the entry
+**decline**.
+
+**End of input.** If the text ends with the root value incomplete, the innermost open container MUST
+be between members (object) or between elements (array); a cut mid-key, after `:` or after `,` is
+truncation and the entry declines. Otherwise one closer per open container is appended, innermost
+first (`}` for an object, `]` for an array).
+
+**Output.** The input with each `}` inserted at its offset (offsets ascending, each insertion placed
+before the character at that offset) and the end-of-input closers appended. The entry declines if it
+inserted nothing, if it would insert more than the §21 maximum JSON depth (256) closers, or if the
+output does not parse.
+
+#### 28.2.2 `over-close-unique`
+
+The class: the mirror image — one closer too many, `…}}}` where `}}` was owed. An owed closer has
+exactly one legal home; a surplus one has as many candidate homes as there are enclosing levels, and
+every choice re-assigns the members that follow it to a different owner. So this entry repairs only
+when the choice is **unique**, and refuses otherwise.
+
+**Profile.** A string-aware scan counts `depth` (+1 per `{`/`[`, −1 per `}`/`]`), its running
+minimum, the offset of every closer, and the **first mismatch** — the first closer that finds no open
+container, or closes one of the other kind. The document is in the profile iff it does not end
+inside a string, its final depth is −1 or −2 (the **surplus**, 1 or 2), the running minimum equals
+the final depth (the surplus is never re-opened), and a first mismatch exists. Otherwise the entry
+does not apply (`not-in-catalogue`, if nothing else does).
+
+**Bounds.** A document in the profile is refused with `over-close-bounds` when its length exceeds
+**65,536** UTF-16 code units, when it has more than **512** closers, or when its deletion sets —
+the closers (surplus 1) or the unordered pairs of closers (surplus 2) — number more than **8,192**.
+
+**Candidates and enumeration order.** A candidate is the text with one closer (surplus 1) or two
+closers (surplus 2) deleted. The **failure run** is the contiguous run of closers, whitespace
+between them tolerated, ending at the first mismatch. Candidates are enumerated in two passes: first
+every deletion set containing a closer in the failure run, then every other set; within a pass, by
+the first deleted offset ascending, then the second.
+
+**Admissibility.** Each candidate is parsed; unparseable candidates are skipped, and parseable ones
+are **de-duplicated by parsed value** (two deletions inside one closer run yield two strings and one
+document, which is one repair). Each distinct document is decoded by the strict node decoder **with
+no admission policy** (§23 narrows at the decode that follows, never here). More than **32** distinct
+documents is `over-close-bounds`. The entry repairs iff **exactly one** distinct document decodes
+clean; none is `over-close-no-clean-candidate`, two or more is `over-close-ambiguous`.
+
+**Output.** The **first candidate, in enumeration order,** whose parsed value is the accepted
+document.
+
+### 28.3 The `repair` function
+
+```
+repair(text) → Repaired { text; applied: RepairId list } | NotRepairable { reason }
+```
+
+Pure: text in, text out, no other effect. In order:
+
+1. `text` parses: **`Repaired { text unchanged; applied = [] }`**. Repair is the identity on
+   well-formed input, which makes "repair, then decode strictly" a total composition.
+2. The parse fails for a §21 limit: `NotRepairable { limit-exceeded }`. That is not malformed JSON.
+3. `implied-node-close` repairs it: `Repaired { output; applied = [implied-node-close] }`.
+4. The text is in the `over-close-unique` profile: its verdict — `Repaired { output; applied =
+   [over-close-unique] }`, or its refusal.
+5. Otherwise: `NotRepairable { not-in-catalogue }`.
+
+The two entries never contend: an over-closed document fails the `implied-node-close` scan at its
+first mismatch. **The repaired text is not a decoded tree and is not trusted**: the caller decodes it
+strictly and validates the result exactly as it would text that needed no repair. `repair` bypasses
+neither.
+
+### 28.4 Refusal tokens
+
+| Token | Meaning |
+|---|---|
+| `limit-exceeded` | the input breaches a §21 limit; repair is not attempted |
+| `not-in-catalogue` | no catalogue entry applies |
+| `over-close-ambiguous` | in the over-close profile; two or more distinct candidates decode clean |
+| `over-close-no-clean-candidate` | in the over-close profile; no candidate decodes clean |
+| `over-close-bounds` | in the over-close profile; a §28.2.2 bound is exceeded |
+
+### 28.5 Host statements
+
+A host either implements the catalogue — every entry, byte for byte — or declares that it does not.
+There is no partial implementation. The declarations live in `repair/manifest.json` under
+`hostStatements`:
+
+| Host | Statement |
+|---|---|
+| `fuaran-dotnet` | implements (the reference) |
+| `fuaran-ts` | implements |
+| `fuaran-py` | no repair |
+| `fuaran-go` | no repair |
+| `fuaran-rs` | no repair |
+
+A host moving from "no repair" to "implements" certifies the `repair/` family in the same change.
+
+### 28.6 Conformance
+
+The **`repair/` family** pins the catalogue: for each case, the input, the strict decoder's answer to
+it, and either the repaired text (byte-exact) with the applied ids and the strict decode of that
+text, or the refusal token. It includes the §20.2 row 2 input: strict decode refuses it, and `repair`
+returns it repaired with `over-close-unique` named. The `stored-emissions/` family records each real
+emission's repair outcome beside its strict verdict.
+
+The ids are continuous with the reliance accounting a host keeps for its opt-in lenient posture:
+`implied-node-close`, `over-close-unique`, and the refusal count `over-close-refused` (the three
+`over-close-*` refusal tokens) are the same vocabulary, so a per-document `applied` list, a
+process-wide counter and an evaluation record all name a repair the same way.
+
+---
 
 ## See also
 

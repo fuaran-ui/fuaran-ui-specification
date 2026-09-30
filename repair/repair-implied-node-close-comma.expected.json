@@ -1,0 +1,1 @@
+{"id":"root","kind":{"$type":"Box","role":"Group","layout":{"$type":"Auto"},"children":[{"id":"m1","kind":{"$type":"Metric","label":"Revenue","value":{"$type":"Static","value":1200000}}},{"id":"m2","kind":{"$type":"Metric","label":"Cost","value":{"$type":"Static","value":7}}}]}}

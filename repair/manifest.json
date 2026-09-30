@@ -1,0 +1,308 @@
+{
+  "kind": "repair-catalogue",
+  "version": 1,
+  "description": "WIRE_FORMAT.md 28: deliberate repair of malformed canonical JSON. Each case names an input text, the strict decoder's answer to it, and what repair must return: the repaired text byte for byte and the catalogue ids applied, or the refusal token. A host that implements repair certifies every case; a host that does not declares so under hostStatements. HAND-AUTHORED, like decode-policy/ and stored-emissions/: the root manifest.json is generated and is not where this family is declared.",
+  "catalogueVersion": 1,
+  "catalogue": [
+    "implied-node-close",
+    "over-close-unique"
+  ],
+  "refusals": [
+    "limit-exceeded",
+    "not-in-catalogue",
+    "over-close-ambiguous",
+    "over-close-no-clean-candidate",
+    "over-close-bounds"
+  ],
+  "hostStatements": {
+    "fuaran-dotnet": "implements",
+    "fuaran-ts": "implements",
+    "fuaran-py": "no-repair",
+    "fuaran-go": "no-repair",
+    "fuaran-rs": "no-repair"
+  },
+  "cases": [
+    {
+      "id": "repair-implied-node-close-bracket",
+      "inputFile": "repair/repair-implied-node-close-bracket.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/repair-implied-node-close-bracket.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a Metric node wrapper left open when its children array closes; the owed closer is inserted before the `]` (28.2.1, the bracket signature)"
+    },
+    {
+      "id": "repair-implied-node-close-comma",
+      "inputFile": "repair/repair-implied-node-close-comma.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/repair-implied-node-close-comma.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a node wrapper left open before the `,` that separates two children; the owed closer is inserted before the separator (28.2.1, the separator signature)"
+    },
+    {
+      "id": "repair-implied-node-close-eof",
+      "inputFile": "repair/repair-implied-node-close-eof.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/repair-implied-node-close-eof.expected.json",
+      "repairedDecodes": "accept",
+      "description": "the root node left open at end of input with the document otherwise complete; the owed closer is appended (28.2.1, the end-of-input rule)"
+    },
+    {
+      "id": "repair-limit-exceeded",
+      "inputFile": "repair/repair-limit-exceeded.input.json",
+      "strict": {
+        "code": "LIMIT_EXCEEDED",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "limit-exceeded",
+      "description": "arrays nested past the 21 depth limit: LIMIT_EXCEEDED is not malformed JSON, and repair is not attempted"
+    },
+    {
+      "id": "repair-not-in-catalogue-data-array",
+      "inputFile": "repair/repair-not-in-catalogue-data-array.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "not-in-catalogue",
+      "description": "an object left open inside a data array rather than a children or cases array; implied-node-close is profile-gated to node-list positions, so this stays a visible error"
+    },
+    {
+      "id": "repair-not-in-catalogue-surplus-three",
+      "inputFile": "repair/repair-not-in-catalogue-surplus-three.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "not-in-catalogue",
+      "description": "over-closed by three; over-close-unique considers a surplus of one or two only"
+    },
+    {
+      "id": "repair-not-in-catalogue-truncated",
+      "inputFile": "repair/repair-not-in-catalogue-truncated.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "not-in-catalogue",
+      "description": "cut inside a string: the truncation fingerprint, which no catalogue entry repairs"
+    },
+    {
+      "id": "repair-over-close-after-root",
+      "inputFile": "repair/repair-over-close-after-root.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/repair-over-close-after-root.expected.json",
+      "repairedDecodes": "accept",
+      "description": "WIRE_FORMAT 20.2 row 2: a surplus closer after the root value. Strict decode refuses it with INVALID_JSON; repair returns the document with the surplus deleted, naming over-close-unique"
+    },
+    {
+      "id": "repair-over-close-ambiguous",
+      "inputFile": "repair/repair-over-close-ambiguous.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "over-close-ambiguous",
+      "description": "one surplus `}` with two deletions that each decode clean and assign the trailing members to different owners; refused rather than guessed (28.2.2)"
+    },
+    {
+      "id": "repair-over-close-no-clean-candidate",
+      "inputFile": "repair/repair-over-close-no-clean-candidate.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "over-close-no-clean-candidate",
+      "description": "over-closed by one, but every deletion leaves a Metric with no value, so no candidate decodes clean (28.2.2)"
+    },
+    {
+      "id": "repair-over-close-past-length-ceiling",
+      "inputFile": "repair/repair-over-close-past-length-ceiling.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "over-close-bounds",
+      "description": "the over-close-unique-sibling document with one label padded past the 65,536 UTF-16 code unit ceiling; the repair is unique but the enumeration is not run (28.2.2 bounds)"
+    },
+    {
+      "id": "repair-over-close-unique-sibling",
+      "inputFile": "repair/repair-over-close-unique-sibling.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/repair-over-close-unique-sibling.expected.json",
+      "repairedDecodes": "accept",
+      "description": "one surplus `}` at a children boundary; exactly one deletion decodes clean, and it is the output (28.2.2)"
+    },
+    {
+      "id": "repair-well-formed-identity",
+      "inputFile": "repair/repair-well-formed-identity.input.json",
+      "strict": "accept",
+      "outcome": "repaired",
+      "applied": [],
+      "expectedFile": "repair/repair-well-formed-identity.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a document that already parses is returned unchanged with nothing applied: repair is the identity on well-formed input (28.3 step 1)"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-13c7200b28bef9c4",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-13c7200b28bef9c4.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/stored-recovery-implied-node-close-13c7200b28bef9c4.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-1b1265e9c7d45cfc",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-1b1265e9c7d45cfc.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/stored-recovery-implied-node-close-1b1265e9c7d45cfc.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-34697f91034c9eef",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-34697f91034c9eef.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/stored-recovery-implied-node-close-34697f91034c9eef.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by implied-node-close"
+    },
+    {
+      "id": "stored-recovery-implied-node-close-efc4bdb9574b9c07",
+      "inputFile": "stored-emissions/stored-recovery-implied-node-close-efc4bdb9574b9c07.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/stored-recovery-implied-node-close-efc4bdb9574b9c07.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by implied-node-close"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-0d54ea00073bcb90",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-0d54ea00073bcb90.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/stored-recovery-over-close-unique-0d54ea00073bcb90.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by over-close-unique"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-31d910c889f944bb",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-31d910c889f944bb.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/stored-recovery-over-close-unique-31d910c889f944bb.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by over-close-unique"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-62782c6f2c99a7da",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-62782c6f2c99a7da.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/stored-recovery-over-close-unique-62782c6f2c99a7da.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by over-close-unique; its surplus closer falls after the root value (WIRE_FORMAT 20.2 row 2)"
+    },
+    {
+      "id": "stored-recovery-over-close-unique-f0fd79a8d930022a",
+      "inputFile": "stored-emissions/stored-recovery-over-close-unique-f0fd79a8d930022a.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "over-close-unique"
+      ],
+      "expectedFile": "repair/stored-recovery-over-close-unique-f0fd79a8d930022a.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission from the stored-emissions family, repaired by over-close-unique"
+    }
+  ]
+}

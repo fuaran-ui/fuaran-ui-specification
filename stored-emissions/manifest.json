@@ -3,94 +3,153 @@
   "version": 1,
   "description": "A fixed, committed sample of real model emissions drawn from the stored evaluation corpus, with the verdict every conformant node decoder returns for each. See README.md.",
   "snapshot": {
-    "counted": "2026-09-29",
+    "counted": "2026-09-30",
     "uniqueEmissions": 12707,
-    "acceptedByBothHosts": 7667,
-    "acceptedByOneHostOnly": 282,
-    "note": "Counted over every unique stored emission. With decode-time recovery off, the two measured hosts accept exactly the same set; every one-host accept is the reference host repairing malformed JSON (see openQuestions)."
+    "acceptedStrictByBothHosts": 7667,
+    "acceptSetDisagreementsStrict": 0,
+    "repairClassEmissions": 316,
+    "acceptedAfterRepairByBothHosts": 282,
+    "acceptAfterRepairDisagreements": 0,
+    "repairOutcomeDisagreements": 0,
+    "note": "Counted over every unique stored emission with the strict (default) decoder on both measured hosts, then with repair followed by strict decode. The two hosts accept exactly the same set strictly, and return byte-identical repaired text (compared by digest), identical applied ids and identical refusal tokens on every emission; repair then strict decode accepts the same set on both. (Where both refuse a document with two defects, the first error named can differ: an open first-error-order question, not a repair one.)"
   },
-  "openQuestions": [
-    {
-      "id": "decode-time-recovery",
-      "recoveries": [
-        "implied-node-close",
-        "over-close-unique"
-      ],
-      "description": "Whether a conformant node decoder may, or must, repair a malformed JSON document before decoding it. WIRE_FORMAT.md specifies neither repair. A fixture carrying referenceRecovery is one the reference host decodes under its default recovery policy and every host refuses with recovery off; its verdict is the recovery-off answer, and it pins no ruling on the question."
-    }
-  ],
+  "repair": {
+    "section": "WIRE_FORMAT.md 28",
+    "catalogueVersion": 1,
+    "ruling": "Resolved 2026-09-30. Decode is strict on every host: a document the parser refuses is INVALID_JSON, and every fixture verdict here is that strict answer. The two recoveries the reference host used to apply inside decode are now a separate, specified repair function a caller invokes deliberately, with every repair named by a catalogue id (see ../repair/ and WIRE_FORMAT.md 28). Each fixture's repair member is what that function returns for the emission, and repairedVerdict is the strict decode of the repaired text."
+  },
   "fixtures": [
     {
       "id": "stored-accept-008ab9aabe774a74",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-008ab9aabe774a74.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-0a63416ccbd5d864",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-0a63416ccbd5d864.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-0c45c190e5118722",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-0c45c190e5118722.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-0fc231a7e41be413",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-0fc231a7e41be413.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-106dcdb9a433ce24",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-106dcdb9a433ce24.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-1f562b08a2db6a83",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-1f562b08a2db6a83.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-72ed6bce3bf0ab94",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-72ed6bce3bf0ab94.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-8328271b4f39f0b6",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-8328271b4f39f0b6.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-8927ba23f22a919c",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-8927ba23f22a919c.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-bd5602255b5660aa",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-bd5602255b5660aa.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-c61b5195d4bf3f18",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-c61b5195d4bf3f18.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-accept-ec938da8ca6de0cd",
       "decoder": "node",
       "inputFile": "stored-emissions/stored-accept-ec938da8ca6de0cd.json",
-      "verdict": "accept"
+      "verdict": "accept",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-implied-node-close-13c7200b28bef9c4",
@@ -99,7 +158,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "implied-node-close"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "implied-node-close"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-implied-node-close-1b1265e9c7d45cfc",
@@ -108,7 +173,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "implied-node-close"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "implied-node-close"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-implied-node-close-34697f91034c9eef",
@@ -117,7 +188,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "implied-node-close"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "implied-node-close"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-implied-node-close-efc4bdb9574b9c07",
@@ -126,7 +203,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "implied-node-close"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "implied-node-close"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-over-close-unique-0d54ea00073bcb90",
@@ -135,7 +218,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "over-close-unique"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "over-close-unique"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-over-close-unique-31d910c889f944bb",
@@ -144,7 +233,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "over-close-unique"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "over-close-unique"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-over-close-unique-62782c6f2c99a7da",
@@ -153,7 +248,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "over-close-unique"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "over-close-unique"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-recovery-over-close-unique-f0fd79a8d930022a",
@@ -162,7 +263,13 @@
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
       "expectedPath": "$",
-      "referenceRecovery": "over-close-unique"
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "over-close-unique"
+        ],
+        "repairedVerdict": "accept"
+      }
     },
     {
       "id": "stored-reject-invalid-json-42e0db740143550d",
@@ -170,7 +277,11 @@
       "inputFile": "stored-emissions/stored-reject-invalid-json-42e0db740143550d.json",
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
-      "expectedPath": "$"
+      "expectedPath": "$",
+      "repair": {
+        "outcome": "not-repairable",
+        "reason": "not-in-catalogue"
+      }
     },
     {
       "id": "stored-reject-invalid-json-5b35c2c4b8b2b4ca",
@@ -178,7 +289,11 @@
       "inputFile": "stored-emissions/stored-reject-invalid-json-5b35c2c4b8b2b4ca.json",
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
-      "expectedPath": "$"
+      "expectedPath": "$",
+      "repair": {
+        "outcome": "not-repairable",
+        "reason": "over-close-ambiguous"
+      }
     },
     {
       "id": "stored-reject-invalid-json-73b2d780cf659179",
@@ -186,7 +301,11 @@
       "inputFile": "stored-emissions/stored-reject-invalid-json-73b2d780cf659179.json",
       "verdict": "reject",
       "expectedErrorCode": "INVALID_JSON",
-      "expectedPath": "$"
+      "expectedPath": "$",
+      "repair": {
+        "outcome": "not-repairable",
+        "reason": "not-in-catalogue"
+      }
     },
     {
       "id": "stored-reject-missing-field-1839ccf2a78b8b2d",
@@ -194,7 +313,15 @@
       "inputFile": "stored-emissions/stored-reject-missing-field-1839ccf2a78b8b2d.json",
       "verdict": "reject",
       "expectedErrorCode": "MISSING_FIELD",
-      "expectedPath": "$.kind.children[0].kind.children[0].kind.children[0].kind.value"
+      "expectedPath": "$.kind.children[0].kind.children[0].kind.children[0].kind.value",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "MISSING_FIELD",
+          "path": "$.kind.children[0].kind.children[0].kind.children[0].kind.value"
+        }
+      }
     },
     {
       "id": "stored-reject-missing-field-a76fe90045ffc88d",
@@ -202,7 +329,15 @@
       "inputFile": "stored-emissions/stored-reject-missing-field-a76fe90045ffc88d.json",
       "verdict": "reject",
       "expectedErrorCode": "MISSING_FIELD",
-      "expectedPath": "$.id"
+      "expectedPath": "$.id",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "MISSING_FIELD",
+          "path": "$.id"
+        }
+      }
     },
     {
       "id": "stored-reject-missing-field-f36a0e1dad90bde1",
@@ -210,7 +345,15 @@
       "inputFile": "stored-emissions/stored-reject-missing-field-f36a0e1dad90bde1.json",
       "verdict": "reject",
       "expectedErrorCode": "MISSING_FIELD",
-      "expectedPath": "$.id"
+      "expectedPath": "$.id",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "MISSING_FIELD",
+          "path": "$.id"
+        }
+      }
     },
     {
       "id": "stored-reject-missing-field-f568b6faedcc0a89",
@@ -218,7 +361,15 @@
       "inputFile": "stored-emissions/stored-reject-missing-field-f568b6faedcc0a89.json",
       "verdict": "reject",
       "expectedErrorCode": "MISSING_FIELD",
-      "expectedPath": "$.id"
+      "expectedPath": "$.id",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "MISSING_FIELD",
+          "path": "$.id"
+        }
+      }
     },
     {
       "id": "stored-reject-unknown-du-case-63974c729d462da6",
@@ -226,7 +377,15 @@
       "inputFile": "stored-emissions/stored-reject-unknown-du-case-63974c729d462da6.json",
       "verdict": "reject",
       "expectedErrorCode": "UNKNOWN_DU_CASE",
-      "expectedPath": "$.kind.annotations[0].$type"
+      "expectedPath": "$.kind.annotations[0].$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "UNKNOWN_DU_CASE",
+          "path": "$.kind.annotations[0].$type"
+        }
+      }
     },
     {
       "id": "stored-reject-unknown-du-case-70107c3a3137c89e",
@@ -234,7 +393,15 @@
       "inputFile": "stored-emissions/stored-reject-unknown-du-case-70107c3a3137c89e.json",
       "verdict": "reject",
       "expectedErrorCode": "UNKNOWN_DU_CASE",
-      "expectedPath": "$.kind.children[1].kind.children[0].kind.value.$type"
+      "expectedPath": "$.kind.children[1].kind.children[0].kind.value.$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "UNKNOWN_DU_CASE",
+          "path": "$.kind.children[1].kind.children[0].kind.value.$type"
+        }
+      }
     },
     {
       "id": "stored-reject-unknown-du-case-7e36d5aa2f0fd622",
@@ -242,7 +409,15 @@
       "inputFile": "stored-emissions/stored-reject-unknown-du-case-7e36d5aa2f0fd622.json",
       "verdict": "reject",
       "expectedErrorCode": "UNKNOWN_DU_CASE",
-      "expectedPath": "$.kind.children[0].kind.columns[1].kind.map.Check Required"
+      "expectedPath": "$.kind.children[0].kind.columns[1].kind.map.Check Required",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "UNKNOWN_DU_CASE",
+          "path": "$.kind.children[0].kind.columns[1].kind.map.Check Required"
+        }
+      }
     },
     {
       "id": "stored-reject-unknown-du-case-f9b1972f0bc0cb32",
@@ -250,7 +425,15 @@
       "inputFile": "stored-emissions/stored-reject-unknown-du-case-f9b1972f0bc0cb32.json",
       "verdict": "reject",
       "expectedErrorCode": "UNKNOWN_DU_CASE",
-      "expectedPath": "$.kind.children[2].kind.children[0].kind.children[0].kind.columns[2].kind.$type"
+      "expectedPath": "$.kind.children[2].kind.children[0].kind.children[0].kind.columns[2].kind.$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "UNKNOWN_DU_CASE",
+          "path": "$.kind.children[2].kind.children[0].kind.children[0].kind.columns[2].kind.$type"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-node-kind-1e548734b00f3447",
@@ -258,7 +441,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-node-kind-1e548734b00f3447.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_NODE_KIND",
-      "expectedPath": "$.kind.children[1].kind.children[0].kind.$type"
+      "expectedPath": "$.kind.children[1].kind.children[0].kind.$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_NODE_KIND",
+          "path": "$.kind.children[1].kind.children[0].kind.$type"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-node-kind-8dbdae822e31aede",
@@ -266,7 +457,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_NODE_KIND",
-      "expectedPath": "$.kind.children[0].kind.children[0].kind.$type"
+      "expectedPath": "$.kind.children[0].kind.children[0].kind.$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_NODE_KIND",
+          "path": "$.kind.children[0].kind.children[0].kind.$type"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-node-kind-9496377b1b16a91c",
@@ -274,7 +473,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-node-kind-9496377b1b16a91c.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_NODE_KIND",
-      "expectedPath": "$.kind.children[1].kind.$type"
+      "expectedPath": "$.kind.children[1].kind.$type",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_NODE_KIND",
+          "path": "$.kind.children[1].kind.$type"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-type-5771ecc5911bfc76",
@@ -282,7 +489,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-type-5771ecc5911bfc76.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind"
+      "expectedPath": "$.kind",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_TYPE",
+          "path": "$.kind"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-type-59bb98d559f9e005",
@@ -290,7 +505,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-type-59bb98d559f9e005.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind"
+      "expectedPath": "$.kind",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_TYPE",
+          "path": "$.kind"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-type-73c12c231ab9e1f7",
@@ -298,7 +521,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-type-73c12c231ab9e1f7.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind"
+      "expectedPath": "$.kind",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_TYPE",
+          "path": "$.kind"
+        }
+      }
     },
     {
       "id": "stored-reject-wrong-type-fe1d98719ad8ed7e",
@@ -306,7 +537,15 @@
       "inputFile": "stored-emissions/stored-reject-wrong-type-fe1d98719ad8ed7e.json",
       "verdict": "reject",
       "expectedErrorCode": "WRONG_TYPE",
-      "expectedPath": "$.kind"
+      "expectedPath": "$.kind",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [],
+        "repairedVerdict": {
+          "code": "WRONG_TYPE",
+          "path": "$.kind"
+        }
+      }
     }
   ]
 }
