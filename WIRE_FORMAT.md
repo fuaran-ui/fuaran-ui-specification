@@ -1174,6 +1174,25 @@ unknown) and each presented row its `aria-rowindex` (its 0-based index in the ra
 being row 1), which is how assistive technology learns that the rows it can reach are a slice. A
 static host performs the slice the seeded State determines and writes nothing.
 
+**The window a viewport writes.** A host's viewport measures, on each scroll, resize and render, its
+scroll offset, the table head's height (`0` where there is none), a rendered row's height and its own
+height, all in CSS pixels. A row or viewport height that is not measurable — no row rendered yet, a
+container with no layout — is taken as `32` and `480` respectively (a viewport that measured a row
+earlier MAY carry that height forward instead), `480` also being the viewport's height bound. The
+window it shows is then
+
+- **offset** = `max(0, floor((scrollOffset − headHeight) / rowHeight))` — the first row whose top edge
+  is at or above the scroll offset below the head, never negative;
+- **count** = `max(1, ceil(viewportHeight / rowHeight))` — rounded up, so a partly visible last row is
+  in the window.
+
+The viewport writes that window unless it equals the window it last wrote, or the window State
+already holds (read through the usable-descriptor test above); an unchanged window is never written,
+so a write that re-renders the grid cannot loop. A grid declaring no `windowStateKey` never writes.
+This pure step — a measurement and the two windows in, a write or none out — is pinned by the
+self-enumerated [`grid-window-writer/`](./grid-window-writer/) vector family: scripted sequences of
+measurements with the expected write at every step, including the steps that write nothing.
+
 **Composition.** `windowStateKey` composes with `pageStateKey` / `pageSize` (the window ranges over
 the page), with `sortStateKey` / `defaultSort` (it ranges over the sorted rows), and with
 `editStateKey`, where the window's offset is added to a presented row's index exactly as the page
@@ -1192,8 +1211,8 @@ function.
 
 | Host | Adoption |
 |---|---|
-| `fuaran` (F#) | **adopted** — codec, the window function (`BindingResolver.presentWindow`), the declared-total page count, and the client renderer's slice and ARIA annotations. Its client renderer does not yet write the descriptor as the viewport moves, so that interactive obligation is not claimed; its server renderer emits a grid as a hydration placeholder and holds no rows to window |
-| `fuaran-ts` | **adopted** — codec, the window function, and the client renderer's viewport-driven window requests |
+| `fuaran` (F#) | **adopted** — codec, the window function (`BindingResolver.presentWindow`), the declared-total page count, the client renderer's slice and ARIA annotations, and (Phase 1911) its viewport-driven window requests, whose writer (`BindingResolver.stepWindowWriter`) runs the `grid-window-writer/` family; its server renderer emits a grid as a hydration placeholder and holds no rows to window |
+| `fuaran-ts` | **adopted** — codec, the window function, and the client renderer's viewport-driven window requests, whose writer (`stepWindowWriter`) runs the `grid-window-writer/` family |
 | `fuaran-py` | **adopted** — codec and the window function; its rendering tier is the static floor, which slices by the seeded State |
 | `fuaran-go` | codec only — the window function is pending |
 | `fuaran-rs` | codec only — the window function is pending |
