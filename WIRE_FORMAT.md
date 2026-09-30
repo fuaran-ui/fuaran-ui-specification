@@ -4666,7 +4666,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->167<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only.
+The <!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5300,10 +5300,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->604<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->614<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->167<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
@@ -8336,6 +8336,168 @@ The ids are continuous with the reliance accounting a host keeps for its opt-in 
 `implied-node-close`, `over-close-unique`, and the refusal count `over-close-refused` (the three
 `over-close-*` refusal tokens) are the same vocabulary, so a per-document `applied` list, a
 process-wide counter and an evaluation record all name a repair the same way.
+
+---
+
+## 29. Multi-defect refusals (Phase 1935)
+
+A node decoder that refuses a document reports **every independent defect it can establish**, as
+one list, rather than the first defect its walk happened to reach. Two reasons, in order of weight.
+
+- **An authoring loop pays a turn per defect it learns about.** A refusal that names one defect of
+  several sends the author back to fix that one, and the next refusal names the next. Over 12,707
+  stored emissions, 5,040 are refused by the strict node decoder (§28.1); 1,429 of those carry more
+  than one independent defect, 4,883 defects beyond the first between them — each one a turn a
+  one-error refusal costs and a list does not.
+- **"First" was not defined.** Every host decoded fail-fast and returned one error, and the
+  specification said nothing about which of several defects that was, because every reject fixture
+  held exactly one. Two hosts that walk an object's members in different orders named different
+  first errors for the same document — measured on 21 stored emissions, typically a `Box` whose
+  `layout` and `role` were both wrong. Under this section the list is canonically ordered, so its
+  first entry, and therefore the single error, is the same on every adopting host.
+
+### 29.1 What is reported — the continue and stop rules (normative)
+
+A **defect** is one §6 error, identified by its `Code` and `Path` (§29.4). The walk continues past a
+defect wherever the rest of the document can still be decoded soundly, and stops where it cannot:
+
+1. **Sibling members of one object are independent.** Each member of an object is decoded whatever
+   its siblings hold, and a defect in one does not hide a defect in another. This holds for an
+   object with declared members (a node envelope, a kind object, a spec, a binding, an action) and
+   for an open map (a `TonedPill` `map`, `I18n` arguments, a `FragmentRef`'s `args`).
+2. **Sibling elements of one array are independent.** Every element is decoded, and each element's
+   defects are reported. Sibling nodes are sibling members or elements, so they are covered by
+   these two rules: `children`, `cases`, a `fallback`, a `default`.
+3. **A missing required member is a defect of that member**, reported at its own path (`$.kind.role`),
+   whatever its siblings hold.
+4. **A member's own checks belong to the member**: its JSON type, its enum or discriminator
+   vocabulary, its range, a date's calendar validity. They are applied
+   whatever its siblings hold.
+5. **A rule relating two or more members** — exactly one of `value` / `valueFrom`, a `Switch` case's
+   `match` / `when`, a `Binding.Local`'s `onCommit` / `commitTo`, an `Expr` param the expression
+   reads and `params` does not bind, a `FieldRule` that constrains nothing — is applied **only when
+   every member it reads is free of defects**. A rule over a defective member would report a
+   consequence of that defect rather than a second one.
+6. **A member read in the context of a sibling** — decoded under a sibling's value: a form field's
+   `kind` under its `id`, a filter chip's control under its `name`, a `Transform` param's binding
+   under the param's `name` — is decoded only when that sibling is free of defects. Its
+   **presence** is still checked, per rule 3.
+
+The walk **stops**, reporting the defect named and nothing beneath or beside it that it would hide:
+
+7. **`INVALID_JSON`** — there is no tree to walk. The list is exactly that one defect.
+8. **A §21 resource limit** — the list is exactly the one `LIMIT_EXCEEDED` defect the walk reaches,
+   located as §21.2 rule 2 prescribes. A document that breaches a bound is refused for being
+   unbounded, and what else it holds is not worth an author's attention until it is back inside.
+9. **A discriminator defect** — `$type` missing, not a string, or not a recognised case
+   (`UNKNOWN_DU_CASE`, `WRONG_NODE_KIND`), or a kind a §23 policy does not admit
+   (`KIND_NOT_ADMITTED`). The discriminator selects what the object's other members mean, so none
+   of them is decoded: the discriminator's defect is reported and its members' are not. The object's
+   own siblings continue, per rules 1 and 2.
+10. **A value of the wrong JSON type for its slot** (`WRONG_TYPE` at an object, array or scalar
+    position): nothing beneath it is decoded.
+
+The rules have one consequence a host can check itself against: **no reported defect lies at or
+beneath the path of another** (a path `P` lies beneath `Q` when `Q` is a segment-wise prefix of
+`P`, §29.3). A host that reports a defect under another has decoded something rule 9 or 10 says is
+meaningless.
+
+**Repair is unaffected.** `repair` (§28) acts on the text, before any decode; the defect list
+describes what the strict decode of the text it is given establishes.
+
+### 29.2 The list and the single-error form
+
+- A refusal carries a **non-empty** list, in the canonical order of §29.3, with **one entry per
+  (`Code`, `Path`)**.
+- The single-error entry points are unchanged in shape and return **the first entry of the list**,
+  so which of several defects a single error names is now fixed by this specification rather than
+  by a host's member order. On a document holding one defect, nothing changes.
+- An accepted document is accepted exactly as before. The list is a view of a refusal; it decides
+  nothing a single-error decode does not.
+- The reference host exposes the list as `JsonDecode.decodeNodeWithDefects` (and
+  `decodeNodeObjWithDefects`), each taking the §23 policy; `@fuaran-ui/ops` exposes
+  `decodeNodeWithDefects(json, policy?)`. Both also export `orderDefects`, the §29.3 order, for a
+  consumer holding defects from elsewhere.
+
+### 29.3 The canonical order (normative)
+
+Defects are ordered by `Path`, then by `Code` (Ordinal). Paths compare **segment by segment**:
+
+- **Segmentation.** After the leading `$`, a path is a sequence of segments: `.name` (the name runs
+  to the next `.` or `[`) or `[digits]` (an index). A bracketed run that is not all digits is read
+  as a name, bracket included. Every host splits the same string the same way.
+- **An index compares numerically** — `children[2]` before `children[10]`, which a string sort
+  reverses. **A name compares Ordinally** (UTF-16 code units, the §2 rule 2 member order), so
+  `$type` sorts first among a node's members and `Cancelled` before `On time` in a map, whatever
+  order the document wrote them in. An index sorts before a name at the same position.
+- **An ancestor sorts before its descendants**; two paths equal to the end of the shorter compare
+  by length.
+
+The order is the §2 member order applied to locations: a host can produce it by sorting the paths
+it collected, whatever order it decoded in.
+
+**An array element's path carries its index.** Rule 2 makes each element's defect its own entry, so
+each must name its own element. Five positions named every element `[]`, so two defects there could
+not be told apart and one entry per (`Code`, `Path`) would have merged them; they now carry the index
+like every other array: a `Transform` / `Expr` binding's `params[i]`, a `Query` binding's
+`dependsOn[i]`, a hole value space's `choices[i]`, a fragment's `holes[i]`, a `Mount`'s
+`capabilities[i]`. Only the text of a refusal at those positions changed.
+
+### 29.4 What is compared: `Code` and `Path`
+
+Two adopting hosts produce the same list: the same (`Code`, `Path`) entries in the same order.
+`Message` and `ExpectedShape` stay diagnostic prose per host, as they are for a single error (§6);
+a host whose message rewrites a defect (a more didactic wording) rewrites that entry in place.
+
+### 29.5 Conformance — two tiers, and the host statements
+
+A `reject` fixture may carry **`expectedDefects`**: the full list, as `{code, path}` objects in
+canonical order. A fixture without it holds exactly one defect, the one its `expectedErrorCode` /
+`expectedPath` name.
+
+- **Adopting tier.** For every node `reject` fixture, the host's list is **exactly**
+  `expectedDefects` where the fixture carries it, and exactly one defect satisfying the fixture's
+  single-error fields where it does not; its single error is the list's head.
+- **Floor tier.** A host that has not adopted reports one error, as before, and passes the ordinary
+  reject leg: `expectedErrorCode` equal, `expectedPath` a prefix. For every fixture added by this
+  section the single-error fields are chosen so that **every** listed defect satisfies them — one
+  code, a shared path prefix — so a floor host naming any one of the defects passes unchanged. Five
+  earlier fixtures carry `expectedDefects` too, because each turned out to hold a second, latent
+  defect (a form's `onSubmit` carrying the closure sentinel); their single-error fields are
+  untouched and name the first.
+
+The multi-defect fixtures pin one case of each rule that decides a list: sibling members (the `Box`
+`layout` + `role` case, present and missing), sibling nodes in numeric index order, an open map in
+Ordinal key order, a context member (rule 6), and one fixture per stop rule — an unknown and a
+missing discriminator, an unrecognised node kind, `INVALID_JSON`, and a depth breach hiding a
+sibling's defect.
+
+**Host statements.** Each codec host declares the tier it claims. A host moving from the floor to
+adopting certifies `expectedDefects` in the same change.
+
+| Host | Tier |
+|---|---|
+| `fuaran` (F#) | **adopting** — the reference; every node reject fixture's list is certified exactly |
+| `fuaran-ts` | **adopting** — `@fuaran-ui/ops` certifies every node reject fixture's list exactly, byte-identical to the reference |
+| `fuaran-py` | floor |
+| `fuaran-go` | floor |
+| `fuaran-rs` | floor |
+
+### 29.6 Scope
+
+This section binds the **node decoder** entry point (§20.1 names the entry points a rule binds).
+The op decoder and every other entry point — envelope, elicitation, contract cards, teleport —
+keep their single-error refusals, unchanged by it.
+
+### 29.7 The measurement
+
+Over the 12,707 stored emissions of §28, with the strict decoder on both adopting hosts: 7,667
+accepted by each and 5,040 refused by each, the refusal lists identical, entry for entry, on all
+5,040 — and so the single errors too, including the 21 on which the two hosts previously named
+different first errors. 1,429 refusals carry two or more defects. Generated multi-defect variants
+of the accepted documents were measured the same way; the only list disagreements they found are
+documents the two hosts do not agree to REFUSE at all when they hold one of those defects alone —
+an accept-set question for §20, not a question about lists.
 
 ---
 
