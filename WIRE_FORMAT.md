@@ -525,8 +525,10 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 > **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
 > [§12.2](#122-generated-tables-in-this-document). Field names are listed in the canonical wire key
 > order (Ordinal), spelled `field` when required, `field?` when optional, `field?=X` when
-> omitted-at-default `X` (§3.6 carries the full default table), and `field*` when the slot is
-> host-only and carries `"<closure>"` on the wire (§4).
+> omitted-at-default `X` (§3.6 carries the full default table). A host-only slot (`Button.tooltip`,
+> §10.1) is typed host surface, not wire vocabulary — never emitted, never decoded — so it is not
+> listed. (Until Phase 1962 it was, as `tooltip*`, against a legend reading `*` as "carries
+> `"<closure>"` on the wire", which no encoder ever did.)
 
 <!-- fuaran:spec-kinds -->
 | `kind.$type` | Recovered category | Fields (hoisted under `$type`) | Notes |
@@ -560,11 +562,11 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
-| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
+| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `variant` |  |
 | `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
+| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it. |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
@@ -872,7 +874,9 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
   (a typed defect, not a pass-through) – see `reject/reject-unknown-drawing-shape.json` and
   `reject/reject-unknown-drawing-curve-command.json`.
 
-**`Select` multi-select (Phase 291).** `SelectSpec` gains two OPTIONAL wire fields: `"multiple":true` (emitted only when multi-select – **omitted when `false`**, so every single-select fixture is byte-identical to the pre-multi-select wire) and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`, emitted only when present). The multi-select change handler is a closure → no separate wire key (the existing `"onChange":"<closure>"` covers it). Single-select carries `value` (a `Binding<string option>`); multi-select carries `values` instead. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
+**`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
+
+The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`then`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`); a multi-select carrying the **empty-`Static` placeholder** `value` — `{"$type":"Static"}`, or `{"$type":"Static","value":null}` — is a §16 lenient accept that normalises to the clean form, so every document written before Phase 1962 still reads (`lenient/lenient-1962-multiselect-placeholder-value.json`); and a multi-select carrying **any other** `value` is `WRONG_TYPE` at `value` — it would be a second selection the control never reads, so it is refused rather than silently dropped (`reject/reject-1962-multiselect-bound-value.json`). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
 **Filter chips are `FormFieldKind` controls (0.2.0 filters-unification; superseding the Phase 423 `FilterKind` DU).** A `Filters` item is `{"kind":<FormFieldKind>,"label":<TextSource>,"name":<string>}` – one control vocabulary for forms and filter strips; the retired `FilterKind` discriminators (`TextFilter` / `ChoiceFilter` / `RangeFilter` / `SegmentedFilter`) are a hard `UNKNOWN_DU_CASE`. Two chip-specific rules: (a) **auto-binding** – a chip control with **no `value` key** decodes to `{"$type":"Filter","name":<the chip's own name>}` (the item's declared name IS the store key), and the encoder symmetrically **omits** a `value` that is exactly that auto binding, so the canonical minimal chip is `{"kind":{"$type":"Choice","options":…},"label":…,"name":"status"}`; (b) the Phase 423 handler mechanics carry over unchanged – an omitted `onChange` writes `$filters.<name>` through the host's filter seam, a present `"<closure>"` wins. Since **0.2.1** the synthesis is symmetric: in a **Form**, an absent `value` auto-binds `State(<field id>, <typed placeholder>)` (see the §1.1 addendum) – the context decides the store, never whether omission is legal. See `nodes/filters-1.json` / `nodes/filters-declarative.json` / `nodes/filters-segmented.json`.
 
@@ -1610,7 +1614,7 @@ could never commit a keystroke. Every fixture's BYTES are unchanged; what change
 conforming host does with them.
 
 ```json
-{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"}}
+{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"format":"<closure>","initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"},"parse":"<closure>"}
 ```
 
 **`codec` (optional) declares the buffer's own codec.** It is a `Format` value, and it REPLACES the
@@ -2135,9 +2139,7 @@ DECODER restores `Horizontal` when the field is absent, but the ENCODER always e
 bytes — `lenient/lenient-shape-segmented-orientation-omitted.expected.json` carries
 `"orientation":"Horizontal"`. `Tabs` IS encoder-symmetric and appears in the identity-default table
 above; `SegmentedChoice` does not, because its field is required on the emit side. (This paragraph
-claimed the symmetry for both until the generated table disagreed with it — Phase 699.) The legacy
-`Stack` `orientation` stays required (no default is neutral there: vertical and horizontal stacks are
-both common).
+claimed the symmetry for both until the generated table disagreed with it — Phase 699.)
 
 ### 3.6.1 `tone` and `trendPolarity` — the composition rule (Phase 867)
 
@@ -4233,7 +4235,7 @@ Every function-typed payload the encoder cannot observe renders as the sentinel 
 - `Action.Dispatch _` → encodes as the bare `{"$type":"Dispatch"}` – 0.2.0: the `msg` sentinel field is OFF the wire (no decoder ever read it; pure token weight). On decode `Action.Dispatch (box "<closure>")`.
 - `Action.Call(endpoint, _, _)` → endpoint string preserved; a `Some` `onResult` is `"<closure>"` (omitted when `None` – Phase 428; the declarative `into` target IS wire-carried data, not a closure).
 - `Action.ReadFileBody(file, encoding, _)` → `file.Id` carried as the `fileRef` string + `encoding` as a bare enum; the blob (`file.Handle`) never serialises and `onRead` is `"<closure>"`. The decoded `FileRef` carries `Handle = None`.
-- `FormFieldKind.*` `onChange` / `onToggle`; `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` stay always-emitted closures decoding to a no-op action.
+- `FormFieldKind.*` `onChange` / `onToggle`; `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` are optional in the same way – emitted **only when present**, a present sentinel decoding to a `Some` no-op placeholder and an absent key to `None`. (This line called them always-emitted until Phase 1962; the IDL and the §3.2 table have had them optional since the handler sweep, and the encoder emits them only when present. The corpus fixtures all carry one because they are closure-authored, not because the key is required.)
 - `CellKindErased.*` handlers (`onEdit` / `onToggle` / `onClick` / `get` / `labelFn` / `hrefFn` / `toneFn` / `fractionFn` / `fn`).
 - `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`. (There is no separate table spec record: a static table is the `staticRows` mode of `GridSpec` (§3.2) and is non-interactive, so it contributes no closure slot.)
 - `Binding.Query` / `Binding.Selection` accessors – 0.2.0: **OFF the wire entirely** (the encoder omits the `accessor` key; no decoder ever read it). A decoded case synthesises the **identity projection** (Phases 421/427), so the host-fed `queryResults` / store-written selection flows through. `Binding.Computed` `fn`, `Column.Value`, `GridSpec.RowKey` keep their `"<closure>"` sentinels. A grid column's `value` is the host projection `Row -> CellValue`, so `"<closure>"` is the WHOLE of what the wire carries for it: `CellValue` is a HOST type — it has no wire shape, no `$type` dispatch and no corpus vector, and the type a cell resolves to is a host concern. The wire-survivable way to say what a cell shows is `Column.Field` + `CellFormat` (§5.1).
@@ -4666,7 +4668,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->179<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5300,11 +5302,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->614<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->617<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->179<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->80<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
