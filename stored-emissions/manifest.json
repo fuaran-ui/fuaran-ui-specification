@@ -15,8 +15,8 @@
   },
   "repair": {
     "section": "WIRE_FORMAT.md 28",
-    "catalogueVersion": 1,
-    "ruling": "Resolved 2026-09-30. Decode is strict on every host: a document the parser refuses is INVALID_JSON, and every fixture verdict here is that strict answer. The two recoveries the reference host used to apply inside decode are now a separate, specified repair function a caller invokes deliberately, with every repair named by a catalogue id (see ../repair/ and WIRE_FORMAT.md 28). Each fixture's repair member is what that function returns for the emission, and repairedVerdict is the strict decode of the repaired text."
+    "catalogueVersion": 2,
+    "ruling": "Resolved 2026-09-30. Decode is strict on every host: a document the parser refuses is INVALID_JSON, and every fixture verdict here is that strict answer. The two recoveries the reference host used to apply inside decode are now a separate, specified repair function a caller invokes deliberately, with every repair named by a catalogue id (see ../repair/ and WIRE_FORMAT.md 28). Each fixture's repair member is what that function returns for the emission, and repairedVerdict is the strict decode of the repaired text. Catalogue version 2 (Phase 1961) added wrong-type-close and changed no version-1 outcome: every repair member recorded under version 1 is what version 2 returns too. Over the stored emissions that are not valid JSON it repairs one more (sampled here as stored-recovery-wrong-type-close-e2f772948e7b9420, whose repaired text the strict decoder then refuses for a schema reason) and refuses three more under its own tokens; the snapshot below was counted under version 1."
   },
   "fixtures": [
     {
@@ -269,6 +269,24 @@
           "over-close-unique"
         ],
         "repairedVerdict": "accept"
+      }
+    },
+    {
+      "id": "stored-recovery-wrong-type-close-e2f772948e7b9420",
+      "decoder": "node",
+      "inputFile": "stored-emissions/stored-recovery-wrong-type-close-e2f772948e7b9420.json",
+      "verdict": "reject",
+      "expectedErrorCode": "INVALID_JSON",
+      "expectedPath": "$",
+      "repair": {
+        "outcome": "repaired",
+        "applied": [
+          "wrong-type-close"
+        ],
+        "repairedVerdict": {
+          "code": "WRONG_TYPE",
+          "path": "$.kind"
+        }
       }
     },
     {

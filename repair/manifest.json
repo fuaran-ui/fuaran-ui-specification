@@ -2,17 +2,20 @@
   "kind": "repair-catalogue",
   "version": 1,
   "description": "WIRE_FORMAT.md 28: deliberate repair of malformed canonical JSON. Each case names an input text, the strict decoder's answer to it, and what repair must return: the repaired text byte for byte and the catalogue ids applied, or the refusal token. A host that implements repair certifies every case; a host that does not declares so under hostStatements. HAND-AUTHORED, like decode-policy/ and stored-emissions/: the root manifest.json is generated and is not where this family is declared.",
-  "catalogueVersion": 1,
+  "catalogueVersion": 2,
   "catalogue": [
     "implied-node-close",
-    "over-close-unique"
+    "over-close-unique",
+    "wrong-type-close"
   ],
   "refusals": [
     "limit-exceeded",
     "not-in-catalogue",
     "over-close-ambiguous",
     "over-close-no-clean-candidate",
-    "over-close-bounds"
+    "over-close-bounds",
+    "wrong-type-close-ambiguous",
+    "wrong-type-close-no-candidate"
   ],
   "hostStatements": {
     "fuaran-dotnet": "implements",
@@ -20,6 +23,10 @@
     "fuaran-py": "no-repair",
     "fuaran-go": "no-repair",
     "fuaran-rs": "no-repair"
+  },
+  "hostCatalogueVersions": {
+    "fuaran-dotnet": 2,
+    "fuaran-ts": 2
   },
   "cases": [
     {
@@ -185,6 +192,101 @@
       "description": "a document that already parses is returned unchanged with nothing applied: repair is the identity on well-formed input (28.3 step 1)"
     },
     {
+      "id": "repair-not-in-catalogue-wrong-type-data-array",
+      "inputFile": "repair/repair-not-in-catalogue-wrong-type-data-array.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "not-in-catalogue",
+      "description": "a `}` meets an open array that is a data value, not a children or cases array; wrong-type-close is profile-gated to node-list positions like implied-node-close, so this stays a visible error (28.2.3)"
+    },
+    {
+      "id": "repair-wrong-type-close-dropped-bracket",
+      "inputFile": "repair/repair-wrong-type-close-dropped-bracket.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "wrong-type-close"
+      ],
+      "expectedFile": "repair/repair-wrong-type-close-dropped-bracket.expected.json",
+      "repairedDecodes": "accept",
+      "description": "an inner Box's children array loses its `]`, so the next `}` meets the array; inserting the `]` parses, replacing the `}` converges on the same document once implied-node-close places the owed node closer at the following `,{`, and the inserted reading's text is the output (28.2.3)"
+    },
+    {
+      "id": "repair-wrong-type-close-eof",
+      "inputFile": "repair/repair-wrong-type-close-eof.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "wrong-type-close",
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/repair-wrong-type-close-eof.expected.json",
+      "repairedDecodes": "accept",
+      "description": "the root children array's `]` dropped and the emission one closer short at the end; neither reading parses as formed, both parse once implied-node-close appends the owed end-of-input closer, and they agree (28.2.3, composition with 28.2.1)"
+    },
+    {
+      "id": "repair-wrong-type-close-replaced",
+      "inputFile": "repair/repair-wrong-type-close-replaced.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "wrong-type-close"
+      ],
+      "expectedFile": "repair/repair-wrong-type-close-replaced.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a `}` written where the `]` belonged, with members of the same object after it; replacing it parses, inserting a `]` before it leaves a surplus closer after the root, so exactly one reading survives (28.2.3)"
+    },
+    {
+      "id": "repair-wrong-type-close-eval-emission",
+      "inputFile": "repair/repair-wrong-type-close-eval-emission.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "wrong-type-close",
+        "implied-node-close"
+      ],
+      "expectedFile": "repair/repair-wrong-type-close-eval-emission.expected.json",
+      "repairedDecodes": "accept",
+      "description": "a real model emission: a `}` closing the root children array at the end of the document, the case that motivated the entry; both readings converge once the end of input is completed (28.2.3)"
+    },
+    {
+      "id": "repair-wrong-type-close-ambiguous",
+      "inputFile": "repair/repair-wrong-type-close-ambiguous.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "wrong-type-close-ambiguous",
+      "description": "members follow the mismatched `}`: inserting a `]` makes them members of the root node, replacing the `}` makes them members of the Box; two distinct documents, so the entry refuses rather than choose an owner (28.2.3)"
+    },
+    {
+      "id": "repair-wrong-type-close-no-candidate",
+      "inputFile": "repair/repair-wrong-type-close-no-candidate.input.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "not-repairable",
+      "reason": "wrong-type-close-no-candidate",
+      "description": "a `}` meets the children array and a second, independent defect follows it (a member with no colon); neither reading parses, with or without implied-node-close (28.2.3)"
+    },
+    {
       "id": "stored-recovery-implied-node-close-13c7200b28bef9c4",
       "inputFile": "stored-emissions/stored-recovery-implied-node-close-13c7200b28bef9c4.json",
       "strict": {
@@ -303,6 +405,24 @@
       "expectedFile": "repair/stored-recovery-over-close-unique-f0fd79a8d930022a.expected.json",
       "repairedDecodes": "accept",
       "description": "a real model emission from the stored-emissions family, repaired by over-close-unique"
+    },
+    {
+      "id": "stored-recovery-wrong-type-close-e2f772948e7b9420",
+      "inputFile": "stored-emissions/stored-recovery-wrong-type-close-e2f772948e7b9420.json",
+      "strict": {
+        "code": "INVALID_JSON",
+        "path": "$"
+      },
+      "outcome": "repaired",
+      "applied": [
+        "wrong-type-close"
+      ],
+      "expectedFile": "repair/stored-recovery-wrong-type-close-e2f772948e7b9420.expected.json",
+      "repairedDecodes": {
+        "code": "WRONG_TYPE",
+        "path": "$.kind"
+      },
+      "description": "a real model emission from the stored-emissions family, repaired by wrong-type-close: a children array lost its `]` before a `}`; the strict decoder then refuses the repaired text for a schema reason, which is the caller's to see"
     }
   ]
 }

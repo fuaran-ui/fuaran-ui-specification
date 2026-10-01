@@ -8189,18 +8189,22 @@ default. It MUST report which catalogue ids it applied to each document it decod
 
 ### 28.2 The catalogue
 
-The catalogue is **closed and versioned**. Catalogue version: **1**. Its entries, in the order
+The catalogue is **closed and versioned**. Catalogue version: **2**. Its entries, in the order
 `repair` tries them:
 
-| Id | Act | Touches |
-|---|---|---|
-| `implied-node-close` | inserts the closing `}` a node wrapper owes | insertion only |
-| `over-close-unique` | deletes one or two surplus closers, iff exactly one deletion decodes | deletion only |
+| Id | Act | Touches | Since |
+|---|---|---|---|
+| `implied-node-close` | inserts the closing `}` a node wrapper owes | insertion only | version 1 |
+| `over-close-unique` | deletes one or two surplus closers, iff exactly one deletion decodes | deletion only | version 1 |
+| `wrong-type-close` | puts right a `}` that met a node-list array, iff its two readings agree | insertion or replacement of one closer, plus §28.2.1 completion | version 2 (Phase 1961) |
 
-Every repair is **structural**: it inserts or deletes closing brackets (`}` / `]`) and nothing else.
-No key, value, opening bracket or separator is ever invented, edited or removed. A new repair, or a
-change to an existing entry's admissibility or output, is a specification change with fixtures, and
-it moves the catalogue version.
+Every repair is **structural**: it inserts, deletes or replaces closing brackets (`}` / `]`) and
+nothing else. No key, value, opening bracket or separator is ever invented, edited or removed. A new
+repair, or a change to an existing entry's admissibility or output, is a specification change with
+fixtures, and it moves the catalogue version. Version 2 added `wrong-type-close` and left both
+version-1 entries, their admissibility and their output exactly as they were: every document a
+version-1 host repairs, a version-2 host repairs to the same bytes with the same ids, and every
+version-1 refusal by an `over-close-*` token is unchanged.
 
 Positions below are **UTF-16 code unit** offsets into the input text, and lengths are counted in
 UTF-16 code units. The scans below are over the raw text and are **string-aware**: inside a string
@@ -8277,6 +8281,71 @@ clean; none is `over-close-no-clean-candidate`, two or more is `over-close-ambig
 **Output.** The **first candidate, in enumeration order,** whose parsed value is the accepted
 document.
 
+#### 28.2.3 `wrong-type-close` (catalogue version 2)
+
+The class: an object closer `}` read while the innermost open container is an array — a node-list
+array, closed with the wrong kind of bracket. Unlike the two version-1 shapes it has more than one
+reading, and the entry exists to tell when those readings agree:
+
+- **the array's `]` was dropped**: insert `]` before the `}`, which then closes the object the array
+  belongs to;
+- **the `}` was written for the `]`**: replace it with `]`, and the object it closed is still owed
+  its own closer, later.
+
+A third reading — the `}` is a surplus — is deliberately not one. A surplus closer has as many homes
+as there are enclosing levels; enumerating them is `over-close-unique`'s work, under its own
+profile, and taking the one at hand would be a guess.
+
+**Profile.** A string-aware scan (§28.2) to the **first structural mismatch** — the first closer
+that finds no open container, or closes one of the other kind. The document is in the profile iff
+that mismatch is a `}`, the innermost open container is an array, and that array is the value of an
+object member keyed `children` or `cases` (the key as written, between its quotes): the node-list
+positions `implied-node-close` is gated to, for the same reason. The same defect in a data array
+stays a visible error. A document cut inside a string, with no mismatch, whose first mismatch is any
+other shape, or whose mismatching array is keyed otherwise is not in the profile.
+
+The mirror — a `]` read while the innermost container is an object — is not this entry's: an owed
+`}` before a `]` is `implied-node-close`'s class, and that entry's version-1 profile gate stays
+exactly where it was.
+
+**Readings, completion and admissibility.** With `p` the offset of the mismatching `}`, the readings
+are, in this order:
+
+1. **insert** — the text with `]` inserted before offset `p`;
+2. **replace** — the text with the `}` at offset `p` replaced by `]`.
+
+A reading that parses is kept as formed, with applied ids `[wrong-type-close]`. A reading that does
+not parse is offered **once** to `implied-node-close` (§28.2.1) — whose end-of-input rule is what
+completes a reading that leaves the root open — and if that entry repairs it and the result parses,
+the result is kept with applied ids `[wrong-type-close, implied-node-close]`. Nothing else composes:
+no reading is offered to `over-close-unique`, and no entry is applied twice. The kept readings are
+**de-duplicated by parsed value**. The entry repairs iff **exactly one** distinct document remains;
+two is `wrong-type-close-ambiguous`, and none is `wrong-type-close-no-candidate`. Uniqueness is
+structural: nothing here consults the node decoder, which decides the repaired text afterwards
+exactly as it decides any other (§28.3).
+
+The two readings typically agree when the owed closer has one home — the replace reading's owed `}`
+lands, by `implied-node-close`, exactly where the insert reading put it — and disagree when members
+follow the mismatch, because each reading gives those members a different owner. That disagreement
+is the field-ownership ambiguity §28.2.2 refuses, and it is refused here for the same reason.
+
+**Output.** The text of the **first reading, in the order above,** whose parsed value is the
+accepted document, and that reading's applied ids.
+
+**Bounds.** None beyond the input's: two readings, each at most one `implied-node-close` scan and one
+parse, so the work is linear in the input. A reading whose parse breaches a §21 limit is not kept.
+
+**Measured (2026-10-01).** Over the 394 stored emissions that are not valid JSON, the version-1
+catalogue refuses 38 as `not-in-catalogue`. Of those, 23 are not bracket defects (comments,
+arithmetic written into a value, unescaped quotes, a stray quote), 6 are truncated, and 9 have a
+bracket defect. **No closer replaced alone repairs any of the 38**; the shape the data does hold is a
+dropped `]` before a `}`, sometimes with the end of input also short. Version 2 repairs 1 of the 38,
+refuses 3 as `wrong-type-close-no-candidate` (each a surplus `}` at the mismatch with an owed `}`
+missing elsewhere: two defects, refused), and leaves 34 `not-in-catalogue`; the version-1 entries'
+counts are unchanged. The entry was specified for a model emission outside that set — a `}` closing
+the root children array at the end of a document — which it repairs, and which the `repair/` family
+pins.
+
 ### 28.3 The `repair` function
 
 ```
@@ -8291,10 +8360,14 @@ Pure: text in, text out, no other effect. In order:
 3. `implied-node-close` repairs it: `Repaired { output; applied = [implied-node-close] }`.
 4. The text is in the `over-close-unique` profile: its verdict — `Repaired { output; applied =
    [over-close-unique] }`, or its refusal.
-5. Otherwise: `NotRepairable { not-in-catalogue }`.
+5. The text is in the `wrong-type-close` profile: its verdict — `Repaired { output; applied }`, with
+   `applied` as §28.2.3 states, or its refusal.
+6. Otherwise: `NotRepairable { not-in-catalogue }`.
 
-The two entries never contend: an over-closed document fails the `implied-node-close` scan at its
-first mismatch. **The repaired text is not a decoded tree and is not trusted**: the caller decodes it
+The entries never contend: an over-closed document fails the `implied-node-close` scan at its first
+mismatch, and `wrong-type-close` is reached only by a document neither version-1 entry applies to —
+which is why adding it changed no version-1 outcome. The one composition the catalogue states is
+`wrong-type-close` then `implied-node-close`, inside §28.2.3, in that order and once. **The repaired text is not a decoded tree and is not trusted**: the caller decodes it
 strictly and validates the result exactly as it would text that needed no repair. `repair` bypasses
 neither.
 
@@ -8307,17 +8380,21 @@ neither.
 | `over-close-ambiguous` | in the over-close profile; two or more distinct candidates decode clean |
 | `over-close-no-clean-candidate` | in the over-close profile; no candidate decodes clean |
 | `over-close-bounds` | in the over-close profile; a §28.2.2 bound is exceeded |
+| `wrong-type-close-ambiguous` | in the wrong-type-close profile; its readings yield two distinct documents (version 2) |
+| `wrong-type-close-no-candidate` | in the wrong-type-close profile; no reading parses, with or without completion (version 2) |
 
 ### 28.5 Host statements
 
 A host either implements the catalogue — every entry, byte for byte — or declares that it does not.
 There is no partial implementation. The declarations live in `repair/manifest.json` under
-`hostStatements`:
+`hostStatements`, and an implementing host also declares the **catalogue version** it implements
+under `hostCatalogueVersions`, which MUST equal the version the host's own source states and the
+version of the family it certifies:
 
 | Host | Statement |
 |---|---|
-| `fuaran-dotnet` | implements (the reference) |
-| `fuaran-ts` | implements |
+| `fuaran-dotnet` | implements, version 2 (the reference) |
+| `fuaran-ts` | implements, version 2 |
 | `fuaran-py` | no repair |
 | `fuaran-go` | no repair |
 | `fuaran-rs` | no repair |
@@ -8333,9 +8410,11 @@ returns it repaired with `over-close-unique` named. The `stored-emissions/` fami
 emission's repair outcome beside its strict verdict.
 
 The ids are continuous with the reliance accounting a host keeps for its opt-in lenient posture:
-`implied-node-close`, `over-close-unique`, and the refusal count `over-close-refused` (the three
-`over-close-*` refusal tokens) are the same vocabulary, so a per-document `applied` list, a
-process-wide counter and an evaluation record all name a repair the same way.
+`implied-node-close`, `over-close-unique`, `wrong-type-close`, and the refusal count
+`over-close-refused` (the three `over-close-*` refusal tokens) are the same vocabulary, so a
+per-document `applied` list, a process-wide counter and an evaluation record all name a repair the
+same way. The two `wrong-type-close-*` refusals are not counted under `over-close-refused`; like
+`not-in-catalogue`, they leave the strict `INVALID_JSON` standing.
 
 ---
 

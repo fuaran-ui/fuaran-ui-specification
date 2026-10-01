@@ -54,7 +54,10 @@ answer, `INVALID_JSON` at `$`. One of the four `over-close-unique` fixtures
 (`stored-recovery-over-close-unique-62782c6f2c99a7da`) is worth reading beside 20.2 row 2: its
 surplus closer falls after the root value, so the strict parser sees **content after the root
 value** and refuses it, exactly as row 2 requires, and `repair` returns it repaired with
-`over-close-unique` named. The `repair/` family pins the repaired bytes of all eight.
+`over-close-unique` named. Catalogue version 2 (Phase 1961) added `wrong-type-close`, and one
+fixture samples it: `stored-recovery-wrong-type-close-e2f772948e7b9420`, a children array that lost its `]`
+before a `}`, repaired and then refused by the strict decoder for a schema reason. The `repair/`
+family pins the repaired bytes of all nine.
 
 ## Regenerating
 
