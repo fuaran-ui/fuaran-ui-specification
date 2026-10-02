@@ -1880,7 +1880,7 @@ read-compat):
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
-| `direction` | `TextDirection` | `Auto` | `SemanticStyle` |  |
+| `direction` | `TextDirection` | `auto` | `SemanticStyle` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
 | `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
 | `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
