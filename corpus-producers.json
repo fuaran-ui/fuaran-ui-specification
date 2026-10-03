@@ -1,0 +1,10 @@
+{
+  "kind": "corpusProducers",
+  "corpus": "wire-format-fixtures",
+  "corpusPaths": [".", ":(exclude).github"],
+  "certifyingProducers": [
+    { "repo": "Fuaran/Fuaran-UI/fuaran-dotnet", "tagPrefix": "v" },
+    { "repo": "Fuaran/Fuaran-UI/fuaran-ts", "tagPrefix": "v" },
+    { "repo": "Fuaran/Fuaran-UI/fuaran-py", "tagPrefix": "v" }
+  ]
+}
