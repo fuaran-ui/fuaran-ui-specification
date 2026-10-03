@@ -581,7 +581,7 @@ jobs:
       # every interpreter; the version floor is the host's own gate to hold.
       - name: Setup Python
         if: matrix.toolchain == 'python'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
