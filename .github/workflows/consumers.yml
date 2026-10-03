@@ -247,7 +247,7 @@ jobs:
               "dir": "fuaran-ts",
               "toolchain": "node",
               "siblings": [
-                { "repo": "Fuaran-Core/fuaran-model-execution-spec", "dir": "fuaran-model-execution-spec" }
+                { "repo": "Fuaran-Data/fuaran-model-execution-spec", "dir": "fuaran-model-execution-spec" }
               ],
               "gate": "pnpm install --frozen-lockfile\npnpm build\npnpm test"
             },
