@@ -4600,7 +4600,7 @@ for the scalar case instead of pointing at the nearest detour.
 
 ## 5.2 Replay verification (normative host obligation, Phase 1674)
 
-The op-stream's hash chain is specified by the §4 consequence above, and the three reference hosts
+The op-stream's hash chain is specified in §5.3 below, and the three reference hosts
 compute it identically — the chain hashes agree **character for character** across F#, TypeScript and
 Python, which was measured rather than assumed. What differed, and what this section settles, is
 whether a host's REPLAY entry point verifies that chain before it applies anything.
@@ -4641,6 +4641,143 @@ the whole segment (1, 2, 3, 4). TypeScript and Python: fold without verifying, `
 replay that does not verify). No host is out of conformance with this section as it stands; what
 changes is that a fourth host now has the rule in front of it, and that a host moving to
 verify-by-default inherits obligation 3 with it.
+
+## 5.3 Op-stream chain and DAG content address (normative, Phase 2115)
+
+An op-stream records `TreeOp`s (§3.4) together with their provenance: who applied the op, when, under
+which prompt, and with what outcome. Two record shapes carry that history, and each has its own hash.
+In the **linear chain** every record names its predecessor's hash and its own position in the stream.
+In the **DAG** every record names zero or more parent addresses and no position at all, so a stream can
+branch and merge. The two hashes are different functions on purpose (§5.3.3). This section defines both
+byte for byte: a reader holding this document and nothing else can recompute every stored hash in
+`chain/chain-corpus.json` and in the `dag/` family.
+
+### 5.3.1 Rules common to both pre-images
+
+- **Digest.** SHA-256 over the UTF-8 bytes of the pre-image string, rendered as 64 lower-case
+  hexadecimal characters. Every hash and every parent reference in this section has that form.
+- **`<op>`** is the canonical encoding of the `TreeOp` (§2, §3.4), embedded verbatim as a JSON value —
+  not re-quoted as a string. It is exactly the bytes of an `ops/` fixture.
+- **`<ts>`** is the record's timestamp in whole Unix seconds, an integer under §2 rule 5.
+- **`<actor>`** is the typed actor in a **pinned** member order (`kind` first, then the case's fields
+  in this order — not Ordinal order): `{"kind":"human","id":<id>}` or
+  `{"kind":"agent","model":<model>,"version":<version>,"id":<id>}`.
+- **`<promptId>`** is the prompt id as a JSON string, or the literal `null` when the record has none.
+- **`<result>`** is the apply outcome: `{"kind":"success"}`, or
+  `{"kind":"failure","code":<code>,"message":<message>}`. This is the pre-image spelling, and it is not
+  the DAG record's wire member: a `dag/` record carries `"resultEnvelope":{"$type":"Success"}` (or
+  `{"$type":"Failure","code":…,"message":…}`), and a verifier maps it to the form above before hashing.
+- Every string, wherever it sits, is quoted under §2 rule 6 and with no other escape. There is no
+  whitespace anywhere in a pre-image.
+- **A pre-image is not a wire emission.** Its members appear in the pinned order this section gives,
+  not the Ordinal order of §2 rule 2, and an absent `promptId` is the literal `null` that §2 rule 4
+  keeps out of every emission. A host builds the pre-image from the template, never by running its
+  canonical encoder over an object holding the same members — that produces different bytes.
+
+### 5.3.2 The linear chain (format version 2)
+
+For the record at 1-based position `sequence`:
+
+```text
+hash     = SHA-256( previousHash + "|" + payload )
+payload  = {"seq":<sequence - 1>,"actor":<actor>,"op":<entry>}
+entry    = {"v":2,"op":<op>,"ts":<ts>,"promptId":<promptId>,"result":<result>}
+```
+
+- **Previous hash and separator.** `previousHash` is the preceding record's `hash`. The separator is the
+  single character `|` (U+007C) between the previous hash and the payload; nothing else is inserted.
+- **Genesis previous-hash.** The first record of a stream (`sequence` 1) takes sixty-four `0`
+  characters as its `previousHash` — the corpus's `genesisPreviousHash`.
+- **Sequence basis.** A record's `sequence` is 1-based. The pre-image folds the **0-based** index,
+  `sequence - 1`, so the first record hashes `"seq":0`. The 1-based value never enters the hash.
+- **The payload's members, in order:** `seq`, `actor`, `op`. The payload's `op` member is not the
+  `TreeOp`: it is the provenance `entry`, whose members are, in order, `v`, `op` (the `TreeOp`), `ts`,
+  `promptId`, `result`.
+- **The format tag.** `v` is the chain format version, the integer `2`, and it is the **first member
+  of the entry** — inside the payload, not at the head of the payload or of the pre-image. Because it is
+  inside the digest, relabelling a record's format breaks its hash, and a reader can lift it from the
+  entry to reject a format it does not know before it attempts a verification that would only report a
+  mismatch. Any change to this pre-image, to the entry's shape or to the digest moves `v` in lock-step
+  with `chain/chain-corpus.json`. An entry with no `v` member is the retired version-1 format, which
+  this section does not define and which never verifies under the version-2 pre-image.
+- **Verification.** A record verifies when its `previousHash` equals the preceding record's `hash` (the
+  genesis previous-hash for `sequence` 1), its `sequence` is one more than its predecessor's, and its
+  `hash` recomputes. §5.2 sets what a host must offer around that check.
+
+Worked example — `chain/chain-corpus.json`'s first record (`ops/op-removenode.json`, a human actor
+`u`, no prompt, timestamp `1700000000`). Its pre-image is
+
+```text
+0000000000000000000000000000000000000000000000000000000000000000|{"seq":0,"actor":{"kind":"human","id":"u"},"op":{"v":2,"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"promptId":null,"result":{"kind":"success"}}}
+```
+
+and its hash is `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c`, the stored value.
+
+### 5.3.3 The DAG content address
+
+A DAG record's address is the digest of a pre-image with **no** previous-hash prefix: the links to
+earlier history are the parent addresses inside it. Which of two pre-images applies is decided by
+whether the record carries an `outcomeHash`, not by how many parents it has.
+
+```text
+ordinary node (no outcomeHash):
+  hash = SHA-256( {"parents":[<parents>],"op":<op>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
+
+merge node (outcomeHash present):
+  hash = SHA-256( {"parents":[<parents>],"merge":<outcomeHash>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
+```
+
+- **Parents are sorted inside the hash.** `<parents>` is the record's parent addresses, each a JSON
+  string, comma-separated and sorted in Ordinal order whatever order the record lists them in. (Each is
+  64 lower-case hex characters, so Ordinal, code-point and byte order coincide.) The wire record keeps
+  its parents in **author order**, the primary parent first; only the pre-image sorts. A merge of `{A,B}`
+  and a merge of `{B,A}` therefore have one address. A node with no parents — a genesis node — hashes
+  `"parents":[]`.
+- **The merge node folds its outcome, not its op.** `<outcomeHash>` is the record's `outcomeHash`
+  string: the SHA-256 of the canonical encoding (§2) of the merged tree. A merge record's `op` is the
+  replay delta from its primary parent's tree to that merged tree, and it is **outside** the address, so
+  two hosts that reach the same merged tree by different deltas mint the same address.
+- **What is outside the address.** `streamId`, `tombstoned`, and (on a merge node) `op`. The record's
+  `hash` member is, of course, the output.
+- **Tombstoned records.** A tombstoned record's payload has been pruned, so its stored `hash` cannot be
+  recomputed and is accepted as stored; its `parents` still link. `dag/dag-tombstone.json` carries the
+  address of `dag/dag-linear-step.json` over a pruned `op`, which is exactly this case.
+- **No format tag — a property, not an omission to fill in.** The DAG pre-image carries no
+  format-version member, and nothing in a DAG record identifies the pre-image rule that produced its
+  address. A change to this pre-image therefore **re-addresses every node**, and a stored address made
+  under an earlier rule is simply one that does not recompute: it is not upgraded in place and does not
+  carry forward. The typed actor's arrival in the pre-image (Phase 1144) was such a change, and the
+  `dag/` manifest records the re-minting. Introducing a DAG format tag would itself be a change to this
+  section.
+
+### 5.3.4 The two hashes are different (normative)
+
+**A single-parent DAG node's address is not the linear hash of the same record, and a host MUST NOT
+treat either as the other or derive one from the other.** The DAG pre-image has no sequence, no
+previous-hash prefix and no format tag, and its members sit in a different envelope. Lifting a linear
+stream into the DAG — each record becomes a node whose single parent is the previous node's address,
+the first record a node with no parents — preserves the tree that replay produces and re-addresses every
+record. The worked pair, recomputed from `chain/chain-corpus.json` at authoring time:
+
+| `chain-corpus.json` record | linear hash (stored) | DAG address of the same record |
+|---|---|---|
+| sequence 1 (no parents in the DAG) | `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c` | `d67c35e006e9f2beee6edf58abcc5e95ba6904f94b336931bc4c84212c146355` |
+| sequence 2 (single parent `d67c35e0…`) | `5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05` | `c51ad58b87f8cb47359a6e1e701febf68e40d2fb0e2841fc7a9305dc722c3a63` |
+
+The first row's DAG pre-image is
+`{"parents":[],"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"actor":{"kind":"human","id":"u"},"promptId":null,"result":{"kind":"success"}}`.
+
+### 5.3.5 Conformance
+
+- **The linear chain is required** of every host that claims the op-stream layer. Such a host computes
+  and verifies the §5.3.2 hash and reproduces every `hash` and `previousHash` in
+  `chain/chain-corpus.json`.
+- **The DAG content address is a declared profile.** A host that claims it mints and verifies
+  addresses under §5.3.3 and recomputes the stored `hash` of every non-tombstoned record in `dag/`. A
+  host that certifies against `dag/` only as a record codec — decode, re-encode, byte-equal — does not
+  claim the profile, and it MUST NOT mint an address of its own: a guessed address fails verification
+  wherever a claiming host reads it. Today the reference host is the only host that claims the profile;
+  every other host certifying against `dag/` does so as a codec.
 
 ## 6. `DecodeError` envelope + the eight codes
 
