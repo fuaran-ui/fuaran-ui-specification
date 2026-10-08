@@ -4900,6 +4900,16 @@ produce such a tree, and with the two whole-tree gates that see one entire — p
 shape makes detection free; a decoder that accepts one is still conformant, and the corpus's
 round-trip family therefore proves nothing about uniqueness either way.
 
+**And at apply.** An apply engine is the third place a whole tree is in hand, and the one place a
+duplicate can be BUILT from parts that each decoded cleanly: a `ReplaceRoot` whose payload repeats an
+id, an `EditNode` or `UpdateState` whose new nodes collide with the rest of the tree, an `InsertChild`
+whose subtree repeats one. An apply engine therefore checks the RESULT of every op that puts nodes in,
+and refuses with `DuplicateNodeId` when an id the op installed is held by more than one node. It
+charges the op only for the ids it installed — a duplicate already present before the op is not that
+op's to refuse, as a tree already over a §21 limit is not refused for an op that did not grow it — and
+where an op also breaches a §21 limit, `LimitExceeded` is reported. A `Batch` is checked once, on the
+tree it produces. The corpus pins this as the `duplicateIdsApply` family under `apply/`.
+
 That gap is exactly how four `nodes/` fixtures came to repeat an id and round-trip cleanly for
 months. The corpus now carries its own guard: every `nodes/` fixture is checked for duplicates as a
 set, independently of round-tripping (§12).
