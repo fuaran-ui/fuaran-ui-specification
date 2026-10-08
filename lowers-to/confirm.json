@@ -1,1 +1,1 @@
-{"action":{"$type":"Confirm","onConfirm":{"$type":"Navigate","route":"/orders"},"prompt":"Leave this page?"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[]}}
+{"action":{"$type":"Confirm","onConfirm":{"$type":"Navigate","route":"/orders"},"prompt":"Leave this page?"},"lowersTo":{"answer":{"arm":"Choose","whenFalse":{"arm":"Sequence","members":[]},"whenTrue":{"arm":"Leaf","effectKinds":["Navigate"],"hostCalls":[]}},"arm":"Leaf","effectKinds":["Confirm"],"hostCalls":[]}}

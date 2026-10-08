@@ -4018,7 +4018,9 @@ resolved server-side (§3.6.16's rule — the shim holds no resolver), and the i
 carries the resolved prompt and an opaque token naming which confirm is being asked. The branches
 stay on the server: a shim told what a yes will do is a shim that can do it. The answer returns as
 the originating event re-delivered with the token and a boolean, is re-validated in full exactly as
-the first delivery was, and the continuation then meets the gate described above. An unresolved
+the first delivery was, and the continuation then meets the gate described above. A host that runs
+actions on the **bounded path** runs the same round trip and also CORRELATES the answer — it admits
+only an answer to a question it asked and has not seen answered or withdrawn (§30.1). An unresolved
 prompt lowers to no instruction at all — a yes/no with no subject is not a question.
 
 **A zero-JS resume interpreter MUST NOT show a non-literal prompt.** It holds no binding sources, so
@@ -8733,7 +8735,8 @@ Every `Action` arm (§3.3) has a meaning on the **bounded path**: a host that ru
 actions without closures lowers each arm onto one arm of the bounded program core's action view and
 interprets that. The core is the `Fuaran.Program.Bounded` package (repository
 `Fuaran-Build/fuaran-program`, `docs/generic-tier.md` §3.2), whose `ActionView` names eight arms;
-four of them — `Sequence`, `Assign`, `Call` and `Leaf` — are the targets below. Until this section
+five of them — `Sequence`, `Assign`, `Call` and `Leaf`, and `Choose` for the one round-trip arm's
+answer — are the targets below. Until this section
 the mapping was written down only in two hosts' code, so a third host running actions on the bounded
 path had to reverse-engineer it from one of them. It is now the format's.
 
@@ -8761,7 +8764,7 @@ completeness check until this table and the vector family both have its row.
 | `Invoke` | `Leaf` | host call, channel `Invoke`, name = `capabilityId` | |
 | `Notify` | `Leaf` | host call, channel `Notify`, name = `channel` | |
 | `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
-| `Confirm` | `Leaf` | none | demands nothing, **including from its continuations**: the bounded path answers it with a documented no-op, so neither `onConfirm` nor `onCancel` can run there |
+| `Confirm` | `Leaf`, then `Choose` | effect `Confirm` | **a round trip — two events** (Phase 2106). The gesture lowers to a leaf that asks: it emits the `Confirm` effect, whose token is the confirm's address, and runs no continuation. The ANSWER — the originating event re-delivered with `confirmToken` and `confirmAccepted` — lowers to `Choose` over the answer: `onConfirm` the true arm, `onCancel` (or the empty `Sequence`) the false. The answer is correlated (below) |
 | `Dispatch` | `Leaf` | none | its message has no wire projection (§4) |
 | `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead |
 
@@ -8771,8 +8774,25 @@ deliberately: they reach a host from the navigation layer, which is not a progra
 A leaf declaration is what a lowered arm **may** demand, which is what a host's demanded-effect
 projection reports and what a capability check is made against. It is an upper bound, not a promise
 to emit: a `Navigate` whose route fails the §19 floor emits nothing and still declares `Navigate`.
-The core arms the table never targets (`Require`, `Choose`, `Repeat`, `Each`) have no UI spelling;
-a host's lowering never produces them.
+The core arms the table never targets (`Require`, `Repeat`, `Each`) have no UI spelling; a host's
+lowering never produces them, and it produces `Choose` only for a `Confirm`'s answer.
+
+**`Confirm` is the one round-trip arm, and a bounded host correlates its answer (normative).** A
+host running actions on the bounded path folds a `Confirm` in two events, as the row above says, and
+MUST hold the confirm's question **pending** between them — where the tree can neither write nor
+read it. An answer is admitted only when its token is pending AND still addresses a `Confirm` in the
+node's current action, and admitting it consumes the token; **any other admitted event withdraws
+every pending question**. An answer naming a token that is not pending — never asked, already
+answered, or withdrawn — or one that addresses nothing is refused as an EVENT, which changes
+nothing. The selected continuation meets the dispatch gate on its own before it runs (§3.6.22). The
+token is the node id, `#`, and the confirm's structural path in the node's action — chain positions
+and continuation names joined by `.`, the empty path naming the action itself — the same token a
+server-driven host mints. A prompt that resolves to no text asks nothing. Four step-trace scenarios
+— an answer of yes, an answer of no, a question withdrawn by an event that is not its answer, and an
+answer given twice — pin the rule on every bounded host, in the bounded program core's
+driver-semantics conformance family. A round trip's leaf declaration names its question's effect;
+the demanded projection of a `Confirm` names that effect AND the union of both continuations'
+demands, because which continuation runs is the reader's answer, which no projection can see.
 
 ### 30.2 The reading
 
@@ -8784,15 +8804,18 @@ it carries:
   arm carries `valueFrom`;
 - `Call`: `{"arm":"Call","declaresTarget":<bool>,"endpoint":<string>}`;
 - `Leaf`: `{"arm":"Leaf","effectKinds":[<string>…],"hostCalls":[{"channel":<string>,"name":<string>}…]}`,
-  both members always present, empty where the table says none.
+  both members always present, empty where the table says none — and, for the round-trip arm
+  (`Confirm`) only, a third member `"answer"`: the reading of what its ANSWER event lowers to;
+- `Choose`: `{"arm":"Choose","whenFalse":<reading>,"whenTrue":<reading>}` — the two arms the
+  answer selects between, each read by this table; the entry, being the reader's answer, is not stated.
 
 A reading is a comparison form, not a wire: no document carries it, and nothing here asks a host to
 encode one. Two readings are equal when they are equal as JSON values, member order ignored.
 
 ### 30.3 The `lowers-to/` vector family
 
-[`lowers-to/`](./lowers-to/) holds one vector per row of §30.1 (two for `Chain`, `SetState` and
-`Call`, which each have a second case worth pinning), enumerated by
+[`lowers-to/`](./lowers-to/) holds one vector per row of §30.1 (two for `Chain`, `SetState`,
+`Call` and `Confirm`, which each have a second case worth pinning), enumerated by
 [`lowers-to/manifest.json`](./lowers-to/manifest.json) — the authoritative list, never a directory
 listing. Each vector is `{"action":<Action>,"lowersTo":<reading>}`. A host certifies the family by:
 
