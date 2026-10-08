@@ -1,0 +1,108 @@
+{
+  "kind": "lowersTo",
+  "version": 1,
+  "description": "WIRE_FORMAT.md section 30: every Action arm's lowering onto the bounded program core. Each vector holds one UI action document (`action`) and the core-arm reading it lowers to (`lowersTo`), hand-authored from the section 30 table and never emitted by any host's encoder. A host decodes `action` with its own decoder, computes its own reading, and compares it STRUCTURALLY (member order-insensitive) with `lowersTo`. `arms` is the exhaustive arm set: a host whose closed action union holds an arm not listed here, or lists an arm with no vector, fails.",
+  "arms": [
+    "Dispatch",
+    "Call",
+    "Notify",
+    "Navigate",
+    "SetState",
+    "AiTool",
+    "Chain",
+    "CommitLocal",
+    "WriteToClipboard",
+    "ReadFileBody",
+    "Invoke",
+    "Print",
+    "Focus",
+    "Confirm"
+  ],
+  "vectors": [
+    {
+      "arm": "Chain",
+      "file": "chain.json",
+      "name": "chain"
+    },
+    {
+      "arm": "Chain",
+      "file": "chain-nested.json",
+      "name": "chain-nested"
+    },
+    {
+      "arm": "SetState",
+      "file": "set-state.json",
+      "name": "set-state"
+    },
+    {
+      "arm": "SetState",
+      "file": "set-state-value-from.json",
+      "name": "set-state-value-from"
+    },
+    {
+      "arm": "Call",
+      "file": "call.json",
+      "name": "call"
+    },
+    {
+      "arm": "Call",
+      "file": "call-into.json",
+      "name": "call-into"
+    },
+    {
+      "arm": "Navigate",
+      "file": "navigate.json",
+      "name": "navigate"
+    },
+    {
+      "arm": "Focus",
+      "file": "focus.json",
+      "name": "focus"
+    },
+    {
+      "arm": "WriteToClipboard",
+      "file": "write-to-clipboard.json",
+      "name": "write-to-clipboard"
+    },
+    {
+      "arm": "ReadFileBody",
+      "file": "read-file-body.json",
+      "name": "read-file-body"
+    },
+    {
+      "arm": "Print",
+      "file": "print.json",
+      "name": "print"
+    },
+    {
+      "arm": "Invoke",
+      "file": "invoke.json",
+      "name": "invoke"
+    },
+    {
+      "arm": "Notify",
+      "file": "notify.json",
+      "name": "notify"
+    },
+    {
+      "arm": "AiTool",
+      "file": "ai-tool.json",
+      "name": "ai-tool"
+    },
+    {
+      "arm": "Confirm",
+      "file": "confirm.json",
+      "name": "confirm"
+    },
+    {
+      "arm": "Dispatch",
+      "file": "dispatch.json",
+      "name": "dispatch"
+    },
+    {
+      "arm": "CommitLocal",
+      "file": "commit-local.json",
+      "name": "commit-local"
+    }
+  ]
+}

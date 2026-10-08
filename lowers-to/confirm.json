@@ -1,0 +1,1 @@
+{"action":{"$type":"Confirm","onConfirm":{"$type":"Navigate","route":"/orders"},"prompt":"Leave this page?"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[]}}

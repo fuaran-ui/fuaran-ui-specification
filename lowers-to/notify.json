@@ -1,0 +1,1 @@
+{"action":{"$type":"Notify","channel":"printed","payload":"invoice"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[{"channel":"Notify","name":"printed"}]}}

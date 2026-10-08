@@ -1,0 +1,1 @@
+{"action":{"$type":"Invoke","args":[{"addr":"rows","value":"all"}],"capabilityId":"model.score"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[{"channel":"Invoke","name":"model.score"}]}}

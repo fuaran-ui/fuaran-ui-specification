@@ -1,0 +1,1 @@
+{"action":{"$type":"Call","endpoint":"/orders/delete","into":{"$type":"State","key":"delete-result"}},"lowersTo":{"arm":"Call","declaresTarget":true,"endpoint":"/orders/delete"}}

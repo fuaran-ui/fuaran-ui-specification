@@ -1,0 +1,1 @@
+{"action":{"$type":"SetState","key":"chosen-id","valueFrom":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"lowersTo":{"arm":"Assign","from":true,"key":"chosen-id"}}

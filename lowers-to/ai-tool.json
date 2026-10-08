@@ -1,0 +1,1 @@
+{"action":{"$type":"AiTool","args":{"topic":"orders"},"toolName":"summarise"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[{"channel":"AiTool","name":"summarise"}]}}

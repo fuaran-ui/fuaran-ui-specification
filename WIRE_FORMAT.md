@@ -8727,6 +8727,113 @@ an accept-set question for §20, not a question about lists.
 
 ---
 
+## 30. Action lowering onto the bounded program core (normative, Phase 2103)
+
+Every `Action` arm (§3.3) has a meaning on the **bounded path**: a host that runs a decoded tree's
+actions without closures lowers each arm onto one arm of the bounded program core's action view and
+interprets that. The core is the `Fuaran.Program.Bounded` package (repository
+`Fuaran-Build/fuaran-program`, `docs/generic-tier.md` §3.2), whose `ActionView` names eight arms;
+four of them — `Sequence`, `Assign`, `Call` and `Leaf` — are the targets below. Until this section
+the mapping was written down only in two hosts' code, so a third host running actions on the bounded
+path had to reverse-engineer it from one of them. It is now the format's.
+
+This section never re-spells a core arm: where it names one it uses the core's own name and says
+nothing about that arm's semantics beyond which arm is chosen. Likewise the effect kinds named in a
+leaf declaration are the client-effect discriminators the host's effect registry is keyed on
+(`Navigate`, `Focus`, …), not new spellings.
+
+### 30.1 The table
+
+The table is **exhaustive over the closed union**. An `Action` arm with no row is a specification
+defect, not a host's choice: a host whose action union gains a fifteenth arm fails §30.3's
+completeness check until this table and the vector family both have its row.
+
+| `Action` arm | Core arm | Leaf declaration (effect kinds / host calls) | Notes |
+|---|---|---|---|
+| `Chain` | `Sequence` | — | members are the `ops`, each lowered by this table, in order |
+| `SetState` | `Assign` | — | the `key`; a literal `value`, or a `valueFrom` binding resolved at dispatch |
+| `Call` | `Call` | — | the `endpoint`; `declaresTarget` is whether `into` is present (the core refuses a call that declares one) |
+| `Navigate` | `Leaf` | effect `Navigate` | |
+| `Focus` | `Leaf` | effect `Focus` | |
+| `WriteToClipboard` | `Leaf` | effect `WriteToClipboard` | |
+| `ReadFileBody` | `Leaf` | effect `ReadFileBody` | |
+| `Print` | `Leaf` | effect `Print` | |
+| `Invoke` | `Leaf` | host call, channel `Invoke`, name = `capabilityId` | |
+| `Notify` | `Leaf` | host call, channel `Notify`, name = `channel` | |
+| `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
+| `Confirm` | `Leaf` | none | demands nothing, **including from its continuations**: the bounded path answers it with a documented no-op, so neither `onConfirm` nor `onCancel` can run there |
+| `Dispatch` | `Leaf` | none | its message has no wire projection (§4) |
+| `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead |
+
+The two client-effect kinds no `Action` produces — `PushState` and `Download` — are absent
+deliberately: they reach a host from the navigation layer, which is not a program tree's to demand.
+
+A leaf declaration is what a lowered arm **may** demand, which is what a host's demanded-effect
+projection reports and what a capability check is made against. It is an upper bound, not a promise
+to emit: a `Navigate` whose route fails the §19 floor emits nothing and still declares `Navigate`.
+The core arms the table never targets (`Require`, `Choose`, `Repeat`, `Each`) have no UI spelling;
+a host's lowering never produces them.
+
+### 30.2 The reading
+
+A lowering is compared as a **reading** — a JSON value naming the core arm and what the table says
+it carries:
+
+- `Sequence`: `{"arm":"Sequence","members":[<reading>…]}`, one reading per member, in order;
+- `Assign`: `{"arm":"Assign","from":<bool>,"key":<string>}` — `from` is `true` exactly when the
+  arm carries `valueFrom`;
+- `Call`: `{"arm":"Call","declaresTarget":<bool>,"endpoint":<string>}`;
+- `Leaf`: `{"arm":"Leaf","effectKinds":[<string>…],"hostCalls":[{"channel":<string>,"name":<string>}…]}`,
+  both members always present, empty where the table says none.
+
+A reading is a comparison form, not a wire: no document carries it, and nothing here asks a host to
+encode one. Two readings are equal when they are equal as JSON values, member order ignored.
+
+### 30.3 The `lowers-to/` vector family
+
+[`lowers-to/`](./lowers-to/) holds one vector per row of §30.1 (two for `Chain`, `SetState` and
+`Call`, which each have a second case worth pinning), enumerated by
+[`lowers-to/manifest.json`](./lowers-to/manifest.json) — the authoritative list, never a directory
+listing. Each vector is `{"action":<Action>,"lowersTo":<reading>}`. A host certifies the family by:
+
+1. decoding `action` with its **own** decoder, through the same entry point its bounded path uses;
+2. computing its own reading of the arm it lowers that action to; and
+3. comparing it with `lowersTo` as §30.2 says.
+
+The expected readings are **hand-authored from the table and emitted by no host**, the reverse of
+the round-trip families: a reading derived by one host's mapping and certified by that same host
+would grade its own paper. The manifest is therefore hand-maintained, and §12's regeneration rule
+does not reach it.
+
+The manifest's `arms` member lists the fourteen arm names. A host asserts, against its own closed
+union, that every arm it holds is listed there and that every listed arm has at least one vector; a
+host whose union and the list disagree fails, whichever side holds the extra arm.
+
+A harness that can only pass certifies nothing, so a certifying host also proves, on every run, that
+a perturbed reading fails its comparison.
+
+**Host adoption.** Recorded here on the §11.0 convention:
+
+| Host | `lowers-to/` |
+|---|---|
+| `fuaran` (F#) | **certifies** — through its UI witness's view of each arm, the one the bounded core folds over |
+| `fuaran-rs` | **certifies** — through its own bounded loop's lowering, beside the interpreter it describes |
+| `fuaran-ts` | pending — runs no bounded path |
+| `fuaran-py` | pending — runs no bounded path |
+| `fuaran-go` | pending — runs no bounded path |
+
+### 30.4 What is deliberately not done
+
+The UI spelling of an action is **kept**, and lowered by this table, rather than replaced on the wire
+by a generic `Sequence`/`Assign`/`Leaf` spelling. The measured cost of that alternative, the
+reasons, and the conditions that would reopen it are recorded in the language tier's decision log
+([`DECISIONS.md`](../fuaran-dotnet/docs/DECISIONS.md) D10). In short: a generic spelling buys a host
+that does not know this vocabulary nothing it can act on — a leaf it cannot perform is still a leaf
+it cannot perform — and costs every document bytes and every host a migration, while two hosts
+already agree on this table under the vectors above.
+
+---
+
 ## See also
 
 - [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
