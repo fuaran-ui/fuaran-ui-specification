@@ -207,7 +207,10 @@ const evaluate = (table) => {
         rows.push({ enum: e.name, case: c.case, token: c.token, mapped: e.mapped === true, state: 'no-slot' });
         continue;
       }
-      if (unemittable.has(c.case)) {
+      // An `omitDefault` default names its case in either spelling: the IDL wrote the
+      // CASE name ("Auto") until the Fuaran.Core 0.34.0 re-emit and writes the wire
+      // TOKEN ("auto") since. Both mean the same case, so both make it unemittable.
+      if (unemittable.has(c.case) || unemittable.has(c.token)) {
         rows.push({ enum: e.name, case: c.case, token: c.token, mapped: e.mapped === true, state: 'unemittable' });
         continue;
       }
