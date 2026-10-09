@@ -8766,7 +8766,7 @@ completeness check until this table and the vector family both have its row.
 | `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
 | `Confirm` | `Leaf`, then `Choose` | effect `Confirm` | **a round trip — two events** (Phase 2106). The gesture lowers to a leaf that asks: it emits the `Confirm` effect, whose token is the confirm's address, and runs no continuation. The ANSWER — the originating event re-delivered with `confirmToken` and `confirmAccepted` — lowers to `Choose` over the answer: `onConfirm` the true arm, `onCancel` (or the empty `Sequence`) the false. The answer is correlated (below) |
 | `Dispatch` | `Leaf` | none | its message has no wire projection (§4) |
-| `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead |
+| `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead; **not** an `Assign` — see below |
 
 The two client-effect kinds no `Action` produces — `PushState` and `Download` — are absent
 deliberately: they reach a host from the navigation layer, which is not a program tree's to demand.
@@ -8776,6 +8776,18 @@ projection reports and what a capability check is made against. It is an upper b
 to emit: a `Navigate` whose route fails the §19 floor emits nothing and still declares `Navigate`.
 The core arms the table never targets (`Require`, `Repeat`, `Each`) have no UI spelling; a host's
 lowering never produces them, and it produces `Choose` only for a `Confirm`'s answer.
+
+**`CommitLocal` lowers to a `Leaf`, and an `Assign` reading was examined and refused (Phase 2130).**
+It is tempting to read a commit as the state write it causes, and on a server-driven channel's form
+flush it does cause one. The bounded core cannot take that reading. The action carries only the id
+of the field it commits; the key that is written is the `commitTo` of that field's `Local` binding,
+which is found by looking the field up in the tree, and an arm's lowering is computed from the action
+alone. The value is the event's flush payload, and an `Assign` reads only a literal or the store.
+A bounded host also performs no flush at all: its fold declines the arm. Lowering it to an `Assign`
+with neither a key nor a value would turn a silent decline into a refused write on every commit, and
+the demanded projection would name no key a host could check. So the row stays a leaf that demands
+nothing. Naming the key a commit writes needs a bounded flush protocol, which is a design of its own
+and not a change to this table.
 
 **`Confirm` is the one round-trip arm, and a bounded host correlates its answer (normative).** A
 host running actions on the bounded path folds a `Confirm` in two events, as the row above says, and
