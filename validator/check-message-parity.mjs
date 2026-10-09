@@ -66,8 +66,14 @@ const HOSTS = [
     host: 'fuaran-dotnet',
     role: 'reference',
     file: 'fuaran-dotnet/src/Fuaran.UI/PreEmitValidate.fs',
-    // `"FUARAN083",` then severity then the message, which may be a sprintf block.
-    re: /"(FUARAN[0-9A-Z-]+)",\s*\n?\s*DefectSeverity\.\w+,\s*\n?\s*([\s\S]{0,600}?)(?=\n\s*\| PreEmitDefect\.|\n\nlet |\n\/\/\/)/g,
+    // `"FUARAN083",` then severity then the message. Two shapes, both read: the
+    // per-case construction site (the message may be a sprintf block, ended by the
+    // next case, a blank-line `let` or a doc comment), and — since Phase 2051 — a
+    // `DefectCodes.table` row, `row ("Variant", "FUARAN083", DefectSeverity.X,
+    // "template", "notes")`, where the template is the argument before the closing
+    // notes argument. Reading only one shape made a host that moved to the other
+    // extract nothing, which this check reports as drift rather than passing.
+    re: /"(FUARAN[0-9A-Z-]+)",\s*\n?\s*DefectSeverity\.\w+,\s*\n?\s*([\s\S]{0,600}?)(?=\n\s*\| PreEmitDefect\.|\n\nlet |\n\/\/\/|,\s*\n?\s*"(?:[^"\\\n]|\\.)*"\s*\n?\s*\))/g,
   },
   {
     host: 'fuaran-py',
