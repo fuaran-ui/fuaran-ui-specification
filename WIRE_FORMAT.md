@@ -8767,7 +8767,7 @@ completeness check until this table and the vector family both have its row.
 | `Notify` | `Leaf` | host call, channel `Notify`, name = `channel` | |
 | `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
 | `Confirm` | `Leaf`, then `Choose` | effect `Confirm` | **a round trip — two events** (Phase 2106). The gesture lowers to a leaf that asks: it emits the `Confirm` effect, whose token is the confirm's address, and runs no continuation. The ANSWER — the originating event re-delivered with `confirmToken` and `confirmAccepted` — lowers to `Choose` over the answer: `onConfirm` the true arm, `onCancel` (or the empty `Sequence`) the false. The answer is correlated (below) |
-| `Dispatch` | `Leaf` | none | its message has no wire projection (§4) |
+| `Dispatch` | `Leaf` | none, and **opaque**: reason class `in-process`, name `Dispatch` | its message has no wire projection (§4) and is folded by the host's own `update`, which no walk can see into — see below |
 | `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead; **not** an `Assign` — see below |
 
 The two client-effect kinds no `Action` produces — `PushState` and `Download` — are absent
@@ -8778,6 +8778,19 @@ projection reports and what a capability check is made against. It is an upper b
 to emit: a `Navigate` whose route fails the §19 floor emits nothing and still declares `Navigate`.
 The core arms the table never targets (`Require`, `Repeat`, `Each`) have no UI spelling; a host's
 lowering never produces them, and it produces `Choose` only for a `Confirm`'s answer.
+
+**`Dispatch` lowers to an OPAQUE leaf (Phase 2194).** A leaf that declares nothing reads, in a
+host's demanded-effect projection, exactly like an action that does nothing — and a `Dispatch` is
+not that: its message is folded by the host's own `update`, in process, and nothing a walk of the
+tree can read says what that does. So its leaf declaration says it is an escape, using the bounded
+core's own opaque mark (the core names the act and a reason class, and nothing more). The reason
+class is `in-process` and the name is the arm's, `Dispatch`. A host's demanded projection then names
+the escape in a member of its own, a signed envelope over that projection names it too, and a
+reader can tell "cannot be analysed" from "harmless". The mark is a **disclosure, not an analysis**:
+it says nothing about what the message does, and a host's coverage check refuses it until that host
+has accepted the `in-process` class, which none does by default. A wire `Dispatch` carries no
+message at all (§4); it is marked all the same, because the declaration belongs to the arm and the
+projection is computed from the action, not from where it was decoded.
 
 **`CommitLocal` lowers to a `Leaf`, and an `Assign` reading was examined and refused (Phase 2130).**
 It is tempting to read a commit as the state write it causes, and on a server-driven channel's form
@@ -8819,7 +8832,10 @@ it carries:
 - `Call`: `{"arm":"Call","declaresTarget":<bool>,"endpoint":<string>}`;
 - `Leaf`: `{"arm":"Leaf","effectKinds":[<string>…],"hostCalls":[{"channel":<string>,"name":<string>}…]}`,
   both members always present, empty where the table says none — and, for the round-trip arm
-  (`Confirm`) only, a third member `"answer"`: the reading of what its ANSWER event lowers to;
+  (`Confirm`) only, a third member `"answer"`: the reading of what its ANSWER event lowers to; and,
+  exactly when the leaf declares itself opaque (`Dispatch` only), a member
+  `"opaque":{"name":<string>,"reason":<string>}`. A reading of an opaque leaf without that member, or
+  of any other leaf with it, is a different reading (Phase 2194);
 - `Choose`: `{"arm":"Choose","whenFalse":<reading>,"whenTrue":<reading>}` — the two arms the
   answer selects between, each read by this table; the entry, being the reader's answer, is not stated.
 
