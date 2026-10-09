@@ -8561,9 +8561,9 @@ emission's repair outcome beside its strict verdict.
 The ids are continuous with the reliance accounting a host keeps for its opt-in lenient posture:
 `implied-node-close`, `over-close-unique`, `wrong-type-close`, and the refusal count
 `over-close-refused` (the three `over-close-*` refusal tokens) are the same vocabulary, so a
-per-document `applied` list, a process-wide counter and an evaluation record all name a repair the
-same way. The two `wrong-type-close-*` refusals are not counted under `over-close-refused`; like
-`not-in-catalogue`, they leave the strict `INVALID_JSON` standing.
+per-document `applied` list, a decode outcome's recovered and refused lists, and an evaluation record
+all name a repair the same way. The two `wrong-type-close-*` refusals are not counted under
+`over-close-refused`; like `not-in-catalogue`, they leave the strict `INVALID_JSON` standing.
 
 ---
 
