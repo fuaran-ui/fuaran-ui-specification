@@ -1,1 +1,1 @@
-{"action":{"$type":"Dispatch"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[]}}
+{"action":{"$type":"Dispatch"},"lowersTo":{"arm":"Leaf","effectKinds":[],"hostCalls":[],"opaque":{"name":"Dispatch","reason":"in-process"}}}
