@@ -1,7 +1,7 @@
 {
   "kind": "lowersTo",
   "version": 1,
-  "description": "WIRE_FORMAT.md section 30: every Action arm's lowering onto the bounded program core. Each vector holds one UI action document (`action`) and the core-arm reading it lowers to (`lowersTo`), hand-authored from the section 30 table and never emitted by any host's encoder. A host decodes `action` with its own decoder, computes its own reading, and compares it STRUCTURALLY (member order-insensitive) with `lowersTo`. `arms` is the exhaustive arm set: a host whose closed action union holds an arm not listed here, or lists an arm with no vector, fails. A Confirm is the one round-trip arm: its reading also carries `answer`, the reading of what its ANSWER event lowers to (a Choose whose whenTrue is onConfirm and whose whenFalse is onCancel or the empty Sequence) - section 30.1, Phase 2106. A Dispatch is the one opaque leaf: its reading also carries `opaque`, the reason class and the name the leaf declares itself an escape with, and a reading that omits it fails - section 30.2, Phase 2194.",
+  "description": "WIRE_FORMAT.md section 30: every Action arm's lowering onto the bounded program core. Each vector holds one UI action document (`action`) and the core-arm reading it lowers to (`lowersTo`), hand-authored from the section 30 table and never emitted by any host's encoder. A host decodes `action` with its own decoder, computes its own reading, and compares it STRUCTURALLY (member order-insensitive) with `lowersTo`. `arms` is the exhaustive arm set: a host whose closed action union holds an arm not listed here, or lists an arm with no vector, fails. A Confirm is the one round-trip arm: its reading also carries `answer`, the reading of what its ANSWER event lowers to (a Choose whose whenTrue is onConfirm and whose whenFalse is onCancel or the empty Sequence) - section 30.1, Phase 2106. A Dispatch is the one opaque leaf: its reading also carries `opaque`, the reason class and the name the leaf declares itself an escape with, and a reading that omits it fails - section 30.2, Phase 2194. A CommitLocal is the one arm whose lowering reads the TREE: its vectors also carry `tree`, a node a host decodes with its own node decoder and lowers `action` in, because the key a commit writes is the `commitTo` of the form field it names, found there (an Assign naming that key, or a Leaf that demands nothing when the field declares no destination) - section 30.1, Phase 2198.",
   "arms": [
     "Dispatch",
     "Call",
@@ -108,6 +108,11 @@
       "arm": "CommitLocal",
       "file": "commit-local.json",
       "name": "commit-local"
+    },
+    {
+      "arm": "CommitLocal",
+      "file": "commit-local-no-destination.json",
+      "name": "commit-local-no-destination"
     }
   ]
 }

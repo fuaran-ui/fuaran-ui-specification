@@ -8768,7 +8768,7 @@ completeness check until this table and the vector family both have its row.
 | `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
 | `Confirm` | `Leaf`, then `Choose` | effect `Confirm` | **a round trip — two events** (Phase 2106). The gesture lowers to a leaf that asks: it emits the `Confirm` effect, whose token is the confirm's address, and runs no continuation. The ANSWER — the originating event re-delivered with `confirmToken` and `confirmAccepted` — lowers to `Choose` over the answer: `onConfirm` the true arm, `onCancel` (or the empty `Sequence`) the false. The answer is correlated (below) |
 | `Dispatch` | `Leaf` | none, and **opaque**: reason class `in-process`, name `Dispatch` | its message has no wire projection (§4) and is folded by the host's own `update`, which no walk can see into — see below |
-| `CommitLocal` | `Leaf` | none | the flushed value arrives as an event payload instead; **not** an `Assign` — see below |
+| `CommitLocal` | `Assign` | — | **the one arm whose lowering reads the tree** (Phase 2198): the key is the `commitTo` of the form field it names, the value is the event's flush payload, a literal. A commit whose field declares no destination lowers to `Leaf`, declaring nothing — see below |
 
 The two client-effect kinds no `Action` produces — `PushState` and `Download` — are absent
 deliberately: they reach a host from the navigation layer, which is not a program tree's to demand.
@@ -8792,17 +8792,38 @@ has accepted the `in-process` class, which none does by default. A wire `Dispatc
 message at all (§4); it is marked all the same, because the declaration belongs to the arm and the
 projection is computed from the action, not from where it was decoded.
 
-**`CommitLocal` lowers to a `Leaf`, and an `Assign` reading was examined and refused (Phase 2130).**
-It is tempting to read a commit as the state write it causes, and on a server-driven channel's form
-flush it does cause one. The bounded core cannot take that reading. The action carries only the id
-of the field it commits; the key that is written is the `commitTo` of that field's `Local` binding,
-which is found by looking the field up in the tree, and an arm's lowering is computed from the action
-alone. The value is the event's flush payload, and an `Assign` reads only a literal or the store.
-A bounded host also performs no flush at all: its fold declines the arm. Lowering it to an `Assign`
-with neither a key nor a value would turn a silent decline into a refused write on every commit, and
-the demanded projection would name no key a host could check. So the row stays a leaf that demands
-nothing. Naming the key a commit writes needs a bounded flush protocol, which is a design of its own
-and not a change to this table.
+**`CommitLocal` lowers to an `Assign` keyed from the tree: the bounded flush (normative, Phase
+2198).** A commit is the explicit "Apply" of a buffered form field (`Binding.Local`, §3.3.3), and on
+the bounded path it writes. Phase 2130 found that the action alone cannot say what it writes, because
+it carries only the id of the field it commits. So it is the one arm whose lowering reads the tree,
+and a host running actions on the bounded path MUST flush it as follows.
+
+- **The key** is the `commitTo` of the `Local` binding that is the value of the form field the commit
+  names: the first form field with that id in document order, depth first, a `Form` node's own fields
+  before its children. A host resolves it where the tree is in view, before the arm is lowered. When
+  no form field has that id, or its value is not a `Local` declaring `commitTo`, the commit writes
+  nothing on any host and lowers to a `Leaf` that declares nothing. That reading is true of it, so it
+  is not a silent leaf.
+- **The value** is the event's flush payload: the member of the admitted event's payload named by the
+  field's id, the member a server-driven host's form flush already reads. A host reads it after the
+  trust boundary has admitted the event and before the fold, so the `Assign` carries a literal and
+  its reading's `from` is `false`. The value is written as it arrives: a string as a string, a number
+  as a number, a boolean as a boolean. When the field's `Local` declares the `Number` codec, only a
+  number is written. A string is read under the JSON number grammar after surrounding ASCII
+  whitespace is trimmed, and any other value is refused. An absent or `null` member writes nothing.
+  A refused value performs no write and is diagnosed. It is not an event-level refusal (§10.5).
+- **The commits an event folds** are the ones its fold reaches. A gesture folds the commits its action
+  reaches through `Chain`. A `Confirm`'s ask reaches none of its continuations, and an answer folds the
+  commits of the continuation it selects. A commit interpreted with no tree has no field to look up
+  and writes nothing.
+- **Each flushed write meets the host's dispatch gate on its own**, as the `SetState` of that key and
+  value, after the commit itself has passed the trust boundary. A denied write refuses the event, and
+  nothing folds. Without this rule, a host whose policy admits a commit but not a write to its key
+  would be bypassed by `commitTo`. The reserved namespace binds a commit's key exactly as it binds a
+  `SetState`'s (§4.3).
+
+A host's demanded-effect projection of a tree therefore names the namespace a commit writes, and its
+coverage check asks for that namespace as it does for a `SetState`'s.
 
 **`Confirm` is the one round-trip arm, and a bounded host correlates its answer (normative).** A
 host running actions on the bounded path folds a `Confirm` in two events, as the row above says, and
@@ -8828,7 +8849,8 @@ it carries:
 
 - `Sequence`: `{"arm":"Sequence","members":[<reading>…]}`, one reading per member, in order;
 - `Assign`: `{"arm":"Assign","from":<bool>,"key":<string>}` — `from` is `true` exactly when the
-  arm carries `valueFrom`;
+  arm carries `valueFrom`, so a commit's is `false`: its value is a literal the host read from the
+  event (Phase 2198);
 - `Call`: `{"arm":"Call","declaresTarget":<bool>,"endpoint":<string>}`;
 - `Leaf`: `{"arm":"Leaf","effectKinds":[<string>…],"hostCalls":[{"channel":<string>,"name":<string>}…]}`,
   both members always present, empty where the table says none — and, for the round-trip arm
@@ -8845,13 +8867,19 @@ encode one. Two readings are equal when they are equal as JSON values, member or
 ### 30.3 The `lowers-to/` vector family
 
 [`lowers-to/`](./lowers-to/) holds one vector per row of §30.1 (two for `Chain`, `SetState`,
-`Call` and `Confirm`, which each have a second case worth pinning), enumerated by
+`Call`, `Confirm` and `CommitLocal`, which each have a second case worth pinning), enumerated by
 [`lowers-to/manifest.json`](./lowers-to/manifest.json) — the authoritative list, never a directory
-listing. Each vector is `{"action":<Action>,"lowersTo":<reading>}`. A host certifies the family by:
+listing. Each vector is `{"action":<Action>,"lowersTo":<reading>}`, and a `CommitLocal` vector also
+carries `"tree":<Node>`, the tree its key is found in (Phase 2198). A host certifies the family by:
 
-1. decoding `action` with its **own** decoder, through the same entry point its bounded path uses;
-2. computing its own reading of the arm it lowers that action to; and
+1. decoding `action` with its **own** decoder, through the same entry point its bounded path uses,
+   and `tree`, where present, with its own node decoder;
+2. computing its own reading of the arm it lowers that action to, in that tree where there is one;
+   and
 3. comparing it with `lowersTo` as §30.2 says.
+
+A certifying host also proves that the `commit-local` vector's action, lowered WITHOUT its tree,
+fails the comparison, so the row cannot be met by a lowering that leaves the key unnamed.
 
 The expected readings are **hand-authored from the table and emitted by no host**, the reverse of
 the round-trip families: a reading derived by one host's mapping and certified by that same host
