@@ -2099,7 +2099,7 @@ objects). A shape is coerced only when the foreign shape can denote **exactly on
 | `SelectOption` element | bare JSON **string** `"A"` | `{"label":"A","value":"A"}` (the HTML `<select>` prior; label canonicalises as the 0.2.0 bare-string Literal) |
 | `Transform.params` | name→binding **map** `{"status": <Binding>}` | `[{"name":"status","from": <Binding>}]` – params are a NAME-KEYED SET (`ColExpr.Param` lookup), so object key order carries no meaning; also `value` aliases `from` at the element |
 | `Grid` layout with **no** `cols`/`columns`/`templateColumns` | `{"$type":"Grid"}` | `{"$type":"Auto"}` – the CSS auto-grid prior maps to the language's existing responsive auto-tile layout (accept-and-canonicalise) |
-| embedded `Transform` source with **no** `schema` | `{"columns":{…}}` | the explicit-schema form – column types INFER deterministically from the cells (all-int→int, any fractional→float, all-bool→bool, all-string→string; NEVER date/timestamp; empty/mixed → didactic reject). Authority: the Fuaran.Core columnar codec (fuaran-core#88); 2026-07-18 |
+| embedded `Transform` source with **no** `schema` | `{"columns":{…}}` | the explicit-schema form – column types INFER deterministically from the cells (all-int→int, any fractional→float, all-bool→bool, all-string→string; NEVER date/timestamp, in any timestamp unit (§3.6.25); empty/mixed → didactic reject). Authority: the Fuaran.Core columnar codec (fuaran-core#88); 2026-07-18 |
 | embedded `Transform` source column as a bare **array** | `"amount": [100, 200]` | `{"values":[…],"validity":[true,…]}` – the just-the-data prior; the wire has no JSON null, so a bare array can only mean all-present. Same authority; 2026-07-18 |
 | embedded `Transform` **source slot** carrying a `State`/`Static`/`Bound` binding **envelope** | `{"$type":"State","defaultValue":[…],"key":…}` | the wrapped data itself – the envelope unwraps to its `defaultValue` (else `value`) BEFORE the columnar decode (initial-snapshot semantics; a LIVE state-sourced Transform is deliberately future charter work, not this). **A wrapper carrying NEITHER payload member is ACCEPTED since fuaran#1085**: `{"$type":"State","key":k}` in a Transform's source slot is a LIVE source over the EMPTY initial snapshot, exactly as a `Selection` / `Query` source already was. It used to refuse downstream (`reject/reject-transform-source-empty-wrapper`, retired), which was correct while nothing else could fill the slot; under §24.4 a SIBLING reader's declaration fills it, so the refusal was rejecting the most direct spelling of "I read this key and carry no data of my own" — the spelling `FUARAN106`'s own remedy text tells an author to write, and the one the shared-data-source charter's pair was written in. A default-less source that nothing seeds and nothing writes therefore derives over an empty table; that silent zero is named at authoring time by `FUARAN105`, where the key and the remedy can be named, and not at render time where neither can. **An EMPTY array payload (`"defaultValue": []`) is the EMPTY TABLE, not a malformed one** — an initially-empty live collection ("count the requests in an empty log") is a complete intent with zero rows and no columns to infer, and it is the spelling a live source used for "I read this key and carry no data of my own" while the bare wrapper was still refused. The two spellings are ONE dialect now and decode to the same live source; each still re-encodes to its own bytes, so neither is normalised into the other. Since §24.4 that spelling is what lets a Transform derive over a slot a SIBLING reader seeds; it declares nothing itself. Read this way by the reference host since 0.23.1, unspecified until fuaran#1075 and therefore refused by a second conformant host for a year — the divergence a rule stated on one implementation and not in the format always eventually produces. Pinned by `nodes/shared-source-seeded-pair`, which keeps the `[]` spelling deliberately: the corpus is a shared gate and the bare form's polyglot adoption is later work, so respelling it here would redden a host that decodes it today. Observed cross-family in the Tier-D pilot (claude, gemini, kimi). Pinned by `lenient/lenient-transform-source-state-rows`. fuaran#815; 2026-08-13; empty-payload rule fuaran#1075, 2026-08-27 |
 | embedded `Transform` source as **row-major** rows | `[{"dept":"ops","amount":100},…]` | the canonical columnar `{"columns":{…}}` – transposed with the FIRST row's key set (sorted), absent cells null; ragged / mixed-type rows still refuse didactically downstream. Pinned by `lenient/lenient-transform-source-rowmajor`. fuaran#815; 2026-08-13 |
@@ -4224,6 +4224,102 @@ its bytes carry no `onRowClick` key at all.
 the Phase 1701 change-set. A host that renders the bound leg as a placeholder owes rules 2 and 3
 only, and says so in its obligation report.
 
+
+### 3.6.25 Embedded `Transform` source — the timestamp unit (Phase 2206)
+
+A timestamp column declares the **resolution** it holds its instants at, as Arrow's
+`Timestamp(unit)` does. The authority is the Fuaran.Core columnar codec (fuaran-core#422, its
+`DECISIONS.md` D143); this section is the same rule stated for every host that decodes an embedded
+`Transform` source. It is additive: `timestamp` keeps its tag and its bytes, and three tags join it.
+
+| Tag | Unit | Fraction digits | A stored fraction lies in |
+|---|---|---|---|
+| `timestamp` | whole seconds | 0 | (none) |
+| `timestamp_ms` | milliseconds | up to 3 | `[0, 10^3)` |
+| `timestamp_us` | microseconds | up to 6 | `[0, 10^6)` |
+| `timestamp_ns` | nanoseconds | up to 9 | `[0, 10^9)` |
+
+The column type tags a host knows are `int`, `float`, `bool`, `string`, `date`, `timestamp`,
+`timestamp_ms`, `timestamp_us`, `timestamp_ns`, in that order where an `UnknownType` refusal
+enumerates them: the three sub-second tags come after `timestamp`, so the list keeps its earlier prefix
+in its earlier order. Any other tag, `timestamp_ps` included, is an unknown column type. A host does not
+read it as the nearest unit.
+
+**The canonical instant text: one instant, one text, whatever the unit.** An instant is written
+`YYYY-MM-DDThh:mm:ssZ` when its fraction is zero, and `YYYY-MM-DDThh:mm:ss.FZ` otherwise, where `F` is one
+to nine digits with **no trailing zero**. The text is UTC (`Z`, never an offset). The year is four digits
+from `0000` to `9999`, the day is one its month has in the proleptic Gregorian calendar, the hour is
+`00`–`23`, and the minute and second are `00`–`59`, so there is no leap second. The text does **not**
+depend on the column's unit. A whole-second instant reads the same in all four units and is the text a
+`timestamp` column has always carried, so every existing column byte stands. Half a second is `.5`, never
+`.500`, and fifty milliseconds is `.05`.
+
+**Decode is strict on text.** A timestamp column of any unit reads a string only in that canonical form,
+with a fraction **no finer than its unit**. Three things are refused:
+
+- `…00.5Z` in a `timestamp` column, or `…00.1234Z` in a `timestamp_ms` column. A fraction finer than the
+  unit is refused, never rounded or truncated, and the refusal names the coarsest unit that would hold it.
+- `…00.500Z` in any unit. It is not canonical text, so it is refused rather than normalised; a lenient
+  reading of padded fractions would be an additive change a later phase may make.
+- Any other text that is not canonical: an offset, a missing `Z`, a day its month does not have, or more
+  than nine fraction digits.
+
+**A coarser unit widens into a finer one.** An instant of coarser precision in a finer column is read
+and re-encoded unchanged: a whole second or a millisecond instant in a `timestamp_us` column, or anything
+in a `timestamp_ns` column. The scaling is exact, so the retype is lossless. A finer unit is never a
+widening of a coarser one. Because the text does not depend on the unit, widening a column rewrites no
+cell.
+
+**An epoch number is read in the column's unit.** A whole-valued JSON number with magnitude below
+`9e15` is accepted in place of the text (the lenient-ingest posture, fuaran-core#94) and re-encodes as the
+canonical text:
+
+- In a `timestamp` column the reading is unchanged. A magnitude of `1e11` or more is milliseconds,
+  **truncated toward zero** to the second (`-100000000001` is the second `-100000000`), and anything
+  smaller is seconds.
+- In a sub-second column the number is a count **in its own unit**, with no magnitude guess, because the
+  declared unit is the statement the guess was guessing at. The second is the floor, so an instant before
+  1970 has a negative second and a non-negative fraction (`-1` in a `timestamp_ms` column is
+  `1969-12-31T23:59:59.999Z`). The fraction is then written as minimal text.
+
+In every unit an instant outside `0000-01-01T00:00:00Z` … `9999-12-31T23:59:59Z` is refused. Most
+nanosecond instants exceed the `9e15` bound and therefore travel as text.
+
+**Encode** writes every present cell as its canonical text, never as an epoch number. An absent cell's
+placeholder is `""`, as for `timestamp`.
+
+**Inference never yields a timestamp, in any unit.** The rule in §3.6's lenient-ingest table holds for
+all four tags: a source with no `schema` infers `int`, `float`, `bool` or `string` only. A timestamp
+column of any unit must be declared in an explicit `schema` entry (§16.1's emitter preference).
+
+**The refusal class.** Every refusal above is a defect in the Transform's columnar source. It surfaces
+as `WRONG_TYPE` at the Transform's `.source` path, as every other columnar-codec defect does.
+
+**Forward coupling.** A host that has not taken this section refuses a sub-second tag as an unknown
+column type. So **no producer may emit `timestamp_ms`, `timestamp_us` or `timestamp_ns` until every
+conformant host certifies against the vectors below.** Under §11 the tags, this text, the corpus and every
+host codec move as one change-set.
+
+**The vocabulary charter does not govern these tags.** It governs the `NodeKind` vocabulary and its
+variants and spec-record fields. A column type tag is a value inside the columnar source, from the
+scalar type set the Fuaran.Core codec owns, and it was admitted there (D143.2). Even so, each gate has an
+answer:
+
+- **Demand:** the ruling that gave the instant a resolution, carrying event logs, telemetry and scientific
+  series at the precision they were recorded at.
+- **Irreducibility:** a resolution cannot be composed from the seconds tag. Fractional text in a
+  `timestamp` column is refused, and an epoch number in a `timestamp` column is guessed by magnitude.
+- **Cost:** this section, the corpus vectors, and every host codec.
+- **Confusion:** the delta is nil, because inference never yields a timestamp tag. An emitter meets the
+  choice only where it already declares a `schema` entry by hand.
+
+**Vectors.**
+- Round-trips per unit, with the 0000 and 9999 boundaries, a whole-second instant and a minimal fraction
+  with interior zeros: `nodes/grid-transform-timestamp-unit-{s,ms,us,ns}`.
+- Widening: `nodes/grid-transform-timestamp-widening`.
+- The epoch reading per unit: `lenient/lenient-transform-epoch-timestamp-units`.
+- Refusals: `reject/reject-transform-timestamp-{ms-finer-fraction,us-finer-fraction,fractional-second,ms-padded-fraction,unknown-unit,ms-epoch-before-0000}`.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -6017,7 +6113,7 @@ removes the run rather than checking it.
 | Prefer | Over | Rule |
 |---|---|---|
 | a column as a bare array – `"amount": [100, 200]` | `{"values":[100,200],"validity":[true,true]}` | an embedded `Transform` source column whose cells are **all valid** SHOULD be emitted bare. The wire has no JSON null, so the bare array already denotes all-present – the mask carries no information (§3.6) |
-| an embedded `Transform` source with **no** `schema` | `"schema":[{"name":"amount","type":"int"},…]` | when every column's type is **inferable** – `string` / `int` / `float` / `bool` – `schema` SHOULD be omitted and left to inference. Emit it explicitly only where inference cannot decide: an empty or mixed column, or a `date` / `timestamp` type, which never infers (§3.6) |
+| an embedded `Transform` source with **no** `schema` | `"schema":[{"name":"amount","type":"int"},…]` | when every column's type is **inferable** – `string` / `int` / `float` / `bool` – `schema` SHOULD be omitted and left to inference. Emit it explicitly only where inference cannot decide: an empty or mixed column, or a `date` / `timestamp` type of any unit, which never infers (§3.6, §3.6.25) |
 | a `Static` source carrying the values | a `Binding.Transform` whose `pipeline` is `[]` | literal data the author already holds SHOULD be emitted as the slot's own `Static` source. `Transform` is the declarative-**compute** case; with an empty pipeline it buys a schema, a columnar re-shaping of data already in hand, and an empty step array, for no computation. Reach for it when the pipeline does work – `filter` / `groupBy` / `sort` / `derive`. (§5.1 still governs *survivability* where a slot's `Static` payload is not one the language enumerates; this row ranks compactness, it does not re-rank that boundary) |
 | a `DataGrid` with `staticRows` | a `DataGrid` whose literal rows sit in `source` | a **static table of literal text** SHOULD be authored as the `staticRows` mode (§3.2). This row ranks **semantics**, not compactness — and its original rationale has been superseded: before Phase 665 a grid `source` carrying literal rows erased to `"<opaque>"`, so this was a survivability ranking. Both forms now round-trip value-faithfully (§5), so the preference rests on what the two modes *mean*: `staticRows` cells are `TextSource`, so `Bound` and `I18n` apply and localisation reaches table content, and the mode declares the table read-only and non-interactive (§3.2), which a renderer honours with semantic `<table>` markup. A `source` feed carries bare scalars and declares a *data-bound* grid. Choose by which of those you mean. The preference is stated for *literal text* tables; how a **data-bound** grid should best carry its rows is ranked by the rows above, not here |
 
