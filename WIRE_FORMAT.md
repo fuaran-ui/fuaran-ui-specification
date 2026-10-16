@@ -1671,7 +1671,7 @@ the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
-For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
+For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
 
 
 **Membership and order are separate ops (0.4.0).** `InsertChild` and `MoveNode` change which children
@@ -1716,6 +1716,45 @@ the refusal must name the field rather than fall through to a generic unknown-ke
 that is ignored does not fail — the op decodes, applies, and puts the node somewhere other than where
 the author asked. A wrong id fails loudly; a stale index succeeds quietly. Refusing by name is what
 converts the second into the first.
+
+#### `PatchStyle` – the field-level style edit (Phase 2291)
+
+`UpdateStyle` writes the WHOLE `SemanticStyle` record: under the §3.6 omitted-when-default rule an
+absent member means *the default*, so even the one-member payload `{"style":{"tone":"Brand"}}` resets
+the node's other five style fields. `PatchStyle` is the edit of SOME fields:
+
+```jsonc
+{"$type":"PatchStyle","style":{"tone":"Success","voice":"Display"},"target":"metric-1"}
+```
+
+**Members, in the pinned order:** `$type`, `style`, `target` – the `UpdateStyle` shape exactly. The
+`style` object is a **`StyleDelta`**: the same six members as `SemanticStyle`, with the same closed
+token sets (§3.5; `direction`'s lower-case tokens included), emitted in the same alphabetical order –
+`direction`, `emphasis`, `role`, `tone`, `voice`, `weight` – and each OPTIONAL.
+
+**What absence means is the one difference, and it is normative.** In a `StyleDelta` an absent member
+means *leave this field as it is*; a present member SETS the field, **a default token included**. So
+`{"tone":"Default"}` is a real edit – it sets the tone back to `Default` whatever it was – and an
+encoder MUST emit every member the delta sets, never omitting one because its value is the field's
+default (§3.6's rule does not apply inside a delta). See
+`ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json`.
+
+**A delta naming no field is not an edit.** A conformant decoder MUST REFUSE `"style":{}`:
+`WRONG_TYPE` at `$.style`, the `reject-fieldrule-empty` precedent (a record that declares nothing).
+The schema states the same rule as `minProperties: 1`. A token outside a member's closed set is
+`UNKNOWN_DU_CASE` at `$.style.<member>`; a non-string token is `WRONG_TYPE` there. See
+`reject/reject-op-patchstyle-*.json`.
+
+**Apply semantics.** The patch is applied over the target's CURRENT style – an absent `style` slot
+is the default record – setting exactly the fields the delta names and carrying every other field
+through. A result equal to the default record is stored as the absent slot, exactly as `UpdateStyle`
+normalises. An unknown `target` is `NodeNotFound`.
+
+**Which op a producer emits.** A tree diff that observes a style change emits `PatchStyle` naming the
+fields that moved, and the whole-record `UpdateStyle` only when every field moved. The two are
+different claims about the edit, and the difference is what a concurrency footprint reads: two
+`PatchStyle`s naming different fields of one node are independent edits, where two `UpdateStyle`s on
+one node always overlap. `UpdateStyle` remains the op for an author who means to REPLACE a style.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -4807,7 +4846,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5451,10 +5490,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->614<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->621<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=op-round-trip -->27<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
