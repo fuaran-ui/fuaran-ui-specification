@@ -1302,6 +1302,12 @@ A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares ty
 
 See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical shapes; `nodes/frag-decl-1.json` + `nodes/frag-ref-1.json` remain the degenerate fixed-body fixtures.
 
+#### Fragment scope (normative, Phase 2285)
+
+A `FragmentDecl` is registered wherever it sits in **fragment scope**: a container's ordered children, a `FragmentDecl` body, both `ErrorBoundary` arms, every `Switch` case child and its default, and the node envelope's `state.onLoading` and `state.onEmpty`, which render in place of their node and so can declare, reference and render fragments too. A `FragmentDecl` under the envelope `fallback`, inside a `FragmentRef` slot argument, or inside a `Mount` guest is **not** registered in the referring document's fragment table: a slot argument belongs to the scope it is passed into, and a `Mount` guest is a separate scope with its own table (§8.1).
+
+Expansion namespacing walks **exactly the same reach**, so a declaration is registered exactly where an expansion namespaces it, and the state alternatives of an expanded body carry `<refId>.<id>` like every other interior id (§8.1). On a repeated name the last declaration in pre-order wins; validators refuse duplicate names, so this decides only already-invalid documents.
+
 ### 3.3 Nested DU positions
 
 `$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`Now`/`I18n`/`Local`/`Format`/`Transform`/`Expr`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
