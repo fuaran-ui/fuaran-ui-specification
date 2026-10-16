@@ -30,9 +30,9 @@
     "omitDefaults": {
       "default=Default": "The tone for a value the `map` does not mention.",
       "controls=true": "Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key.",
-      "dismissable=true": "Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE.",
+      "dismissable=true": "Omit-when-TRUE: an overlay is dismissable unless said otherwise — `Toast` (0.2.0) and, since Phase 2300, `Modal` (every corpus modal carried `true`). The polarity is the FIELD's, not the type's: `Callout.dismissable` is the same name and the same type omitted at FALSE; §3.6 rule 1 names the overlay pair as the enumerated exception to the boolean `false` default.",
       "emphasis=false": "The behavioural bool, not the `Emphasis` style DU — a different field that shares a name.",
-      "orientation=Horizontal": "`TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there."
+      "orientation=Horizontal": "`TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (`Vertical` 28 / `Horizontal` 4 in the corpus is a prior, not a default)."
     },
     "nodeFields": {
       "extraAttributes": "The AI-opaque consumer-side hatch for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit.",

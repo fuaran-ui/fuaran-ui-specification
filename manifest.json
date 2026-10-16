@@ -663,6 +663,30 @@
       "description": "§3.2 — a multi-select (`\"multiple\":true`) carrying a `value` beside its `values` decodes and re-encodes WITHOUT `value`: a multi-select carries `values` and no `value`, and never reads one. Three spellings, one per child: the empty-`Static` placeholder every pre-1962 multi-select carried (bare, and with `\"value\":null`) and a real State binding of the kind models wrote beside `values`. A malformed `value` still refuses as a malformed binding (Phase 1962)"
     },
     {
+      "id": "lenient-2300-declared-default-bindings",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-2300-declared-default-bindings.json",
+      "expectedFile": "lenient/lenient-2300-declared-default-bindings.expected.json",
+      "description": "§3.6 — the declared-default rule over the binding-valued initial slots Phase 2300 declared: `Stepper.activeStep` (`Static{value=0}`, the `Tabs.activeIndex` precedent) and `Disclosure.open` (`Static{value=false}`) beside `Disclosure.defaultOpen` (`false`). Each written explicitly at its default re-encodes WITHOUT the member; a State-bound `open` is not a default and is kept (Phase 2300)"
+    },
+    {
+      "id": "lenient-2300-declared-default-booleans",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-2300-declared-default-booleans.json",
+      "expectedFile": "lenient/lenient-2300-declared-default-booleans.expected.json",
+      "description": "§3.6 — the declared-default rule over the boolean and list fields Phase 2300 declared: `Flex.wrap`, `Link.download`, `List.ordered`, `CodeBlock.copyable` / `lineNumbers` / `highlightLines`, `FileUpload.multiple`, `FormField.required` (each `false` / `[]`) and `Modal.dismissable` (`true` — an overlay is dismissable unless it says otherwise, the `Toast` polarity). Each written explicitly at its default decodes to the same tree and re-encodes WITHOUT the member; the same field at the non-default value is unchanged (Phase 2300)"
+    },
+    {
+      "id": "lenient-2300-declared-default-enums",
+      "kind": "lenient-accept",
+      "decoder": "node",
+      "inputFile": "lenient/lenient-2300-declared-default-enums.json",
+      "expectedFile": "lenient/lenient-2300-declared-default-enums.expected.json",
+      "description": "§3.6 — the declared-default rule over the enum-valued fields Phase 2300 declared: `Heading.variant` (`Standard`), `Image.variant` (`Default`) and `SegmentedChoice.orientation` (`Horizontal`, which the decoder restored on absence since Phase 460 while the encoder still emitted it). Each written explicitly at its default re-encodes WITHOUT the member (Phase 2300)"
+    },
+    {
       "id": "lenient-460-alias-emphasis-muted",
       "kind": "lenient-accept",
       "decoder": "node",
@@ -1036,7 +1060,7 @@
       "decoder": "node",
       "inputFile": "lenient/lenient-shape-segmented-orientation-omitted.json",
       "expectedFile": "lenient/lenient-shape-segmented-orientation-omitted.expected.json",
-      "description": "Omitted-when-default (the Phase 460 posture applied to `orientation`) — an absent segmented `orientation` restores the language default `Horizontal` (observed omitted in eval emission data); decode-only, the encoder still always emits it. Combined here with the bare-options shape coercion."
+      "description": "Omitted-when-default (the Phase 460 posture applied to `orientation`) — an absent segmented `orientation` restores the language default `Horizontal` (observed omitted in eval emission data). Declared `omitDefault` in the IDL since Phase 2300, so the encoder omits it too. Combined here with the bare-options shape coercion."
     },
     {
       "id": "lenient-shape-static-envelope-plain-scalars",
