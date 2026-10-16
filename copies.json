@@ -7380,6 +7380,54 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "ops/op-patchstyle (phase 2291 all six members).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/ops/op-patchstyle (phase 2291 all six members).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "ops/op-patchstyle (phase 2291 all six members).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/ops/op-patchstyle (phase 2291 all six members).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "ops/op-patchstyle.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/ops/op-patchstyle.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "ops/op-patchstyle.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/ops/op-patchstyle.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "ops/op-removenode.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/ops/op-removenode.json"
@@ -9487,6 +9535,70 @@
       "source": "reject/reject-op-movenode-retired-newposition.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-op-movenode-retired-newposition.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-direction-nonstring.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-op-patchstyle-direction-nonstring.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-direction-nonstring.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-op-patchstyle-direction-nonstring.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-empty.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-op-patchstyle-empty.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-empty.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-op-patchstyle-empty.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-missing-style.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-op-patchstyle-missing-style.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-missing-style.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-op-patchstyle-missing-style.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-tone-unknown.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-op-patchstyle-tone-unknown.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-op-patchstyle-tone-unknown.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-op-patchstyle-tone-unknown.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
