@@ -1727,7 +1727,9 @@ converts the second into the first.
 
 `UpdateStyle` writes the WHOLE `SemanticStyle` record: under the §3.6 omitted-when-default rule an
 absent member means *the default*, so even the one-member payload `{"style":{"tone":"Brand"}}` resets
-the node's other five style fields. `PatchStyle` is the edit of SOME fields:
+the node's other five style fields. Applied, that record replaces the target's style, and a record
+equal to the default is stored as the ABSENT slot (§3.1), so the target encodes with no `style` member,
+never `"style":{}` (Phase 2313; `apply/style-normalise-apply.json`). `PatchStyle` is the edit of SOME fields:
 
 ```jsonc
 {"$type":"PatchStyle","style":{"tone":"Success","voice":"Display"},"target":"metric-1"}
