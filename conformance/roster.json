@@ -1,0 +1,62 @@
+{
+  "$comment": "The change-set roster (WIRE_FORMAT.md 11.0 and 11.3). One row per host: `id` is the 11.0 roster token, `dir` the checkout directory beside this corpus, `role` codec | projection, `leg` the commands that certify that host against the corpus FUARAN_WIRE_FIXTURES names (run in order, in the host's directory, provisioning first), `capabilityManifest` the host's 27 manifest (required of every codec host; its corpusFamilies must name every family the corpus tree enumerates), `snapshot` the check that its bundled corpus copy is the corpus under test, `platform` a leg that can only run on one OS. A new host, or a new leg, is a row here and nothing else. Read by cross-host-conformance.mjs --roster; the codec-host set is checked against 11.0's table on every run.",
+  "hosts": [
+    {
+      "id": "fuaran",
+      "dir": "fuaran-dotnet",
+      "role": "codec",
+      "capabilityManifest": "host-capability-manifest.json",
+      "leg": ["dotnet run --project src/Fuaran.UI.JsonDecode.Tests -c Release"]
+    },
+    {
+      "id": "fuaran-ts",
+      "dir": "fuaran-ts",
+      "rootEnv": "FUARAN_TS_ROOT",
+      "role": "codec",
+      "capabilityManifest": "packages/conformance/host-capability-manifest.json",
+      "snapshot": "node packages/conformance/scripts/sync-corpus.mjs --check",
+      "leg": [
+        "pnpm install --frozen-lockfile",
+        "pnpm --filter \"@fuaran-ui/ops...\" --filter \"@fuaran-ui/conformance...\" run build",
+        "pnpm --filter @fuaran-ui/ops exec vitest run test/corpus.test.ts",
+        "pnpm --filter @fuaran-ui/conformance exec vitest run"
+      ]
+    },
+    {
+      "id": "fuaran-py",
+      "dir": "fuaran-py",
+      "rootEnv": "FUARAN_PY_ROOT",
+      "role": "codec",
+      "capabilityManifest": "conformance/host-capability-manifest.json",
+      "snapshot": "python conformance/sync_corpus.py --check",
+      "leg": ["pwsh -NoProfile -File run.ps1 -SkipLint -SkipFormat -SkipTypecheck"]
+    },
+    {
+      "id": "fuaran-go",
+      "dir": "fuaran-go",
+      "role": "codec",
+      "capabilityManifest": "host-capability-manifest.json",
+      "leg": ["go test -count=1 ./conformance/... ./internal/corpusroot/..."]
+    },
+    {
+      "id": "fuaran-rs",
+      "dir": "fuaran-rs",
+      "role": "codec",
+      "capabilityManifest": "host-capability-manifest.json",
+      "leg": ["cargo test --test conformance"]
+    },
+    {
+      "id": "fuaran-kt",
+      "dir": "fuaran-kt",
+      "role": "projection",
+      "leg": ["pwsh -NoProfile -File run.ps1 -SkipRenderer"]
+    },
+    {
+      "id": "fuaran-swift",
+      "dir": "fuaran-swift",
+      "role": "projection",
+      "platform": "darwin",
+      "leg": ["swift test"]
+    }
+  ]
+}

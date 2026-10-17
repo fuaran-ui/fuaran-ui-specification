@@ -5209,10 +5209,24 @@ vocabulary at all: the teleport bundle is an additive TOP-LEVEL artefact (§17),
 byte-perfect on every node and op fixture and hold no bundle codec. Its table lives with the family it
 records, in [§17.6](#176-conformance), beside the corpus family that certifies it.
 
-A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
-the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
-so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
-authoritative.**
+The machine-readable mirror of this roster is [`conformance/roster.json`](./conformance/roster.json)
+(Phase 2301): one row per host, naming its checkout, its role, the commands that certify it against
+the corpus, its capability manifest and its bundled-snapshot check. The change-set runner (§11.3)
+compares its codec hosts with this table on every run and refuses when the two differ, so **this
+table stays authoritative** and the mirror cannot drift from it silently.
+
+**Run the change-set command.** The steps below are one act, and on a workstation they are one
+command, run from the reference host's checkout (§11.3):
+
+```
+dotnet run --project Build.fsproj -- ChangeSet
+```
+
+It regenerates the F# structural layer, the authoring mirrors and the proof vocabulary from the IDL,
+emits the corpus, re-syncs and re-declares both bundled snapshots, and certifies every host in the
+roster against the corpus, refusing to read green with a leg skipped. A phase that changes the
+vocabulary names this command once; the steps that follow are the description of what it does, and
+what an author must still do by hand (the edits themselves) before running it.
 
 Adding a case to **any discriminator family on the wire** MUST, **in the same commit**, do all of the
 following. A *discriminator family* is any union whose members are distinguished by a `$type` tag —
@@ -5373,6 +5387,11 @@ a substitute. What discharges the coupling is landing the change-set whole.
 
 Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate + stale-schema guard). Step 5 – *keep every non-reference codec host in the §11.0 roster byte-identical* – is enforced by pinning **each codec host to the committed corpus**, so a divergence between any two conformant hosts is caught rather than discipline-maintained. The committed corpus **is** the F# encoder's canonical output (`Corpus.emit` writes `CanonicalJson.encode*` into the `expectedFile` payloads and the `DecodeError` code/path into `manifest.json`); each codec host's leg asserts its own canonical output is byte-identical to that corpus, and `X == corpus` for every host `X` proves `X == Y` byte-for-byte across the roster.
 
+**The workstation form of this gate is the change-set command (§11.3).** Its leg stage,
+`conformance/cross-host-conformance.mjs --roster`, runs every leg below (and the render projections'
+coverage legs) on one machine against the corpus `FUARAN_WIRE_FIXTURES` names, so an author meets on
+their own tree, before any push, the red this gate would report afterwards.
+
 **The legs are enumerated from the roster** (one per codec host; render projections have no leg – §11.0):
 
 - **Leg A – `fuaran` (F#):** `dotnet run` the `Fuaran.UI.JsonDecode.Tests` suite – the current encoder/decoder re-produces the committed corpus byte-for-byte (round-trip), surfaces the canonical reject code/path, and is schema-valid + stale-schema-guarded. ⇒ `F# == corpus`.
@@ -5422,6 +5441,54 @@ and would need the manifest route this phase took: `TextSource`, whose §16 bare
 one `oneOf` branch a plain string rather than a discriminated object, and any family whose cases are
 spread across sibling `$defs`. The families are enumerated so the scope is a stated one rather than an
 assumed one. Adding a row to the table above is the way to close one.
+
+### 11.3 The change-set command, fixture `since`, and the AHEAD grade
+
+**The command (Phase 2301).** `dotnet run --project Build.fsproj -- ChangeSet`, in the reference host's
+repository, performs the §11 change-set as named stages, each with its own exit, stopping at the first
+that fails:
+
+| Stage | What it does |
+|---|---|
+| `corpus` | the corpus `FUARAN_WIRE_FIXTURES` names (else the sibling `wire-format-fixtures`) holds a `manifest.json`; a set-but-missing path is refused, never replaced by a fallback |
+| `regenerate` | `Generated.fs`, the C# and VB authoring mirrors and the proof vocabulary, from the IDL |
+| `emit` | the corpus payloads, `manifest.json`, `schema.json`, `idl.json` and `enum-tokens.json` (step 4); refused when it adds a fixture while the reference `<Version>` is already a tagged release, because the new fixture's `since` would then name a release that does not carry it |
+| `resync` | both bundled snapshots (TypeScript, Python), re-synced and re-declared in [`copies.json`](./copies.json) by each host's own declare step (step 5 of the additive-family rule) |
+| `legs` | [`conformance/cross-host-conformance.mjs --roster`](./conformance/change-set.mjs) over [`conformance/roster.json`](./conformance/roster.json) |
+| report | one line per stage; GREEN only when every stage ran and passed |
+
+The leg stage first checks the corpus against the hosts — every fixture row carries a `since`; the
+roster's codec hosts are §11.0's; every codec host's §27 manifest declares `corpusFamilies` naming
+every family the corpus tree enumerates (§27.7) and no other; every bundled snapshot is the corpus
+under test — and then runs each host's leg in its own checkout with `FUARAN_WIRE_FIXTURES` set. Its
+verdict is **green** only when every check passed and every selected leg ran and passed. A leg whose
+checkout is absent is **unresolved**, which is red. `--legs <host,…>` narrows the run for development
+and the verdict is then **partial**, which is never green. A leg bound to one platform (the Swift
+projection) is reported by name as `n/a` elsewhere. `--dry-run` prints the plan. New families and new
+hosts are rows in the corpus repository's data, never edits to the command. The snapshots record the
+corpus COMMIT they copy, so once the corpus change-set is committed the `resync` stage runs once more;
+it then rewrites only each snapshot's sentinel, and the hosts commit that with their side of the change.
+
+`--perturb <fixture>` is the runner's **altered-fixture probe**: it copies the corpus, inserts one
+non-canonical byte into that fixture's expected payload, runs the legs against the copy, and holds only
+when every leg goes red naming the fixture. It is the proof that each host certifies against the
+corpus it is pointed at rather than one it found by itself. A render projection has no byte-parity bar
+(§11.0), so it holds only a VALUE perturbation of a fixture it asserts, never a byte one.
+
+**Fixture `since`.** Every row of `manifest.json` carries `since`: the reference tier release (the
+`Fuaran.UI` version line) that first specifies the fixture. The emitter stamps a new row with its own
+`<Version>` and keeps an existing row's value across every later emit; the rows present when the field
+was introduced were back-filled from the corpus history (the first release tagged at or after the
+commit that added the fixture's payload).
+
+**The AHEAD grade.** A host runner that executes a PINNED release, and so knows its tier version,
+grades a fixture whose `since` post-dates that tier **AHEAD**: the pinned release cannot know it, so
+the fixture is not run, and it is reported by id and counted in the run's summary — never silently
+passed, never red. Every fixture at or below the tier must pass. AHEAD is a statement about the host's
+tier, never about the fixture. A runner that cannot read its own tier version, and a host built from
+source at HEAD (every leg of the change-set command), has no tier to be ahead of and grades nothing
+AHEAD. The first adopter is the projection-conformance gate that certifies the corpus against the
+released hosts at a pinned tier.
 
 ---
 
@@ -8421,7 +8488,12 @@ gate — which is what a printer never was.
 `host-capability-manifest.json` at their repository roots. The TypeScript, Go and Rust manifests make no
 token claim yet — each declares the six token families not covered, with its reason, which §27.1 makes
 the honest form until a token generator lands — and their `corpusFamilies` member is what they were
-published for. The reference host certifies by emitting the corpus and carries no member.
+published for. **The member is required of every codec host in the §11.0 roster (Phase 2301)**: the
+schema makes it a required member, and the change-set runner (§11.3) refuses a roster run in which a
+codec host's manifest is absent, omits a family the corpus enumerates, or names one it does not. The
+reference host therefore publishes one too, `host-capability-manifest.json` at its repository root,
+declared by hand (the runner is its family gate); it makes no token claim yet, for the same reason as
+the three above.
 
 **Forward coupling.** A change to the derivation rule or to the member's value grammar updates this
 section, [`schemas/host-capability-manifest.v1.json`](schemas/host-capability-manifest.v1.json), every

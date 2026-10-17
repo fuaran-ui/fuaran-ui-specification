@@ -40,19 +40,44 @@
 //
 //  Run locally:  npm install && npm run conformance   (from this directory)
 //  Requires:     the TS workspace built — `pnpm -C ../../fuaran-ts build` — so
-//                ../../fuaran-ts/packages/ops/dist exists.
+//                ../../fuaran-ts/packages/ops/dist exists (FUARAN_TS_ROOT names
+//                another checkout; FUARAN_WIRE_FIXTURES another corpus).
+//
+//  ── The roster mode (Phase 2301) ──────────────────────────────────────────
+//
+//  `node cross-host-conformance.mjs --roster` runs the change-set's leg stage
+//  over EVERY host in roster.json — the checks the corpus makes of the hosts
+//  (each fixture's `since`, each codec host's corpusFamilies, each bundled
+//  snapshot) and then each host's leg — and refuses to read green with a leg
+//  skipped. The logic is change-set.mjs; WIRE_FORMAT.md 11.3 is its contract.
 // ============================================================================
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import Ajv2020 from 'ajv/dist/2020.js';
+import { resolveCorpusRoot, runRoster } from './change-set.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-// conformance/ → wire-format-fixtures/ (the corpus root) and the sibling TS host.
-const corpusRoot = join(here, '..');
-const opsDist = join(here, '..', '..', 'fuaran-ts', 'packages', 'ops', 'dist', 'index.js');
+
+// Phase 2301 — `--roster` is the change-set's leg stage (WIRE_FORMAT.md 11.3): every host in
+// roster.json, against the corpus FUARAN_WIRE_FIXTURES names. Without it, this file is Leg B.
+if (process.argv.includes('--roster')) process.exit(await runRoster(process.argv.slice(2)));
+
+// The corpus is the one FUARAN_WIRE_FIXTURES names (a set-but-missing path is refused), else the
+// directory above this one; the TS host is FUARAN_TS_ROOT, else the corpus's sibling `fuaran-ts`.
+let corpusRoot;
+try {
+  corpusRoot = resolveCorpusRoot();
+} catch (err) {
+  console.error(`
+  FATAL: ${err.message}
+`);
+  process.exit(2);
+}
+const tsRoot = process.env.FUARAN_TS_ROOT || join(here, '..', '..', 'fuaran-ts');
+const opsDist = join(tsRoot, 'packages', 'ops', 'dist', 'index.js');
+const { default: Ajv2020 } = await import('ajv/dist/2020.js');
 
 const read = (rel) => readFileSync(join(corpusRoot, rel), 'utf8');
 // Fixtures are single-line compact JSON written without a trailing newline; the
