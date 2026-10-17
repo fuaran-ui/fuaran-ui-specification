@@ -26,9 +26,10 @@
 //    --legs <a,b>       run only these hosts' legs (development only: PARTIAL)
 //    --dry-run          print the plan and run nothing
 //    --log-dir <dir>    where each leg's output goes (default: a temp directory)
-//    --perturb <id>     the altered-fixture probe: copy the corpus, change one byte
-//                       of fixture <id>'s expected payload (one non-canonical space), run the legs against the
-//                       copy, and require EVERY leg to go red naming <id>
+//    --perturb <id>     the altered-fixture probe: copy the corpus, alter fixture <id>'s
+//                       expected payload (one non-canonical space; a node's kind tag
+//                       renamed), run the legs against the copy, and require EVERY leg
+//                       to go red naming <id>
 // ============================================================================
 
 import { spawnSync } from 'node:child_process';
@@ -147,10 +148,14 @@ const perturbedCopy = (corpusRoot, id) => {
   const file = row.expectedFile ?? row.inputFile;
   const path = join(copy, file);
   const text = readFileSync(path, 'utf8');
-  // One space after the first member colon. A canonical payload usually serves as both input
-  // and expected bytes, so a VALUE edit would round-trip consistently; a non-canonical byte
-  // survives every decoder and is gone from every re-encode, so each byte-comparing leg sees it.
-  const altered = text.replace('":', '": ');
+  // Two edits, one per kind of leg. A node's kind tag gains a character, so the node no longer
+  // names a kind any host knows: a render projection, which has no byte bar (11.0) and decodes
+  // whitespace away, refuses it. And one space after the first member colon: a canonical payload
+  // usually serves as both input and expected bytes, so a VALUE edit alone could round-trip
+  // consistently, while a non-canonical byte is gone from every re-encode.
+  const altered = text
+    .replace(/"kind":\{"\$type":"([^"]+)"/, (_m, tag) => `"kind":{"$type":"${tag}Zz"`)
+    .replace('":', '": ');
   if (altered === text) throw new Error(`--perturb: '${file}' has no member to alter`);
   writeFileSync(path, altered);
   return [copy, file];

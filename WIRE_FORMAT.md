@@ -5470,10 +5470,11 @@ corpus COMMIT they copy, so once the corpus change-set is committed the `resync`
 it then rewrites only each snapshot's sentinel, and the hosts commit that with their side of the change.
 
 `--perturb <fixture>` is the runner's **altered-fixture probe**: it copies the corpus, inserts one
-non-canonical byte into that fixture's expected payload, runs the legs against the copy, and holds only
-when every leg goes red naming the fixture. It is the proof that each host certifies against the
-corpus it is pointed at rather than one it found by itself. A render projection has no byte-parity bar
-(§11.0), so it holds only a VALUE perturbation of a fixture it asserts, never a byte one.
+non-canonical byte into that fixture's expected payload and, for a node, renames its kind tag, runs the
+legs against the copy, and holds only when every leg goes red naming the fixture. It is the proof that
+each host certifies against the corpus it is pointed at rather than one it found by itself. Two edits,
+because a render projection has no byte-parity bar (§11.0) and decodes whitespace away: the renamed
+kind is what it refuses, as the stray byte is what a codec leg's byte comparison refuses.
 
 **Fixture `since`.** Every row of `manifest.json` carries `since`: the reference tier release (the
 `Fuaran.UI` version line) that first specifies the fixture. The emitter stamps a new row with its own

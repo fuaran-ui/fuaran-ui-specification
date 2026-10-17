@@ -36,7 +36,7 @@
       "dir": "fuaran-go",
       "role": "codec",
       "capabilityManifest": "host-capability-manifest.json",
-      "leg": ["go test -count=1 ./conformance/... ./internal/corpusroot/..."]
+      "leg": ["go run ./cmd/conformance-residue"]
     },
     {
       "id": "fuaran-rs",
