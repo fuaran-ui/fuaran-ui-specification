@@ -4854,7 +4854,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5400,7 +5400,7 @@ host declares a case the corpus does not know*. Both failures name the offending
 | Manifest array | Family | Wire position(s) | Attested in |
 |---|---|---|---|
 | `kinds` | `NodeKind` | `$.kind.$type`, recursively | all five codec hosts (since the kind-set pin landed) |
-| `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python; Go and Rust pending |
+| `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python against the array; Go and Rust by generation — each derives its `FormFieldKind` vocabulary from [`idl.json`](./idl.json) and drift-tests the generated tables against the corpus copy, so neither can lack a case the corpus names (Go since Phase 2297, Rust since its IDL codegen) |
 | `ops` | `TreeOp` | `$.$type` on an op payload (§14) | F#; every other host pending |
 
 The `ops` row closes an ASYMMETRY rather than a missing check. The op vocabulary already had the
@@ -5906,6 +5906,8 @@ A consumer compares its own supported profile against the authored profile:
 
 Minor-ahead is always tolerable (additive-only by the §15.4 policy); a major or namespace difference is never tolerable (it may have *removed* or *renamed* a kind this consumer relies on).
 
+**A `$profile` that does not parse is `Foreign` (Phase 1938).** A string that is not `<name>@<major>.<minor>` — `"not-a-profile"`, `"core@1"`, `"core@01.0"` — names no capability set a consumer could be compatible with, so negotiation answers `Foreign` and the envelope is refused exactly as a foreign one is: **`FOREIGN_PROFILE` at `$.$profile`**. There is no separate malformed-profile code. The two cases are one fact to a consumer (it cannot read the payload under any profile it holds) and one repair to an author (name a profile this consumer speaks), and a second code would split a refusal into two spellings with nothing to choose between them. A `$profile` that is ABSENT is `MISSING_FIELD`, and one that is not a string `WRONG_TYPE`, both at `$.$profile`: those are shape faults of the envelope rather than a profile the consumer declines.
+
 ### 15.3 Transport-only `Unknown` + must-ignore-but-preserve
 
 When a `Behind` consumer's decoder meets a discriminator it does not recognise, it does **not** raise `WRONG_NODE_KIND` / `UNKNOWN_DU_CASE`. It produces a **transport-only** `Unknown { kind, payload, requiredProfile }`:
@@ -6407,7 +6409,7 @@ contract field in **declaration order** – missing-required, then JSON-type-vs-
 
 Structural failures reuse the §6 codes (`INVALID_JSON` / `MISSING_FIELD` / `WRONG_TYPE` /
 `UNKNOWN_DU_CASE`) on the same error envelope; the elicitation layer adds (kept OUT of the core
-six-code set, like §15's `FOREIGN_PROFILE`):
+six-code set, like §15's `FOREIGN_PROFILE`, which also answers a `$profile` that does not parse, §15.2):
 
 | Code | Meaning |
 |---|---|
@@ -7525,7 +7527,7 @@ policy — the pairing is the assertion, since neither half alone distinguishes 
 that simply dislikes the document. Its manifest is hand-authored and is not emitted by any host's
 corpus generator.
 
-A host that has not implemented this section declares the family **not-applicable with a reason**, on
+A host that has not implemented this section declares the family **not-applicable with a reason** — in its capability manifest's `corpusFamilies` member (§27.7), where its own gate reads it — on
 the §22.2 footing. Implementing §23 is optional; being silently untested on it is not.
 
 ---
@@ -8359,6 +8361,72 @@ one keeps whatever pre-manifest path it had (§27.4 rule 5).
 **Forward coupling.** A change to the token grammar or the document members in this section updates
 the normative text, `schemas/host-capability-manifest.v1.json`, every published manifest, and every
 harness that consumes one, in the same change-set.
+
+### 27.7 Corpus families — what a host certifies (Phase 1938)
+
+The token families above say what a host can AUTHOR. A second question has had no machine-readable
+answer: which of this corpus's families does a host's suite actually RUN? Each script host answered it
+with a printer — a hand list of covered fixture kinds beside a loop that logged the rest — and a
+printer cannot be wrong loudly. It saw only the root manifest's kinds, so it could not see a family that
+enumerates itself (`decode-policy/`, `laws/`, `merge-conformance/`, `stored-emissions/`); the same
+copied list logged `style-observer` as a lag on three hosts that certified it in another test; and
+§23.6's "silently untested is not allowed" had nowhere to be checked. `corpusFamilies` replaces the
+printers.
+
+**The family set is derived from this repository's tree, never listed.** A corpus family is:
+
+1. each distinct `kind` among the root [`manifest.json`](./manifest.json)'s `fixtures` — the families
+   the reference emitter generates (`node-round-trip`, `envelope-reject`, `style-observer`, …); and
+2. each top-level directory that carries a `manifest.json` of its own — the **self-enumerated**
+   families — named by the directory (`decode-policy`, `dag`, `merge-conformance`, …). Where that
+   manifest carries a `families` array of objects, the directory is not one family but several: each
+   entry's `id` names the family `<directory>/<id>` (`laws/capabilityLaws`, `apply/limitsApply`).
+
+So a family joins the set by existing — a new root kind, a new directory with its own manifest, or a new
+entry in a self-enumerated manifest's `families` — and nothing else is edited for it to be demanded of
+every host. A top-level directory with no manifest of its own (a single goldens file, a lowering pair
+set) is not yet an enumerated family; giving it a manifest is how it becomes one.
+
+**The member.** A host's capability manifest carries `corpusFamilies`, an object naming **every** family
+in that set exactly once:
+
+```json
+"corpusFamilies": {
+  "decode-policy": { "notApplicable": "this host declares no §23 admission policy" },
+  "laws/transformLaws": { "pending": "the evaluator does not yet run the drawn transform sample" },
+  "node-round-trip": "covered"
+}
+```
+
+- `"covered"` — the host's own suite RUNS the family and asserts its outcomes. A family read only to be
+  counted is not covered.
+- `{ "notApplicable": "<reason>" }` — the family describes a capability this host deliberately does not
+  have (a §23 policy it does not offer, a renderer obligation on a host with no renderer). The §22.2
+  footing: one sentence a reader can check.
+- `{ "pending": "<reason>" }` — a lag: the host has the capability, or should, and its suite does not
+  run the family yet. §11's additive-family step 4 already distinguishes `pending` from `n/a`; this is
+  that answer, where a gate reads it.
+
+**The obligation is on the host's own gate.** A host that publishes the member MUST fail its own gate
+when the member omits a family the corpus has, and when it names one the corpus no longer has — the
+second is a declaration that outlived its family. A harness reading the member derives the set from the
+corpus it is running against, never from a copy. Unlike the token families, the member is a host
+**statement**, not a projection of a type model: no introspection can see which families a test suite
+runs. §27.1's generation rule therefore binds `families` and `tokens`; `corpusFamilies` is declared in
+the host's generator source, published through the same generator, and held to the corpus tree by the
+gate — which is what a printer never was.
+
+**Adoption.** `fuaran-py` publishes it in `conformance/host-capability-manifest.json`; `fuaran-ts` in
+`packages/conformance/host-capability-manifest.json`; `fuaran-go` and `fuaran-rs` in
+`host-capability-manifest.json` at their repository roots. The TypeScript, Go and Rust manifests make no
+token claim yet — each declares the six token families not covered, with its reason, which §27.1 makes
+the honest form until a token generator lands — and their `corpusFamilies` member is what they were
+published for. The reference host certifies by emitting the corpus and carries no member.
+
+**Forward coupling.** A change to the derivation rule or to the member's value grammar updates this
+section, [`schemas/host-capability-manifest.v1.json`](schemas/host-capability-manifest.v1.json), every
+published manifest and every host's family gate in the same change-set. A new family needs none of
+that: each host's gate turns red until its manifest names it, which is the point.
 
 ---
 
