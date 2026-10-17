@@ -692,6 +692,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "envelope/envelope-foreign-malformed-profile.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/envelope/envelope-foreign-malformed-profile.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "envelope/envelope-foreign-malformed-profile.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/envelope/envelope-foreign-malformed-profile.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "envelope/envelope-foreign-namespace.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/envelope/envelope-foreign-namespace.json"
@@ -7471,6 +7487,22 @@
       "source": "ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "ops/op-patchstyle (phase 2302 direction=auto).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/ops/op-patchstyle (phase 2302 direction=auto).json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "ops/op-patchstyle (phase 2302 direction=auto).json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/ops/op-patchstyle (phase 2302 direction=auto).json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
