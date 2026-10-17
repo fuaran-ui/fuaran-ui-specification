@@ -5357,7 +5357,9 @@ Changing or adding an additive family MUST, **in the same change-set**:
 1. **amend the normative section of this document that specifies it** — the shape, the refusal
    vocabulary (which is often *not* §6's eight codes; see §17.6 for the standing instance), and any
    derived value. A family with no normative section is not additive but undocumented, and no host
-   can be held to it;
+   can be held to it. Its §27.8 record — the section, the producer that emits it (or the reason it is
+   authored), and the producer's source stamp — lands beside it, and the corpus's own check fails
+   until it does;
 2. **regenerate its enumeration** — its own `manifest.json` where it carries one, or its rows in the
    root `manifest.json` where it rides that. §12 says which of those the reference emitter authors and
    which are hand-maintained, and carries the merge rule that preserves a family the emitter does not
@@ -5566,13 +5568,13 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->621<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->623<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->27<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
-<!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
+<!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
 <!-- fuaran:count kind=elicitation-reject -->15<!-- /fuaran:count --> `elicitation-reject`,
 <!-- fuaran:count kind=elicitation-answer-accept -->3<!-- /fuaran:count --> `elicitation-answer-accept`,
@@ -8500,6 +8502,79 @@ the three above.
 section, [`schemas/host-capability-manifest.v1.json`](schemas/host-capability-manifest.v1.json), every
 published manifest and every host's family gate in the same change-set. A new family needs none of
 that: each host's gate turns red until its manifest names it, which is the point.
+
+### 27.8 Every family has a producer and a normative sentence (Phase 2302)
+
+§27.7 says which families a host runs. This section says where each family comes from. The corpus
+certifies behaviour as well as bytes (the apply, law and diff families are behaviour), and a behaviour
+the corpus does not certify is found again in every host by audit. A family whose vectors no program
+writes is worse: it drifts from the behaviour it pins, because nothing re-derives it when the
+behaviour moves. So **every family in the §27.7 set carries a record naming its producer, the stamp
+that pins the producer state it was emitted at, and the section that holds its normative sentence**.
+
+#### 27.8.1 The record
+
+The records live in [`corpus-producers.json`](corpus-producers.json) under `families`, one per family,
+keyed exactly as §27.7 derives the family:
+
+```json
+"envelope-reject": { "spec": "15.2", "producer": { "repository": "fuaran-ui/fuaran-dotnet", "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <corpus dir>" }, "source": "since" },
+"laws/decimal":    { "spec": "27.8.2", "producer": { "repository": "Fuaran-Core/fuaran-core", "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>" }, "source": "kitVersion" },
+"lowers-to":       { "spec": "30.3", "authored": "hand-authored from the section 30 table and never emitted by any host encoder" }
+```
+
+- `spec` — the section of this document (or `<FILE>.md <n>` of a sibling specification) whose text is
+  the family's normative sentence. Text first, vectors second: a family is specified before a vector
+  of it is accepted.
+- `producer` — `{ repository, emit }`: the program that writes the family's vectors and the command
+  that runs it. The vectors are that program's output; a row added by hand to an emitted family is
+  erased by the next emit, and so is a defect.
+- `source` — the stamp pinning the producer state the vectors were emitted at: `"since"` (each root
+  row's reference release, §11.3), `"kitVersion"` (the producer release the family file carries), or
+  `{ "commit": "<40 hex>" }` (a producer commit). Where a producer writes no stamp, the record's
+  commit is the producer's main-line commit at the corpus commit that last wrote the family — the
+  same date approximation §11.3 states for back-filled `since` values — and the next emit replaces it
+  with the commit it ran at.
+- `authored` — instead of `producer` and `source`: the reason no program emits the family. That is
+  legitimate where the inputs ARE the specification (a §28 repair catalogue, a §23 policy table, a
+  chosen sample of real emissions, the §22 semantic-invariant payloads) and is otherwise a lag, named
+  in the reason, that a producer closes.
+
+**The corpus checks itself.** [`check-family-producers.mjs`](check-family-producers.mjs) derives the
+family set with the same function the change-set runner uses and holds the records to it. A family
+with no record — a family without a producer — is a finding, and so are a record for a family the tree
+no longer has, a record with neither or both of `producer` and `authored`, a producer with no source
+stamp (or a `since` / `kitVersion` source over rows or a file that carry none), and a `spec` naming a
+section the document does not have. A finding fails the corpus repository's own gate. A new family
+therefore lands with its record, exactly as it lands with every host's §27.7 declaration.
+
+#### 27.8.2 Behaviour families with no other home
+
+The sentences below are normative for the families whose vectors are behaviour rather than wire bytes
+and that no other section specifies.
+
+- **`laws/<family>`** (`laws/manifest.json`) — a law-vector family carries `(input, expected)` pairs a
+  producer computed by running its reference implementation; a host that implements the behaviour runs
+  every vector through its own implementation and asserts the expected verdict or value, never the
+  framing of the file. `capabilityLaws` pins the invocable-capability contract (argument validation,
+  capture-replay key, declaration round-trip, id-stable enumeration); `decimal` the exact decimal's
+  canonical text, order, exact sum and refusals; `fieldLaws` the schema field's canonical bytes,
+  decode and refusals; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
+  evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
+  table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
+- **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
+  result's canonical bytes and hash, or is refused with the class the vector names; a `Batch` applies
+  atomically.
+- **`merge-conformance`** — the deterministic three-way tree merge: `merge(base, a, b)` encodes
+  byte-equal to the expected tree, a refusal fixture is refused, and the totality fixtures are merged
+  without exception.
+- **`diff/treeDiff`** (`diff/manifest.json`) — over every authored `(before, after)` pair a host's
+  structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
+  `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
+  host, including one whose diff differs in granularity from the pinned scripts.
+
+**Forward coupling.** A new family's record lands in the same change-set as the family. A change to
+the record grammar updates this section, the check, and `corpus-producers.json` together.
 
 ---
 
