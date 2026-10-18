@@ -10740,6 +10740,14 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
     },
     {
+      "source": "row-encode/manifest.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/row-encode/manifest.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
       "source": "schema.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/schema.json"

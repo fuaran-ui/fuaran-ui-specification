@@ -221,6 +221,10 @@
       "spec": "28.6",
       "authored": "the catalogue cases are the specification of the repair function; each host re-measures every verdict"
     },
+    "row-encode": {
+      "spec": "5",
+      "authored": "each vector is a host-neutral row feed and the outcome the specification states for it: the refusals exist only on the way out, from host values no document can carry, so there are no emitted bytes for a decoder-side emitter to write"
+    },
     "sanitization": {
       "spec": "22",
       "authored": "semantic-invariant payloads, not byte fixtures: each case is a payload and the invariant a rendering host must satisfy, so there are no emitted bytes to produce"
