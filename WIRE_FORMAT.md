@@ -8579,6 +8579,20 @@ and that no other section specifies.
   structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
   `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
   host, including one whose diff differs in granularity from the pinned scripts.
+- **`formatting`** (`formatting/manifest.json`, Phase 1941) — the `CellFormat` projection of a number:
+  the text a host renders for a `Metric` value or trend, a `LabelValueRow` value and a grid cell. Each
+  vector is `(value, format, expectedText)`; a host decodes `format` as a `CellFormat`, renders `value`
+  through it, and asserts the text byte for byte. The text is the hydrating JavaScript's, because a
+  server-rendered figure the browser re-renders differently is a hydration mismatch: `None` and
+  `DateTime` are `String(x)`; `Number(d)` is `x.toFixed(d)`, and `Number` with no `decimals` is
+  `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent(d)` is `(x * 100).toFixed(d)`
+  followed by `%`, one place by default; `Currency(code)` is the code, one space and `x.toFixed(2)`;
+  `SignificantDigits(d)` is `Number(x.toPrecision(d)).toString()`. So the text depends on no locale
+  (a decimal point, no grouping), a tie at the last place rounds away from zero over the double's
+  exact value, `String(x)` is positional from `1e-6` up to `1e21` and exponential (`1e+21`,
+  `1.234e-7`) outside it, and a negative zero renders unsigned. A `value` that is a negative zero is
+  written `-0.0`, so every JSON reader keeps its sign. A precision outside JavaScript's own range
+  (`toFixed` 0 to 100, `toPrecision` 1 to 100) is not pinned.
 
 **Forward coupling.** A new family's record lands in the same change-set as the family. A change to
 the record grammar updates this section, the check, and `corpus-producers.json` together.

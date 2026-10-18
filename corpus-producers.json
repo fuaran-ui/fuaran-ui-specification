@@ -145,6 +145,16 @@
       },
       "source": "since"
     },
+    "formatting": {
+      "spec": "27.8.2",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-formatting <corpus dir>"
+      },
+      "source": {
+        "commit": "9a9c9f81426bf7ffb5ac90b2522115c45310e685"
+      }
+    },
     "laws/capabilityLaws": {
       "spec": "27.8.2",
       "producer": {
