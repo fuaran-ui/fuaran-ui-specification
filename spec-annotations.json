@@ -12,6 +12,7 @@
       "Link": "`protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See \"Link protection\" below.",
       "Math": "The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff.",
       "Mount": "An isolation boundary (§8.1): the guest interior is a separate id scope, produced host-side by the guest loader and never inlined into the host document.",
+      "Select": "`value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept.",
       "Switch": "The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code.",
       "FragmentRef": "An isolation boundary (§8.1): the referenced body is not part of the referring tree. Interior ids are namespaced by the referring node at render time.",
       "FragmentDecl": "NOT an isolation boundary — its `body` is walked, so id uniqueness there is pre-expansion.",
@@ -29,9 +30,12 @@
     "omitDefaults": {
       "default=Default": "The tone for a value the `map` does not mention.",
       "controls=true": "Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key.",
-      "dismissable=true": "Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE.",
+      "copyable=true": "Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity.",
+      "dismissable=true": "Omit-when-TRUE: an overlay is dismissable unless said otherwise — `Toast` (0.2.0) and, since Phase 2300, `Modal` (every corpus modal carried `true`). The polarity is the FIELD's, not the type's: `Callout.dismissable` is the same name and the same type omitted at FALSE; §3.6 rule 1 names the overlay pair as a declared exception to the boolean `false` default.",
       "emphasis=false": "The behavioural bool, not the `Emphasis` style DU — a different field that shares a name.",
-      "orientation=Horizontal": "`TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there."
+      "orientation=Horizontal": "`TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default).",
+      "variant=Neutral": "The authoring default (`Defaults.badge`), declared under §3.6 rule 1: a default-authored badge and an absent `variant` mean the same thing. Corpus frequency is a prior, not a default.",
+      "variant=Secondary": "The authoring default (`Defaults.button`), declared under §3.6 rule 1 for the same reason as `Badge.variant`."
     },
     "nodeFields": {
       "extraAttributes": "The AI-opaque consumer-side hatch for `data-*` / `aria-*` test-hook attributes; the §4d JSON wire shape omits it on emit.",

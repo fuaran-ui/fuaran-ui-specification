@@ -525,32 +525,34 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 > **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
 > [§12.2](#122-generated-tables-in-this-document). Field names are listed in the canonical wire key
 > order (Ordinal), spelled `field` when required, `field?` when optional, `field?=X` when
-> omitted-at-default `X` (§3.6 carries the full default table), and `field*` when the slot is
-> host-only and carries `"<closure>"` on the wire (§4).
+> omitted-at-default `X` (§3.6 carries the full default table). A host-only slot (`Button.tooltip`,
+> §10.1) is typed host surface, not wire vocabulary — never emitted, never decoded — so it is not
+> listed. (Until Phase 1962 it was, as `tooltip*`, against a legend reading `*` as "carries
+> `"<closure>"` on the wire", which no encoder ever did.)
 
 <!-- fuaran:spec-kinds -->
 | `kind.$type` | Recovered category | Fields (hoisted under `$type`) | Notes |
 |---|---|---|---|
 | `Box` | _Layout_ | `breakBefore?=false`, `children`, `heading?`, `keepTogether?=false`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
 | `Disclosure` | _Layout_ | `children`, `defaultOpen`, `heading`, `onToggle?`, `open` |  |
-| `Modal` | _Layout_ | `anchor?`, `children`, `dismissable`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
+| `Modal` | _Layout_ | `anchor?`, `children`, `dismissable?=true`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
 | `ScrollArea` | _Layout_ | `children`, `maxHeight?`, `maxWidth?`, `orientation` |  |
 | `SplitPanel` | _Layout_ | `children`, `weight` |  |
-| `Stepper` | _Layout_ | `activeStep`, `children`, `onSelect?` |  |
+| `Stepper` | _Layout_ | `activeStep?=Static{value=0}`, `children`, `onSelect?` |  |
 | `SummaryList` | _Layout_ | `children`, `heading?` |  |
 | `Tabs` | _Layout_ | `activeIndex?=Static{value=0}`, `activeTag?`, `children`, `onSelect?`, `onSelectTag?`, `orientation?=Horizontal`, `tabHeaders?`, `tabTags?` |  |
-| `Badge` | _Display_ | `label`, `variant` |  |
+| `Badge` | _Display_ | `label`, `variant?=Neutral` |  |
 | `Callout` | _Display_ | `body`, `dismissable?=false`, `heading?`, `icon?`, `tone?=Default` |  |
-| `CodeBlock` | _Display_ | `code`, `copyable`, `highlightLines`, `language`, `lineNumbers` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
+| `CodeBlock` | _Display_ | `code`, `copyable?=true`, `highlightLines?=[]`, `language`, `lineNumbers?=false` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
 | `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
 | `Embed` | _Display_ | `aspectRatio?=Natural`, `permissions?=[]`, `src`, `title` |  |
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
-| `Heading` | _Display_ | `level`, `text`, `variant` |  |
+| `Heading` | _Display_ | `level`, `text`, `variant?=Standard` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant?=Default` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
-| `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
-| `List` | _Display_ | `items`, `ordered` |  |
+| `Link` | _Display_ | `download?=false`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
+| `List` | _Display_ | `items`, `ordered?=false` |  |
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
 | `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
@@ -560,11 +562,11 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
-| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple`, `onSelect?` |  |
+| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple?=false`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
+| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
@@ -872,7 +874,9 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
   (a typed defect, not a pass-through) – see `reject/reject-unknown-drawing-shape.json` and
   `reject/reject-unknown-drawing-curve-command.json`.
 
-**`Select` multi-select (Phase 291).** `SelectSpec` gains two OPTIONAL wire fields: `"multiple":true` (emitted only when multi-select – **omitted when `false`**, so every single-select fixture is byte-identical to the pre-multi-select wire) and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`, emitted only when present). The multi-select change handler is a closure → no separate wire key (the existing `"onChange":"<closure>"` covers it). Single-select carries `value` (a `Binding<string option>`); multi-select carries `values` instead. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
+**`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written (`nodes/select-multiple-false.json`) — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
+
+The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`). A multi-select that still carries a `value` is a **§16 lenient accept**: the `value` is decoded (so a malformed one refuses exactly as any malformed binding does) and then **dropped**, normalising the document to the clean form — whether it is the empty-`Static` placeholder every multi-select carried before Phase 1962 (`{"$type":"Static"}`, or `{"$type":"Static","value":null}`) or a real binding a model wrote beside its `values`. A multi-select never reads `value`, so dropping it changes nothing a reader can observe, and every stored document still reads (`lenient/lenient-1962-multiselect-value-dropped.json`, all three spellings). Refusing a non-placeholder `value` instead was considered and rejected on measurement: of the 16 stored model emissions carrying both keys, 14 carry a real binding (typically a `State` "primary" selection), so a refusal would have stopped 14 documents that decode today from reading. A reference-host pre-emit validator names a constructed multi-select that still carries one (`FUARAN164`, Warning). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
 **Filter chips are `FormFieldKind` controls (0.2.0 filters-unification; superseding the Phase 423 `FilterKind` DU).** A `Filters` item is `{"kind":<FormFieldKind>,"label":<TextSource>,"name":<string>}` – one control vocabulary for forms and filter strips; the retired `FilterKind` discriminators (`TextFilter` / `ChoiceFilter` / `RangeFilter` / `SegmentedFilter`) are a hard `UNKNOWN_DU_CASE`. Two chip-specific rules: (a) **auto-binding** – a chip control with **no `value` key** decodes to `{"$type":"Filter","name":<the chip's own name>}` (the item's declared name IS the store key), and the encoder symmetrically **omits** a `value` that is exactly that auto binding, so the canonical minimal chip is `{"kind":{"$type":"Choice","options":…},"label":…,"name":"status"}`; (b) the Phase 423 handler mechanics carry over unchanged – an omitted `onChange` writes `$filters.<name>` through the host's filter seam, a present `"<closure>"` wins. Since **0.2.1** the synthesis is symmetric: in a **Form**, an absent `value` auto-binds `State(<field id>, <typed placeholder>)` (see the §1.1 addendum) – the context decides the store, never whether omission is legal. See `nodes/filters-1.json` / `nodes/filters-declarative.json` / `nodes/filters-segmented.json`.
 
@@ -1618,7 +1622,7 @@ could never commit a keystroke. Every fixture's BYTES are unchanged; what change
 conforming host does with them.
 
 ```json
-{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"}}
+{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"format":"<closure>","initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"},"parse":"<closure>"}
 ```
 
 **`codec` (optional) declares the buffer's own codec.** It is a `Format` value, and it REPLACES the
@@ -1906,6 +1910,33 @@ exactly as `role`/`voice` do inside `SemanticStyle` (Phase 147). This is the req
 seam of the Phase 426/430 declarative-floor doctrine, applied to *style* instead of behaviour: an
 emission carrying only the semantic fields (`label`, `value`, `kind`) is a complete, valid tree.
 
+**The declared-default rule (Phase 2300, rule 1; the operator ruling of 2026-10-01 recorded under
+Phase 1963).** The canonical form is a rule the generator and the reference encoder apply to every row
+of the vocabulary, never a per-kind list of exceptions, and it is stated once, here: **a field with a
+declared default is ABSENT from the canonical form when it holds that default, on every kind, record,
+union case and op; a present explicit default decodes to the same value and re-encodes without the
+member.** The declaration is the field's `omitDefault` class in [`idl.json`](idl.json) (§13), the
+table below is rendered from it, and every host's generated encoder and decoder apply it without a
+hand site. Fifteen fields that were `required` until Phase 2300 now declare their default — the Phase
+1963 list: `Flex.wrap`, `Link.download`, `List.ordered`, `CodeBlock.lineNumbers`,
+`CodeBlock.highlightLines`, `FormField.required`, `FileUpload.multiple` (`false` / `[]`),
+`CodeBlock.copyable` and `Modal.dismissable` (`true`), `Heading.variant` (`Standard`), `Image.variant`
+(`Default`), `Badge.variant` (`Neutral`), `Button.variant` (`Secondary`), `SegmentedChoice.orientation`
+(`Horizontal`) and `Stepper.activeStep` (`Static{value=0}`). **The declared default is the authoring
+default** — the value the reference host's `Defaults` record carries — so a default-authored node and
+an absent member mean the same thing, and the lenient half of the rule (an explicit default decodes to
+that same value) repairs nothing a reader could observe. That is also why the two booleans that omit
+when TRUE do: a code block is copyable unless it says otherwise and an overlay is dismissable unless it
+says otherwise (`Toast.dismissable` had the same polarity since 0.2.0; `Tokens.allowFreeText` omits at
+`true` for the same reason), and flipping either would re-read every stored document that omits the
+key. A variant's declared default is likewise its authoring default and not its corpus frequency: how
+often a case appears in the corpus is a prior, not a default. A kind that deviates from the rule does so
+through a declared exception the table names with its reason; an undeclared deviation is a defect of
+the generator, not a property of the kind. Two further canonical-form rules — absent when meaningless
+(Phase 1964) and one name, one shape, one polarity per concept (Phase 1965) — want per-field
+declarations the IDL's field model does not yet carry (a presence condition; an alias list) and land
+with the announced breaking cut (Phase 2340); this section states rule 1 alone until then.
+
 **Identity-default table** (absent ⇒ this value; a present explicit-default value keeps decoding,
 read-compat):
 
@@ -1919,6 +1950,7 @@ read-compat):
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `activeIndex` | `Binding<int>` | `Static{value=0}` | `TabsSpec` |  |
+| `activeStep` | `Binding<int>` | `Static{value=0}` | `StepperSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
@@ -1927,11 +1959,13 @@ read-compat):
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
+| `copyable` | `bool` | `true` | `CodeBlockSpec` | Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
 | `direction` | `TextDirection` | `auto` | `SemanticStyle` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
-| `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
+| `dismissable` | `bool` | `true` | `ModalSpec`, `ToastSpec` | Omit-when-TRUE: an overlay is dismissable unless said otherwise — `Toast` (0.2.0) and, since Phase 2300, `Modal` (every corpus modal carried `true`). The polarity is the FIELD's, not the type's: `Callout.dismissable` is the same name and the same type omitted at FALSE; §3.6 rule 1 names the overlay pair as a declared exception to the boolean `false` default. |
+| `download` | `bool` | `false` | `LinkSpec` |  |
 | `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `effect` | `EffectClass` | `{determinism=Deterministic, hostEffect=Pure}` | `FragmentDeclSpec` |  |
@@ -1941,17 +1975,22 @@ read-compat):
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
+| `highlightLines` | `int[]` | `[]` | `CodeBlockSpec` |  |
 | `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
 | `keepRowsTogether` | `bool` | `false` | `DataGridSpec` |  |
 | `keepTogether` | `bool` | `false` | `BoxSpec` |  |
+| `lineNumbers` | `bool` | `false` | `CodeBlockSpec` |  |
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
-| `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
+| `multiple` | `bool` | `false` | `FileUploadSpec` |  |
+| `ordered` | `bool` | `false` | `ListSpec` |  |
+| `orientation` | `Orientation` | `Horizontal` | `FormFieldKind.SegmentedChoice`, `TabsSpec` | `TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default). |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
+| `required` | `bool` | `false` | `FormField` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
@@ -1960,9 +1999,14 @@ read-compat):
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
 | `tracks` | `TrackEntry[]` | `[]` | `MediaSpec` |  |
 | `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
+| `variant` | `ImageVariant` | `Default` | `ImageSpec` |  |
+| `variant` | `BadgeVariant` | `Neutral` | `BadgeSpec` | The authoring default (`Defaults.badge`), declared under §3.6 rule 1: a default-authored badge and an absent `variant` mean the same thing. Corpus frequency is a prior, not a default. |
+| `variant` | `ButtonVariant` | `Secondary` | `ButtonSpec` | The authoring default (`Defaults.button`), declared under §3.6 rule 1 for the same reason as `Badge.variant`. |
+| `variant` | `HeadingVariant` | `Standard` | `HeadingSpec` |  |
 | `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
+| `wrap` | `bool` | `false` | `BoxLayout.Flex` |  |
 <!-- /fuaran:spec-omit-defaults -->
 
 **`CellFormat.DateTime` ruling (Phase 1810 — the open question carried from requirement
@@ -2178,15 +2222,15 @@ surface, not just its rejection surface.
 Same date, the omitted-when-default posture (the identity-default table above) extended to the
 segmented `orientation` field on **`SegmentedChoice`** (forms and, post-unification, filter chips):
 absent ⇒ `Horizontal` (the language default and the universal segmented-control prior; observed
-omitted in eval emission data). **This one is asymmetric, and the asymmetry is the point:** the
-DECODER restores `Horizontal` when the field is absent, but the ENCODER always emits it on
-`SegmentedChoice`, so the omitted form is a §16 lenient-ingest accept there and **not** the canonical
-bytes — `lenient/lenient-shape-segmented-orientation-omitted.expected.json` carries
-`"orientation":"Horizontal"`. `Tabs` IS encoder-symmetric and appears in the identity-default table
-above; `SegmentedChoice` does not, because its field is required on the emit side. (This paragraph
-claimed the symmetry for both until the generated table disagreed with it — Phase 699.) The legacy
-`Stack` `orientation` stays required (no default is neutral there: vertical and horizontal stacks are
-both common).
+omitted in eval emission data). **Until Phase 2300 this one was asymmetric:** the DECODER restored
+`Horizontal` when the field was absent, but the ENCODER always emitted it on `SegmentedChoice`, so the
+omitted form was a §16 lenient-ingest accept there and not the canonical bytes, and `Tabs` alone
+appeared in the identity-default table. (This paragraph claimed the symmetry for both until the
+generated table disagreed with it — Phase 699.) The declared-default rule closed the asymmetry: the
+IDL declares `SegmentedChoice.orientation` omit-at-default `Horizontal`, the encoder omits it, the
+table above lists both sites, and `lenient/lenient-shape-segmented-orientation-omitted.expected.json`
+carries no `orientation`. `Flex.direction` stays required (no default is neutral there: vertical and
+horizontal layouts are both common, and a corpus prior is not a default).
 
 ### 3.6.1 `tone` and `trendPolarity` — the composition rule (Phase 867)
 
@@ -2986,7 +3030,6 @@ page**, and it has exactly two answers, so the enum has exactly two cases:
 {"$type":"Modal",
  "anchor":"swatch",
  "children":[{"id":"picker","kind":{"$type":"Markdown","text":"Pick one"}}],
- "dismissable":true,
  "heading":"Choose a colour",
  "modality":"Popover",
  "open":{"$type":"State","key":"swatchOpen","defaultValue":false}}
@@ -3634,7 +3677,6 @@ other two, and the only one that PRODUCES a file rather than moving one that alr
  "accept":["image/*"],
  "capture":"Camera",
  "label":"Photograph the receipt",
- "multiple":false,
  "onSelect":"<closure>"}
 ```
 
@@ -4119,7 +4161,6 @@ this control, and the first two that constrain the SELECTION rather than routing
  "accept":["application/pdf"],
  "label":"Attach a scan",
  "maxBytes":5242880,
- "multiple":false,
  "onSelect":"<closure>"}
 ```
 
@@ -4284,7 +4325,7 @@ Every function-typed payload the encoder cannot observe renders as the sentinel 
 - `Action.Dispatch _` → encodes as the bare `{"$type":"Dispatch"}` – 0.2.0: the `msg` sentinel field is OFF the wire (no decoder ever read it; pure token weight). On decode `Action.Dispatch (box "<closure>")`.
 - `Action.Call(endpoint, _, _)` → endpoint string preserved; a `Some` `onResult` is `"<closure>"` (omitted when `None` – Phase 428; the declarative `into` target IS wire-carried data, not a closure).
 - `Action.ReadFileBody(file, encoding, _)` → `file.Id` carried as the `fileRef` string + `encoding` as a bare enum; the blob (`file.Handle`) never serialises and `onRead` is `"<closure>"`. The decoded `FileRef` carries `Handle = None`.
-- `FormFieldKind.*` `onChange` (every case; Phase 2177); `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` stay always-emitted closures decoding to a no-op action.
+- `FormFieldKind.*` `onChange` (every case; Phase 2177); `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` are optional in the same way – emitted **only when present**, a present sentinel decoding to a `Some` no-op placeholder and an absent key to `None`. (This line called them always-emitted until Phase 1962; the IDL and the §3.2 table have had them optional since the handler sweep, and the encoder emits them only when present. The corpus fixtures all carry one because they are closure-authored, not because the key is required.)
 - `CellKindErased.*` handlers (`onEdit` / `onToggle` / `onClick` / `get` / `labelFn` / `hrefFn` / `toneFn` / `fractionFn` / `fn`).
 - `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`. (There is no separate table spec record: a static table is the `staticRows` mode of `GridSpec` (§3.2) and is non-interactive, so it contributes no closure slot.)
 - `Binding.Query` / `Binding.Selection` accessors – 0.2.0: **OFF the wire entirely** (the encoder omits the `accessor` key; no decoder ever read it). A decoded case synthesises the **identity projection** (Phases 421/427), so the host-fed `queryResults` / store-written selection flows through. `Binding.Computed` `fn`, `Column.Value`, `GridSpec.RowKey` keep their `"<closure>"` sentinels. A grid column's `value` is the host projection `Row -> CellValue`, so `"<closure>"` is the WHOLE of what the wire carries for it: `CellValue` is a HOST type — it has no wire shape, no `$type` dispatch and no corpus vector, and the type a cell resolves to is a host concern. The wire-survivable way to say what a cell shows is `Column.Field` + `CellFormat` (§5.1).
@@ -4861,7 +4902,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->182<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5575,11 +5616,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->647<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->653<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->249<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->182<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->83<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -5654,6 +5695,7 @@ The corpus also ships [`wire-format-fixtures/idl.json`](./idl.json) – a canoni
 **The two artefacts answer different questions, and neither subsumes the other.** `schema.json` is the **validation surface**: given a payload, is it legal? `idl.json` is the **structural source**: what *is* the vocabulary? A JSON Schema is lossy about precisely the things a vocabulary consumer needs, because validation does not need them:
 
 - **Optionality collapses.** Draft 2020-12 can say a property is `required`; it has no way to say "omitted when equal to this value". So every omit-at-default field (§3.6) is indistinguishable from a plain optional one in the schema, and the identity default **value** is absent entirely. `idl.json` carries a four-way optionality class per field – `required` / `optional` / `omitDefault` (with the default value) / `hostOnly` – which is what makes §3.6 and §9 mechanically derivable rather than prose-only.
+- **The declared-default rule is a declaration (§3.6, Phase 2300).** Rule 1's declaration is the field's `omitDefault` class with its default value, and the §3.6 identity-default table is rendered from it; a host generator applies it to every row without a per-kind site, so the fifteen fields Phase 2300 declared reached every host by regeneration. The two further canonical-form rules want two more per-field declarations — a **presence condition** (which sibling values make the field meaningless, and what absence means) and an **alias list** (the retired spellings that normalise to the canonical name) — that the field model does not yet carry; they land with the announced breaking cut (Phase 2340), and when the IDL engine gains them both tables become projections like this one.
 - **Unions flatten** into `oneOf` branches; `idl.json` keeps the union, its named cases, its type parameters, and its transparent case (the bare-value encoding of `TextSource.Literal`, §3.5).
 - **Host-surface declarations have nowhere to live** in a schema at all.
 
