@@ -5575,7 +5575,7 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->623<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->647<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->181<!-- /fuaran:count --> `reject`,

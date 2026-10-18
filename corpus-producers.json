@@ -73,6 +73,22 @@
       "spec": "23.6",
       "authored": "each case names a document, a declared policy and the outcome; the cases are the specification of an optional host narrowing and no host emits them"
     },
+    "design-seam-reject": {
+      "spec": "DESIGN_SEAM.md 7",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <corpus dir>"
+      },
+      "source": "since"
+    },
+    "design-seam-round-trip": {
+      "spec": "DESIGN_SEAM.md 7",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <corpus dir>"
+      },
+      "source": "since"
+    },
     "devtools-relay": {
       "spec": "DEVTOOLS_RELAY.md 12",
       "authored": "relay session transcripts authored against the relay specification; the reference relay suite reads them and no emitter writes them"
