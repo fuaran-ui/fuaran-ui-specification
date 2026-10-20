@@ -33,7 +33,7 @@
       "spec": "27.8.2",
       "producer": {
         "repository": "Fuaran-Core/fuaran-core",
-        "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-apply <corpus dir>"
+        "emit": "dotnet run --project tools/Fuaran.Core.Tools -- render apply <corpus dir>"
       },
       "source": {
         "commit": "64d0b5a26f681d772822a0530cb5588905fe6706"
@@ -166,7 +166,7 @@
       "spec": "27.8.2",
       "producer": {
         "repository": "Fuaran-Core/fuaran-core",
-        "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>"
+        "emit": "dotnet run --project tools/Fuaran.Core.Tools -- render laws <corpus dir>"
       },
       "source": "kitVersion"
     },
@@ -184,7 +184,7 @@
       "spec": "27.8.2",
       "producer": {
         "repository": "Fuaran-Core/fuaran-core",
-        "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>"
+        "emit": "dotnet run --project tools/Fuaran.Core.Tools -- render laws <corpus dir>"
       },
       "source": "kitVersion"
     },
@@ -192,7 +192,7 @@
       "spec": "27.8.2",
       "producer": {
         "repository": "Fuaran-Core/fuaran-core",
-        "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>"
+        "emit": "dotnet run --project tools/Fuaran.Core.Tools -- render laws <corpus dir>"
       },
       "source": "kitVersion"
     },
