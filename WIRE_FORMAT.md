@@ -4902,7 +4902,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->182<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->209<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5616,11 +5616,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->653<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->249<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->690<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->255<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->182<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->83<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->209<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -8584,6 +8584,10 @@ keyed exactly as §27.7 derives the family:
   commit is the producer's main-line commit at the corpus commit that last wrote the family — the
   same date approximation §11.3 states for back-filled `since` values — and the next emit replaces it
   with the commit it ran at.
+- `tier` — optional, and `"ui"` is its one value: the family's vectors carry bytes only a UI-tier codec
+  writes (a UI `TreeOp`, a UI node tree), so the substrate tier cannot emit it and the UI hosts stay its
+  producers. `chain`, `dag`, `merge-conformance` and `diff/treeDiff` carry it (fuaran-core D191, which
+  found every one of their vectors UI-shaped). The check refuses any other value.
 - `authored` — instead of `producer` and `source`: the reason no program emits the family. That is
   legitimate where the inputs ARE the specification (a §28 repair catalogue, a §23 policy table, a
   chosen sample of real emissions, the §22 semantic-invariant payloads) and is otherwise a lag, named
@@ -8608,7 +8612,13 @@ and that no other section specifies.
   framing of the file. `capabilityLaws` pins the invocable-capability contract (argument validation,
   capture-replay key, declaration round-trip, id-stable enumeration); `decimal` the exact decimal's
   canonical text, order, exact sum and refusals; `fieldLaws` the schema field's canonical bytes,
-  decode and refusals; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
+  decode and refusals; `propagationLaws` (Phase 2328, emitted by Fuaran-Core from
+  `Fuaran.Core.Propagation`) the incremental propagation of a declared dependency graph — which nodes
+  a change makes stale (the changed ids and every node that transitively reads one), the order the
+  reference evaluates them in and its cyclic groups, an incremental re-evaluation from a prior
+  evaluation that equals a full one and recomputes exactly the stale set, and the refusals of a change
+  the graph does not hold and of an undeclared read; a host whose bindings re-render on a write asserts
+  its own stale set against the `dirtySet` vectors; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
   evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
   table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the

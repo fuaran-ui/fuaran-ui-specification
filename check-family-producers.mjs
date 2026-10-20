@@ -15,7 +15,8 @@
 //     `{commit}` of 40 lowercase hex), or a `kitVersion` source over a file that carries none, or a
 //     `since` source over root rows that do not all carry one;
 //   * an `authored` record with an empty reason;
-//   * a `spec` naming a section the document does not have.
+//   * a `spec` naming a section the document does not have;
+//   * a `tier` other than `ui` (the one tier 27.8.1 defines).
 //
 // Exit 0 when there are no findings, 1 otherwise.
 
@@ -71,6 +72,7 @@ for (const family of families) {
     else if (!headingsOf(m[1] ?? 'WIRE_FORMAT.md').has(m[2]))
       add(family, `spec '${r.spec}' names a section ${m[1] ?? 'WIRE_FORMAT.md'} does not have`);
   }
+  if (r.tier !== undefined && r.tier !== 'ui') add(family, `tier '${r.tier}' is not 'ui'`);
   const hasProducer = r.producer !== undefined;
   const hasAuthored = r.authored !== undefined;
   if (hasProducer === hasAuthored) {
