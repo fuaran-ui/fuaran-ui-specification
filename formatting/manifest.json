@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "$id": "https://fuaran.dev/wire-format/v1/formatting/manifest.json",
+  "description": "The Fuaran number-FORMATTING conformance family (WIRE_FORMAT.md 27.8.2). Each vector is (value, format, expected text): `value` is a JSON number (a negative zero is written `-0.0`), `format` a canonical `CellFormat`, and `expectedText` the text every conformant host renders for that number under that format - the projection behind a Metric value and trend, a LabelValueRow value and a grid cell. The text is the hydrating JavaScript's, so a server-rendered figure and its hydration agree byte for byte: `None` and `DateTime` are `String(x)`; `Number` is `x.toFixed(d)`, or with no declared places `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent` is `(x * 100).toFixed(d)` plus `%` (one place by default); `Currency` is the code, a space and `x.toFixed(2)`; `SignificantDigits` is `Number(x.toPrecision(d)).toString()`. The text depends on no locale. Generated from the reference host's own formatter, which PROVES every vector, through its decoder, before this file is written.",
+  "vectors": [
+    {
+      "id": "currency-code-prefix",
+      "value": 1234.5,
+      "format": {"$type":"Currency","code":"USD"},
+      "expectedText": "USD 1234.50",
+      "description": "the cell vocabulary's currency is the ISO code, a space and two places"
+    },
+    {
+      "id": "none-1e20",
+      "value": 1E+20,
+      "format": {"$type":"None"},
+      "expectedText": "100000000000000000000",
+      "description": "below 1e21 String(x) is positional, where a host's general format goes exponential"
+    },
+    {
+      "id": "none-1e21",
+      "value": 1E+21,
+      "format": {"$type":"None"},
+      "expectedText": "1e+21",
+      "description": "String(x) turns exponential at 1e21, lower-case and signed"
+    },
+    {
+      "id": "none-negative-zero",
+      "value": -0.0,
+      "format": {"$type":"None"},
+      "expectedText": "0",
+      "description": "String(-0) is 0: a negative zero carries no sign"
+    },
+    {
+      "id": "none-shortest-round-trip",
+      "value": 0.30000000000000004,
+      "format": {"$type":"None"},
+      "expectedText": "0.30000000000000004",
+      "description": "the shortest digits that round-trip, not a rounded display"
+    },
+    {
+      "id": "none-small-exponential",
+      "value": 1.234E-07,
+      "format": {"$type":"None"},
+      "expectedText": "1.234e-7",
+      "description": "below 1e-6 String(x) is exponential, with no zero-padded exponent"
+    },
+    {
+      "id": "none-small-positional",
+      "value": 1.234E-06,
+      "format": {"$type":"None"},
+      "expectedText": "0.000001234",
+      "description": "from 1e-6 String(x) stays positional"
+    },
+    {
+      "id": "number-default-1e21",
+      "value": 1E+21,
+      "format": {"$type":"Number"},
+      "expectedText": "1e+21",
+      "description": "toFixed answers String(x) from 1e21 up"
+    },
+    {
+      "id": "number-default-fraction",
+      "value": 1234567.5,
+      "format": {"$type":"Number"},
+      "expectedText": "1234567.5",
+      "description": "a non-integer with no declared decimals is String(x), never %g's 1.23457e+06"
+    },
+    {
+      "id": "number-default-integer",
+      "value": 1234,
+      "format": {"$type":"Number"},
+      "expectedText": "1234",
+      "description": "an integer with no declared decimals is toFixed(0)"
+    },
+    {
+      "id": "number-default-negative-zero",
+      "value": -0.0,
+      "format": {"$type":"Number"},
+      "expectedText": "0",
+      "description": "a negative zero is an integer, and toFixed(0) does not sign it"
+    },
+    {
+      "id": "number-fixed-0-tie",
+      "value": 2.5,
+      "format": {"$type":"Number","decimals":0},
+      "expectedText": "3",
+      "description": "toFixed(0) of an exact half rounds up in magnitude"
+    },
+    {
+      "id": "number-fixed-1e21",
+      "value": 1E+21,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "1e+21",
+      "description": "declared places do not apply from 1e21 up"
+    },
+    {
+      "id": "number-fixed-2",
+      "value": 1234.5,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "1234.50",
+      "description": "fixed places, no grouping, a point"
+    },
+    {
+      "id": "number-fixed-binary-below-tie",
+      "value": 1.005,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "1.00",
+      "description": "1.005 is stored just below the tie, so it rounds down"
+    },
+    {
+      "id": "number-fixed-negative-to-zero",
+      "value": -0.001,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "-0.00",
+      "description": "a negative amount keeps its sign when it rounds to zero"
+    },
+    {
+      "id": "number-fixed-negative-zero",
+      "value": -0.0,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "0.00",
+      "description": "a negative zero is not less than zero, so it is unsigned"
+    },
+    {
+      "id": "number-fixed-tie-away",
+      "value": 0.125,
+      "format": {"$type":"Number","decimals":2},
+      "expectedText": "0.13",
+      "description": "an exact binary tie rounds away from zero, not to even"
+    },
+    {
+      "id": "percent-default",
+      "value": 0.4567,
+      "format": {"$type":"Percent"},
+      "expectedText": "45.7%",
+      "description": "one place by default, after the x100"
+    },
+    {
+      "id": "percent-fixed-0-tie",
+      "value": 0.005,
+      "format": {"$type":"Percent","decimals":0},
+      "expectedText": "1%",
+      "description": "0.005 x 100 is exactly 0.5, and the tie rounds up"
+    },
+    {
+      "id": "percent-fixed-1",
+      "value": 0.125,
+      "format": {"$type":"Percent","decimals":1},
+      "expectedText": "12.5%",
+      "description": "declared places on the scaled ratio"
+    },
+    {
+      "id": "percent-negative-zero",
+      "value": -0.0,
+      "format": {"$type":"Percent"},
+      "expectedText": "0.0%",
+      "description": "a negative zero ratio renders unsigned"
+    },
+    {
+      "id": "significant-10-of-1234567.5",
+      "value": 1234567.5,
+      "format": {"$type":"SignificantDigits","digits":10},
+      "expectedText": "1234567.5",
+      "description": "more digits than the value needs adds no trailing zeros"
+    },
+    {
+      "id": "significant-1e21",
+      "value": 1E+21,
+      "format": {"$type":"SignificantDigits","digits":3},
+      "expectedText": "1e+21",
+      "description": "String(x) of the rounded value is exponential from 1e21"
+    },
+    {
+      "id": "significant-2-tie",
+      "value": 0.125,
+      "format": {"$type":"SignificantDigits","digits":2},
+      "expectedText": "0.13",
+      "description": "an exact tie at the last significant digit rounds away from zero"
+    },
+    {
+      "id": "significant-3-of-1234",
+      "value": 1234,
+      "format": {"$type":"SignificantDigits","digits":3},
+      "expectedText": "1230",
+      "description": "three significant digits of 1234 are 1230, never 1.23E+03"
+    },
+    {
+      "id": "significant-3-of-1234567.5",
+      "value": 1234567.5,
+      "format": {"$type":"SignificantDigits","digits":3},
+      "expectedText": "1230000",
+      "description": "rounded to three digits, then spelled by String(x)"
+    },
+    {
+      "id": "significant-3-small",
+      "value": 1.234E-06,
+      "format": {"$type":"SignificantDigits","digits":3},
+      "expectedText": "0.00000123",
+      "description": "a small value stays positional from 1e-6"
+    },
+    {
+      "id": "significant-negative-zero",
+      "value": -0.0,
+      "format": {"$type":"SignificantDigits","digits":3},
+      "expectedText": "0",
+      "description": "a negative zero is 0"
+    }
+  ]
+}

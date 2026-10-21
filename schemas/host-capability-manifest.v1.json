@@ -4,7 +4,7 @@
   "title": "Fuaran host capability manifest (v1)",
   "description": "The structural rendering of WIRE_FORMAT.md 27 — a conformant host's generated declaration of the wire constructs it can author. Subordinate to that text: where the two differ, the text governs. This schema constrains SHAPE only; the generation rule (27.1), the family semantics (27.3) and the version binding (27.4 rule 5) are obligations no schema can express.",
   "type": "object",
-  "required": ["$manifest", "host", "hostVersion", "generator", "families", "tokens"],
+  "required": ["$manifest", "host", "hostVersion", "generator", "families", "corpusFamilies", "tokens"],
   "additionalProperties": false,
   "properties": {
     "$manifest": {
@@ -44,6 +44,12 @@
         "hostedCases": { "$ref": "#/$defs/family" }
       }
     },
+    "corpusFamilies": {
+      "description": "Per corpus family, whether this host's own suite runs it (27.7). The family set is derived from the corpus tree — each root manifest fixture kind, and each top-level directory carrying its own manifest.json (one family per entry of that manifest's `families` array, named <directory>/<id>). Required of every codec host (11.3): it names every family exactly once, and the change-set roster and the host's own gate fail on an omitted family and on one the corpus no longer has; that obligation is a property of the corpus the host runs against, which no schema can express.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*(/[A-Za-z][A-Za-z0-9]*)?$" },
+      "additionalProperties": { "$ref": "#/$defs/corpusFamily" }
+    },
     "tokens": {
       "description": "The sorted, deduplicated construct tokens the host can author, in the covered families only (27.2, 27.3).",
       "type": "array",
@@ -70,6 +76,24 @@
         {
           "if": { "properties": { "covered": { "const": false } }, "required": ["covered"] },
           "then": { "required": ["reason"], "not": { "required": ["scope"] } }
+        }
+      ]
+    },
+    "corpusFamily": {
+      "description": "\"covered\": the host's suite runs the family and asserts its outcomes. notApplicable: the family describes a capability the host deliberately lacks. pending: a lag — the host's suite does not run the family yet. Each non-covered answer carries one sentence a reader can check (27.7).",
+      "oneOf": [
+        { "const": "covered" },
+        {
+          "type": "object",
+          "required": ["notApplicable"],
+          "additionalProperties": false,
+          "properties": { "notApplicable": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["pending"],
+          "additionalProperties": false,
+          "properties": { "pending": { "type": "string", "minLength": 1 } }
         }
       ]
     },

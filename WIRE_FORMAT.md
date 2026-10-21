@@ -525,32 +525,34 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 > **This table is generated** from [`idl.json`](idl.json) (§13) and must not be hand-edited — see
 > [§12.2](#122-generated-tables-in-this-document). Field names are listed in the canonical wire key
 > order (Ordinal), spelled `field` when required, `field?` when optional, `field?=X` when
-> omitted-at-default `X` (§3.6 carries the full default table), and `field*` when the slot is
-> host-only and carries `"<closure>"` on the wire (§4).
+> omitted-at-default `X` (§3.6 carries the full default table). A host-only slot (`Button.tooltip`,
+> §10.1) is typed host surface, not wire vocabulary — never emitted, never decoded — so it is not
+> listed. (Until Phase 1962 it was, as `tooltip*`, against a legend reading `*` as "carries
+> `"<closure>"` on the wire", which no encoder ever did.)
 
 <!-- fuaran:spec-kinds -->
 | `kind.$type` | Recovered category | Fields (hoisted under `$type`) | Notes |
 |---|---|---|---|
 | `Box` | _Layout_ | `breakBefore?=false`, `children`, `heading?`, `keepTogether?=false`, `layout`, `role` | `layout` names how children arrange, `role` what the container means (element, ARIA landmark, chrome). See "The `Box` container" below. |
 | `Disclosure` | _Layout_ | `children`, `defaultOpen`, `heading`, `onToggle?`, `open` |  |
-| `Modal` | _Layout_ | `anchor?`, `children`, `dismissable`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
+| `Modal` | _Layout_ | `anchor?`, `children`, `dismissable?=true`, `heading?`, `modality?=Modal`, `onDismiss?`, `open` |  |
 | `ScrollArea` | _Layout_ | `children`, `maxHeight?`, `maxWidth?`, `orientation` |  |
 | `SplitPanel` | _Layout_ | `children`, `weight` |  |
-| `Stepper` | _Layout_ | `activeStep`, `children`, `onSelect?` |  |
+| `Stepper` | _Layout_ | `activeStep?=Static{value=0}`, `children`, `onSelect?` |  |
 | `SummaryList` | _Layout_ | `children`, `heading?` |  |
 | `Tabs` | _Layout_ | `activeIndex?=Static{value=0}`, `activeTag?`, `children`, `onSelect?`, `onSelectTag?`, `orientation?=Horizontal`, `tabHeaders?`, `tabTags?` |  |
-| `Badge` | _Display_ | `label`, `variant` |  |
+| `Badge` | _Display_ | `label`, `variant?=Neutral` |  |
 | `Callout` | _Display_ | `body`, `dismissable?=false`, `heading?`, `icon?`, `tone?=Default` |  |
-| `CodeBlock` | _Display_ | `code`, `copyable`, `highlightLines`, `language`, `lineNumbers` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
+| `CodeBlock` | _Display_ | `code`, `copyable?=true`, `highlightLines?=[]`, `language`, `lineNumbers?=false` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
 | `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
 | `Embed` | _Display_ | `aspectRatio?=Natural`, `permissions?=[]`, `src`, `title` |  |
 | `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
-| `Heading` | _Display_ | `level`, `text`, `variant` |  |
+| `Heading` | _Display_ | `level`, `text`, `variant?=Standard` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
-| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
+| `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant?=Default` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
-| `Link` | _Display_ | `download`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
-| `List` | _Display_ | `items`, `ordered` |  |
+| `Link` | _Display_ | `download?=false`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
+| `List` | _Display_ | `items`, `ordered?=false` |  |
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
 | `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
@@ -560,11 +562,11 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
-| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `tooltip*`, `variant` |  |
-| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple`, `onSelect?` |  |
+| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
+| `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple?=false`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value`, `values?` |  |
+| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
@@ -872,7 +874,9 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
   (a typed defect, not a pass-through) – see `reject/reject-unknown-drawing-shape.json` and
   `reject/reject-unknown-drawing-curve-command.json`.
 
-**`Select` multi-select (Phase 291).** `SelectSpec` gains two OPTIONAL wire fields: `"multiple":true` (emitted only when multi-select – **omitted when `false`**, so every single-select fixture is byte-identical to the pre-multi-select wire) and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`, emitted only when present). The multi-select change handler is a closure → no separate wire key (the existing `"onChange":"<closure>"` covers it). Single-select carries `value` (a `Binding<string option>`); multi-select carries `values` instead. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
+**`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written (`nodes/select-multiple-false.json`) — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
+
+The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`). A multi-select that still carries a `value` is a **§16 lenient accept**: the `value` is decoded (so a malformed one refuses exactly as any malformed binding does) and then **dropped**, normalising the document to the clean form — whether it is the empty-`Static` placeholder every multi-select carried before Phase 1962 (`{"$type":"Static"}`, or `{"$type":"Static","value":null}`) or a real binding a model wrote beside its `values`. A multi-select never reads `value`, so dropping it changes nothing a reader can observe, and every stored document still reads (`lenient/lenient-1962-multiselect-value-dropped.json`, all three spellings). Refusing a non-placeholder `value` instead was considered and rejected on measurement: of the 16 stored model emissions carrying both keys, 14 carry a real binding (typically a `State` "primary" selection), so a refusal would have stopped 14 documents that decode today from reading. A reference-host pre-emit validator names a constructed multi-select that still carries one (`FUARAN164`, Warning). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
 **Filter chips are `FormFieldKind` controls (0.2.0 filters-unification; superseding the Phase 423 `FilterKind` DU).** A `Filters` item is `{"kind":<FormFieldKind>,"label":<TextSource>,"name":<string>}` – one control vocabulary for forms and filter strips; the retired `FilterKind` discriminators (`TextFilter` / `ChoiceFilter` / `RangeFilter` / `SegmentedFilter`) are a hard `UNKNOWN_DU_CASE`. Two chip-specific rules: (a) **auto-binding** – a chip control with **no `value` key** decodes to `{"$type":"Filter","name":<the chip's own name>}` (the item's declared name IS the store key), and the encoder symmetrically **omits** a `value` that is exactly that auto binding, so the canonical minimal chip is `{"kind":{"$type":"Choice","options":…},"label":…,"name":"status"}`; (b) the Phase 423 handler mechanics carry over unchanged – an omitted `onChange` writes `$filters.<name>` through the host's filter seam, a present `"<closure>"` wins. Since **0.2.1** the synthesis is symmetric: in a **Form**, an absent `value` auto-binds `State(<field id>, <typed placeholder>)` (see the §1.1 addendum) – the context decides the store, never whether omission is legal. See `nodes/filters-1.json` / `nodes/filters-declarative.json` / `nodes/filters-segmented.json`.
 
@@ -1302,6 +1306,12 @@ A `FragmentDecl`/`FragmentRef` is an **artifact-function**: the decl declares ty
 
 See `nodes/frag-decl-param.json` + `nodes/frag-ref-args.json` for the canonical shapes; `nodes/frag-decl-1.json` + `nodes/frag-ref-1.json` remain the degenerate fixed-body fixtures.
 
+#### Fragment scope (normative, Phase 2285)
+
+A `FragmentDecl` is registered wherever it sits in **fragment scope**: a container's ordered children, a `FragmentDecl` body, both `ErrorBoundary` arms, every `Switch` case child and its default, and the node envelope's `state.onLoading` and `state.onEmpty`, which render in place of their node and so can declare, reference and render fragments too. A `FragmentDecl` under the envelope `fallback`, inside a `FragmentRef` slot argument, or inside a `Mount` guest is **not** registered in the referring document's fragment table: a slot argument belongs to the scope it is passed into, and a `Mount` guest is a separate scope with its own table (§8.1).
+
+Expansion namespacing walks **exactly the same reach**, so a declaration is registered exactly where an expansion namespaces it, and the state alternatives of an expanded body carry `<refId>.<id>` like every other interior id (§8.1). On a repeated name the last declaration in pre-order wins; validators refuse duplicate names, so this decides only already-invalid documents.
+
 ### 3.3 Nested DU positions
 
 `$type`-dispatched objects also appear at every nested DU: `TextSource` (`Literal`/`Bound`/`I18n`), `Binding<'T>` (`Static`/`Query`/`Filter`/`Selection`/`State`/`Computed`/`Now`/`I18n`/`Local`/`Format`/`Transform`/`Expr`/`Invoke`), `Action<'Msg>` (`Dispatch`/`Call`/`Notify`/`Navigate`/`SetState`/`AiTool`/`Chain`/`CommitLocal`/`WriteToClipboard`/`ReadFileBody`/`Invoke`/`Print`), `CellFormat`, `ColumnWidth`, `Format`, `LocaleSource`, `FormFieldKind`, `CellKindErased`, `LocalFlushTrigger`. Each renders `{"$type":"<CaseName>", …fields}`, with two 0.2.0 exceptions: `TextSource.Literal`'s canonical form is the **bare JSON string** (the `{"$type":"Literal","text":…}` envelope stays decode-accepted and normalises down, §16), and `Action.Dispatch` renders the bare `{"$type":"Dispatch"}` (no `msg` sentinel, §4). `Action.Print` renders `{"$type":"Print"}` and is not an exception at all — it is the general rule with an empty field set, and a member beside the discriminator is refused there rather than dropped (§3.6.14). Field names and presence are pinned by the corpus.
@@ -1612,7 +1622,7 @@ could never commit a keystroke. Every fixture's BYTES are unchanged; what change
 conforming host does with them.
 
 ```json
-{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"}}
+{"$type":"Local","codec":{"$type":"Number","decimals":2},"commitTo":"order.unitPrice","flushOn":{"$type":"OnBlur"},"format":"<closure>","initialFrom":{"$type":"State","defaultValue":0,"key":"order.unitPrice"},"parse":"<closure>"}
 ```
 
 **`codec` (optional) declares the buffer's own codec.** It is a `Format` value, and it REPLACES the
@@ -1671,7 +1681,7 @@ the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
-For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
+For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
 
 
 **Membership and order are separate ops (0.4.0).** `InsertChild` and `MoveNode` change which children
@@ -1716,6 +1726,47 @@ the refusal must name the field rather than fall through to a generic unknown-ke
 that is ignored does not fail — the op decodes, applies, and puts the node somewhere other than where
 the author asked. A wrong id fails loudly; a stale index succeeds quietly. Refusing by name is what
 converts the second into the first.
+
+#### `PatchStyle` – the field-level style edit (Phase 2291)
+
+`UpdateStyle` writes the WHOLE `SemanticStyle` record: under the §3.6 omitted-when-default rule an
+absent member means *the default*, so even the one-member payload `{"style":{"tone":"Brand"}}` resets
+the node's other five style fields. Applied, that record replaces the target's style, and a record
+equal to the default is stored as the ABSENT slot (§3.1), so the target encodes with no `style` member,
+never `"style":{}` (Phase 2313; `apply/style-normalise-apply.json`). `PatchStyle` is the edit of SOME fields:
+
+```jsonc
+{"$type":"PatchStyle","style":{"tone":"Success","voice":"Display"},"target":"metric-1"}
+```
+
+**Members, in the pinned order:** `$type`, `style`, `target` – the `UpdateStyle` shape exactly. The
+`style` object is a **`StyleDelta`**: the same six members as `SemanticStyle`, with the same closed
+token sets (§3.5; `direction`'s lower-case tokens included), emitted in the same alphabetical order –
+`direction`, `emphasis`, `role`, `tone`, `voice`, `weight` – and each OPTIONAL.
+
+**What absence means is the one difference, and it is normative.** In a `StyleDelta` an absent member
+means *leave this field as it is*; a present member SETS the field, **a default token included**. So
+`{"tone":"Default"}` is a real edit – it sets the tone back to `Default` whatever it was – and an
+encoder MUST emit every member the delta sets, never omitting one because its value is the field's
+default (§3.6's rule does not apply inside a delta). See
+`ops/op-patchstyle (phase 2291 tone=default is an edit, not an omission).json`.
+
+**A delta naming no field is not an edit.** A conformant decoder MUST REFUSE `"style":{}`:
+`WRONG_TYPE` at `$.style`, the `reject-fieldrule-empty` precedent (a record that declares nothing).
+The schema states the same rule as `minProperties: 1`. A token outside a member's closed set is
+`UNKNOWN_DU_CASE` at `$.style.<member>`; a non-string token is `WRONG_TYPE` there. See
+`reject/reject-op-patchstyle-*.json`.
+
+**Apply semantics.** The patch is applied over the target's CURRENT style – an absent `style` slot
+is the default record – setting exactly the fields the delta names and carrying every other field
+through. A result equal to the default record is stored as the absent slot, exactly as `UpdateStyle`
+normalises. An unknown `target` is `NodeNotFound`.
+
+**Which op a producer emits.** A tree diff that observes a style change emits `PatchStyle` naming the
+fields that moved, and the whole-record `UpdateStyle` only when every field moved. The two are
+different claims about the edit, and the difference is what a concurrency footprint reads: two
+`PatchStyle`s naming different fields of one node are independent edits, where two `UpdateStyle`s on
+one node always overlap. `UpdateStyle` remains the op for an author who means to REPLACE a style.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -1859,6 +1910,33 @@ exactly as `role`/`voice` do inside `SemanticStyle` (Phase 147). This is the req
 seam of the Phase 426/430 declarative-floor doctrine, applied to *style* instead of behaviour: an
 emission carrying only the semantic fields (`label`, `value`, `kind`) is a complete, valid tree.
 
+**The declared-default rule (Phase 2300, rule 1; the operator ruling of 2026-10-01 recorded under
+Phase 1963).** The canonical form is a rule the generator and the reference encoder apply to every row
+of the vocabulary, never a per-kind list of exceptions, and it is stated once, here: **a field with a
+declared default is ABSENT from the canonical form when it holds that default, on every kind, record,
+union case and op; a present explicit default decodes to the same value and re-encodes without the
+member.** The declaration is the field's `omitDefault` class in [`idl.json`](idl.json) (§13), the
+table below is rendered from it, and every host's generated encoder and decoder apply it without a
+hand site. Fifteen fields that were `required` until Phase 2300 now declare their default — the Phase
+1963 list: `Flex.wrap`, `Link.download`, `List.ordered`, `CodeBlock.lineNumbers`,
+`CodeBlock.highlightLines`, `FormField.required`, `FileUpload.multiple` (`false` / `[]`),
+`CodeBlock.copyable` and `Modal.dismissable` (`true`), `Heading.variant` (`Standard`), `Image.variant`
+(`Default`), `Badge.variant` (`Neutral`), `Button.variant` (`Secondary`), `SegmentedChoice.orientation`
+(`Horizontal`) and `Stepper.activeStep` (`Static{value=0}`). **The declared default is the authoring
+default** — the value the reference host's `Defaults` record carries — so a default-authored node and
+an absent member mean the same thing, and the lenient half of the rule (an explicit default decodes to
+that same value) repairs nothing a reader could observe. That is also why the two booleans that omit
+when TRUE do: a code block is copyable unless it says otherwise and an overlay is dismissable unless it
+says otherwise (`Toast.dismissable` had the same polarity since 0.2.0; `Tokens.allowFreeText` omits at
+`true` for the same reason), and flipping either would re-read every stored document that omits the
+key. A variant's declared default is likewise its authoring default and not its corpus frequency: how
+often a case appears in the corpus is a prior, not a default. A kind that deviates from the rule does so
+through a declared exception the table names with its reason; an undeclared deviation is a defect of
+the generator, not a property of the kind. Two further canonical-form rules — absent when meaningless
+(Phase 1964) and one name, one shape, one polarity per concept (Phase 1965) — want per-field
+declarations the IDL's field model does not yet carry (a presence condition; an alias list) and land
+with the announced breaking cut (Phase 2340); this section states rule 1 alone until then.
+
 **Identity-default table** (absent ⇒ this value; a present explicit-default value keeps decoding,
 read-compat):
 
@@ -1872,6 +1950,7 @@ read-compat):
 |---|---|---|---|---|
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `activeIndex` | `Binding<int>` | `Static{value=0}` | `TabsSpec` |  |
+| `activeStep` | `Binding<int>` | `Static{value=0}` | `StepperSpec` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
@@ -1880,11 +1959,13 @@ read-compat):
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
+| `copyable` | `bool` | `true` | `CodeBlockSpec` | Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
 | `default` | `bool` | `false` | `TrackEntry` |  |
 | `direction` | `TextDirection` | `auto` | `SemanticStyle` |  |
 | `dismissable` | `bool` | `false` | `CalloutSpec` |  |
-| `dismissable` | `bool` | `true` | `ToastSpec` | Omit-when-TRUE: a toast is dismissable unless said otherwise. Note the polarity is the FIELD's, not the type's — `Callout.dismissable` is the same name and the same type omitted at FALSE. |
+| `dismissable` | `bool` | `true` | `ModalSpec`, `ToastSpec` | Omit-when-TRUE: an overlay is dismissable unless said otherwise — `Toast` (0.2.0) and, since Phase 2300, `Modal` (every corpus modal carried `true`). The polarity is the FIELD's, not the type's: `Callout.dismissable` is the same name and the same type omitted at FALSE; §3.6 rule 1 names the overlay pair as a declared exception to the boolean `false` default. |
+| `download` | `bool` | `false` | `LinkSpec` |  |
 | `dropTarget` | `bool` | `false` | `FileUploadSpec` |  |
 | `editable` | `bool` | `false` | `DataGridSpec` |  |
 | `effect` | `EffectClass` | `{determinism=Deterministic, hostEffect=Pure}` | `FragmentDeclSpec` |  |
@@ -1894,17 +1975,22 @@ read-compat):
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
+| `highlightLines` | `int[]` | `[]` | `CodeBlockSpec` |  |
 | `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
 | `keepRowsTogether` | `bool` | `false` | `DataGridSpec` |  |
 | `keepTogether` | `bool` | `false` | `BoxSpec` |  |
+| `lineNumbers` | `bool` | `false` | `CodeBlockSpec` |  |
 | `loading` | `ImageLoading` | `Eager` | `ImageSpec` |  |
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
-| `orientation` | `Orientation` | `Horizontal` | `TabsSpec` | `TabsSpec` only. `FormFieldKind.SegmentedChoice.orientation` is REQUIRED and is not in this table: its decoder restores `Horizontal` when the field is absent (a §16 lenient-ingest accept), but the encoder always emits it, so the omitted form is not canonical there. |
+| `multiple` | `bool` | `false` | `FileUploadSpec` |  |
+| `ordered` | `bool` | `false` | `ListSpec` |  |
+| `orientation` | `Orientation` | `Horizontal` | `FormFieldKind.SegmentedChoice`, `TabsSpec` | `TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default). |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
+| `required` | `bool` | `false` | `FormField` |  |
 | `role` | `StyleRole` | `None` | `SemanticStyle` |  |
 | `size` | `IconSize` | `Medium` | `IconSpec` |  |
 | `srcSet` | `SrcSetEntry[]` | `[]` | `ImageSpec` |  |
@@ -1913,9 +1999,14 @@ read-compat):
 | `tone` | `ToneVariant` | `Default` | `CalloutSpec`, `FactSpec`, `IconSpec`, `MetricSpec`, `ProgressSpec`, `SemanticStyle`, `ToastSpec` |  |
 | `tracks` | `TrackEntry[]` | `[]` | `MediaSpec` |  |
 | `trendPolarity` | `TrendPolarity` | `HigherIsBetter` | `MetricSpec` |  |
+| `variant` | `ImageVariant` | `Default` | `ImageSpec` |  |
+| `variant` | `BadgeVariant` | `Neutral` | `BadgeSpec` | The authoring default (`Defaults.badge`), declared under §3.6 rule 1: a default-authored badge and an absent `variant` mean the same thing. Corpus frequency is a prior, not a default. |
+| `variant` | `ButtonVariant` | `Secondary` | `ButtonSpec` | The authoring default (`Defaults.button`), declared under §3.6 rule 1 for the same reason as `Badge.variant`. |
+| `variant` | `HeadingVariant` | `Standard` | `HeadingSpec` |  |
 | `voice` | `FontVoice` | `Default` | `SemanticStyle` |  |
 | `weight` | `StyleWeight` | `Standard` | `MetricSpec`, `SemanticStyle` |  |
 | `width` | `ColumnWidth` | `Auto` | `ColumnErased` |  |
+| `wrap` | `bool` | `false` | `BoxLayout.Flex` |  |
 <!-- /fuaran:spec-omit-defaults -->
 
 **`CellFormat.DateTime` ruling (Phase 1810 — the open question carried from requirement
@@ -2131,15 +2222,15 @@ surface, not just its rejection surface.
 Same date, the omitted-when-default posture (the identity-default table above) extended to the
 segmented `orientation` field on **`SegmentedChoice`** (forms and, post-unification, filter chips):
 absent ⇒ `Horizontal` (the language default and the universal segmented-control prior; observed
-omitted in eval emission data). **This one is asymmetric, and the asymmetry is the point:** the
-DECODER restores `Horizontal` when the field is absent, but the ENCODER always emits it on
-`SegmentedChoice`, so the omitted form is a §16 lenient-ingest accept there and **not** the canonical
-bytes — `lenient/lenient-shape-segmented-orientation-omitted.expected.json` carries
-`"orientation":"Horizontal"`. `Tabs` IS encoder-symmetric and appears in the identity-default table
-above; `SegmentedChoice` does not, because its field is required on the emit side. (This paragraph
-claimed the symmetry for both until the generated table disagreed with it — Phase 699.) The legacy
-`Stack` `orientation` stays required (no default is neutral there: vertical and horizontal stacks are
-both common).
+omitted in eval emission data). **Until Phase 2300 this one was asymmetric:** the DECODER restored
+`Horizontal` when the field was absent, but the ENCODER always emitted it on `SegmentedChoice`, so the
+omitted form was a §16 lenient-ingest accept there and not the canonical bytes, and `Tabs` alone
+appeared in the identity-default table. (This paragraph claimed the symmetry for both until the
+generated table disagreed with it — Phase 699.) The declared-default rule closed the asymmetry: the
+IDL declares `SegmentedChoice.orientation` omit-at-default `Horizontal`, the encoder omits it, the
+table above lists both sites, and `lenient/lenient-shape-segmented-orientation-omitted.expected.json`
+carries no `orientation`. `Flex.direction` stays required (no default is neutral there: vertical and
+horizontal layouts are both common, and a corpus prior is not a default).
 
 ### 3.6.1 `tone` and `trendPolarity` — the composition rule (Phase 867)
 
@@ -2939,7 +3030,6 @@ page**, and it has exactly two answers, so the enum has exactly two cases:
 {"$type":"Modal",
  "anchor":"swatch",
  "children":[{"id":"picker","kind":{"$type":"Markdown","text":"Pick one"}}],
- "dismissable":true,
  "heading":"Choose a colour",
  "modality":"Popover",
  "open":{"$type":"State","key":"swatchOpen","defaultValue":false}}
@@ -3587,7 +3677,6 @@ other two, and the only one that PRODUCES a file rather than moving one that alr
  "accept":["image/*"],
  "capture":"Camera",
  "label":"Photograph the receipt",
- "multiple":false,
  "onSelect":"<closure>"}
 ```
 
@@ -4072,7 +4161,6 @@ this control, and the first two that constrain the SELECTION rather than routing
  "accept":["application/pdf"],
  "label":"Attach a scan",
  "maxBytes":5242880,
- "multiple":false,
  "onSelect":"<closure>"}
 ```
 
@@ -4333,7 +4421,7 @@ Every function-typed payload the encoder cannot observe renders as the sentinel 
 - `Action.Dispatch _` → encodes as the bare `{"$type":"Dispatch"}` – 0.2.0: the `msg` sentinel field is OFF the wire (no decoder ever read it; pure token weight). On decode `Action.Dispatch (box "<closure>")`.
 - `Action.Call(endpoint, _, _)` → endpoint string preserved; a `Some` `onResult` is `"<closure>"` (omitted when `None` – Phase 428; the declarative `into` target IS wire-carried data, not a closure).
 - `Action.ReadFileBody(file, encoding, _)` → `file.Id` carried as the `fileRef` string + `encoding` as a bare enum; the blob (`file.Handle`) never serialises and `onRead` is `"<closure>"`. The decoded `FileRef` carries `Handle = None`.
-- `FormFieldKind.*` `onChange` (every case; Phase 2177); `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` stay always-emitted closures decoding to a no-op action.
+- `FormFieldKind.*` `onChange` (every case; Phase 2177); `SelectSpec.OnChange` / `OnChangeMulti`, `TabsSpec.OnSelect` / `OnSelectTag`, `Disclosure.OnToggle` → emitted **only when present** (Phase 426 – an omitted handler arms the write-back default); a present sentinel decodes to `Some` no-op placeholder. `FileUploadSpec.OnSelect` and `StepperSpec.OnSelect` are optional in the same way – emitted **only when present**, a present sentinel decoding to a `Some` no-op placeholder and an absent key to `None`. (This line called them always-emitted until Phase 1962; the IDL and the §3.2 table have had them optional since the handler sweep, and the encoder emits them only when present. The corpus fixtures all carry one because they are closure-authored, not because the key is required.)
 - `CellKindErased.*` handlers (`onEdit` / `onToggle` / `onClick` / `get` / `labelFn` / `hrefFn` / `toneFn` / `fractionFn` / `fn`).
 - `GridSpec.OnRowClick`, `ChartSpec.OnPointClick`, `MapSpec.OnMarkerClick` → emitted **only when present** (rule 4); the value is `"<closure>"`. (There is no separate table spec record: a static table is the `staticRows` mode of `GridSpec` (§3.2) and is non-interactive, so it contributes no closure slot.)
 - `Binding.Query` / `Binding.Selection` accessors – 0.2.0: **OFF the wire entirely** (the encoder omits the `accessor` key; no decoder ever read it). A decoded case synthesises the **identity projection** (Phases 421/427), so the host-fed `queryResults` / store-written selection flows through. `Binding.Computed` `fn`, `Column.Value`, `GridSpec.RowKey` keep their `"<closure>"` sentinels. A grid column's `value` is the host projection `Row -> CellValue`, so `"<closure>"` is the WHOLE of what the wire carries for it: `CellValue` is a HOST type — it has no wire shape, no `$type` dispatch and no corpus vector, and the type a cell resolves to is a host concern. The wire-survivable way to say what a cell shows is `Column.Field` + `CellFormat` (§5.1).
@@ -4366,6 +4454,13 @@ The typed encoding applies at the binding's `State.defaultValue` position too, a
 **Row payloads (Phase 665).** A row feed encodes as a JSON **array of row objects** – one object per row, its keys the row's field names, Ordinal-sorted within each row like every other canonical object (§2 rule 2). An empty feed encodes `[]`, **never** `null`. Cells are scalars under rule 11's recognised set (string / bool / int / int64 / float / float32 / `DateTimeOffset` / `DateTime` → Unix seconds); a `null` cell **omits its key** (rule 4 – absence is structural, the wire has no null); anything else renders the `"<opaque>"` sentinel *in that cell position only*. Decoded numbers surface as one number population, and an integral number renders in integer form per rule 5's shortest-round-trip layout – so a host whose runtime has a single numeric type emits bytes identical to one whose boxed types are exact. (That last point is a **conformance requirement, not an optimisation**: a host testing `int` before `float` will diverge on any runtime where every number satisfies every numeric test. Test `float` first.) Canonical fixtures: `nodes/grid-editable-state.json` and `nodes/chart-state-rows.json` (a `State`-sourced feed on both node kinds), `nodes/grid-1.json` and `nodes/chart-1.json` (a `Static`-sourced feed).
 
 Rows carry **scalar cells only**. A cell that is itself an object or an array decodes structurally (so a lenient ingest is not rejected) but is display-opaque and re-encodes as the `"<opaque>"` cell sentinel – the residual boundary, narrowed from the whole slot to the cell seam.
+
+**The two encode refusals (normative; Phase 1960).** Two host values in rule 11's recognised set have no faithful encoding, and a conformant row-feed encoder **refuses** each one rather than writing bytes for it. The refusal is typed and names the cell: the row's zero-based position in the feed and the cell's key.
+
+- **A 64-bit integer outside ±2^53** — `ROW_CELL_INEXACT_INTEGER`. Every integer in [−2^53, 2^53] is exactly a double, so its bytes are exact and it encodes in integer form as before. Past either bound, the double an encoder would widen it to is a different number, which a reader cannot detect; the retired reference encoder wrote `9007199254740992` for `9007199254740993`. The rule binds the INTEGER type, not the number: a double holding the same value is a float cell and is never refused, and a value that must survive exactly rides as a string. This is the encode-side twin of the ruling that a JSON integer past 2^53 is not a number a conformant reader admits (Core's `INVALID_JSON`); the reader side moves with the parse, not here.
+- **A date-time that names no instant** — `ROW_CELL_UNSPECIFIED_DATETIME`: a .NET `DateTime` of `Unspecified` kind, a Python naive `datetime`. Its Unix seconds are not a property of the value; the retired reference encoder chose them through the ENCODING MACHINE's time zone, so one value encoded to different seconds on two servers. A date-time that names its instant (UTC, a local time with its zone, an offset) encodes exactly as before. No rule here reads it as UTC instead: a guess that is right on one machine and silently wrong on another is the hazard, restated.
+
+There is no new cell kind, and no byte changes for any other cell. A feed that carries neither hazard encodes byte-for-byte as it did, which the reference host proves differentially over every row-source fixture in this corpus. A host whose authoring surface cannot hold one of the two values (a host whose only date value is an instant, or whose only number is a double) has nothing to refuse there, and says so per vector. The vectors are the hand-authored `row-encode/` family: each is a feed in host-neutral cell descriptors and either its canonical bytes or its refusal, with a boundary vector admitted beside each refusal so that a host refusing too much is caught as surely as one refusing too little.
 
 **The residual-opaque boundary (by design).** A `Static` payload the language does NOT enumerate – a host domain record, a `PropValue.Native` op value, and (per *Row payloads* above) a **non-scalar cell inside a row** – still renders `"<opaque>"` under rule 11's best-effort primitives. This is deliberate: the wire never invents structure for content only the host can decompose; the decoder passes the sentinel through and **MUST NOT** attempt to reconstruct the original CLR type – the host's per-app schema re-hydrates downstream (`moduleMsgDecoder`). Nothing else falls through the catch-all silently: a new slot-typed payload shape MUST land its typed encoder + decoder + corpus fixtures in one §11 change-set, or be added to the residual list here.
 
@@ -4903,7 +4998,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->209<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5258,10 +5353,24 @@ vocabulary at all: the teleport bundle is an additive TOP-LEVEL artefact (§17),
 byte-perfect on every node and op fixture and hold no bundle codec. Its table lives with the family it
 records, in [§17.6](#176-conformance), beside the corpus family that certifies it.
 
-A machine-readable mirror of this roster (plus the generated vocabulary enumerations – see §11.2) is
-the intended executable anchor in [`wire-format-fixtures/manifest.json`](./manifest.json),
-so the roster can be mechanically enforced rather than doc-maintained; **until that lands this table is
-authoritative.**
+The machine-readable mirror of this roster is [`conformance/roster.json`](./conformance/roster.json)
+(Phase 2301): one row per host, naming its checkout, its role, the commands that certify it against
+the corpus, its capability manifest and its bundled-snapshot check. The change-set runner (§11.3)
+compares its codec hosts with this table on every run and refuses when the two differ, so **this
+table stays authoritative** and the mirror cannot drift from it silently.
+
+**Run the change-set command.** The steps below are one act, and on a workstation they are one
+command, run from the reference host's checkout (§11.3):
+
+```
+dotnet run --project Build.fsproj -- ChangeSet
+```
+
+It regenerates the F# structural layer, the authoring mirrors and the proof vocabulary from the IDL,
+emits the corpus, re-syncs and re-declares both bundled snapshots, and certifies every host in the
+roster against the corpus, refusing to read green with a leg skipped. A phase that changes the
+vocabulary names this command once; the steps that follow are the description of what it does, and
+what an author must still do by hand (the edits themselves) before running it.
 
 Adding a case to **any discriminator family on the wire** MUST, **in the same commit**, do all of the
 following. A *discriminator family* is any union whose members are distinguished by a `$type` tag —
@@ -5392,7 +5501,9 @@ Changing or adding an additive family MUST, **in the same change-set**:
 1. **amend the normative section of this document that specifies it** — the shape, the refusal
    vocabulary (which is often *not* §6's eight codes; see §17.6 for the standing instance), and any
    derived value. A family with no normative section is not additive but undocumented, and no host
-   can be held to it;
+   can be held to it. Its §27.8 record — the section, the producer that emits it (or the reason it is
+   authored), and the producer's source stamp — lands beside it, and the corpus's own check fails
+   until it does;
 2. **regenerate its enumeration** — its own `manifest.json` where it carries one, or its rows in the
    root `manifest.json` where it rides that. §12 says which of those the reference emitter authors and
    which are hand-maintained, and carries the merge rule that preserves a family the emitter does not
@@ -5422,6 +5533,11 @@ a substitute. What discharges the coupling is landing the change-set whole.
 
 Steps 1–4 above are enforced inside the F# repo's own test run (coverage-gate + stale-schema guard). Step 5 – *keep every non-reference codec host in the §11.0 roster byte-identical* – is enforced by pinning **each codec host to the committed corpus**, so a divergence between any two conformant hosts is caught rather than discipline-maintained. The committed corpus **is** the F# encoder's canonical output (`Corpus.emit` writes `CanonicalJson.encode*` into the `expectedFile` payloads and the `DecodeError` code/path into `manifest.json`); each codec host's leg asserts its own canonical output is byte-identical to that corpus, and `X == corpus` for every host `X` proves `X == Y` byte-for-byte across the roster.
 
+**The workstation form of this gate is the change-set command (§11.3).** Its leg stage,
+`conformance/cross-host-conformance.mjs --roster`, runs every leg below (and the render projections'
+coverage legs) on one machine against the corpus `FUARAN_WIRE_FIXTURES` names, so an author meets on
+their own tree, before any push, the red this gate would report afterwards.
+
 **The legs are enumerated from the roster** (one per codec host; render projections have no leg – §11.0):
 
 - **Leg A – `fuaran` (F#):** `dotnet run` the `Fuaran.UI.JsonDecode.Tests` suite – the current encoder/decoder re-produces the committed corpus byte-for-byte (round-trip), surfaces the canonical reject code/path, and is schema-valid + stale-schema-guarded. ⇒ `F# == corpus`.
@@ -5449,7 +5565,7 @@ host declares a case the corpus does not know*. Both failures name the offending
 | Manifest array | Family | Wire position(s) | Attested in |
 |---|---|---|---|
 | `kinds` | `NodeKind` | `$.kind.$type`, recursively | all five codec hosts (since the kind-set pin landed) |
-| `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python; Go and Rust pending |
+| `formFieldKinds` | `FormFieldKind` | `Form.fields[].kind.$type`, `Filters.items[].kind.$type` | F#, TypeScript, Python against the array; Go and Rust by generation — each derives its `FormFieldKind` vocabulary from [`idl.json`](./idl.json) and drift-tests the generated tables against the corpus copy, so neither can lack a case the corpus names (Go since Phase 2297, Rust since its IDL codegen) |
 | `ops` | `TreeOp` | `$.$type` on an op payload (§14) | F#; every other host pending |
 
 The `ops` row closes an ASYMMETRY rather than a missing check. The op vocabulary already had the
@@ -5471,6 +5587,55 @@ and would need the manifest route this phase took: `TextSource`, whose §16 bare
 one `oneOf` branch a plain string rather than a discriminated object, and any family whose cases are
 spread across sibling `$defs`. The families are enumerated so the scope is a stated one rather than an
 assumed one. Adding a row to the table above is the way to close one.
+
+### 11.3 The change-set command, fixture `since`, and the AHEAD grade
+
+**The command (Phase 2301).** `dotnet run --project Build.fsproj -- ChangeSet`, in the reference host's
+repository, performs the §11 change-set as named stages, each with its own exit, stopping at the first
+that fails:
+
+| Stage | What it does |
+|---|---|
+| `corpus` | the corpus `FUARAN_WIRE_FIXTURES` names (else the sibling `wire-format-fixtures`) holds a `manifest.json`; a set-but-missing path is refused, never replaced by a fallback |
+| `regenerate` | `Generated.fs`, the C# and VB authoring mirrors and the proof vocabulary, from the IDL |
+| `emit` | the corpus payloads, `manifest.json`, `schema.json`, `idl.json` and `enum-tokens.json` (step 4); refused when it adds a fixture while the reference `<Version>` is already a tagged release, because the new fixture's `since` would then name a release that does not carry it |
+| `resync` | both bundled snapshots (TypeScript, Python), re-synced and re-declared in [`copies.json`](./copies.json) by each host's own declare step (step 5 of the additive-family rule) |
+| `legs` | [`conformance/cross-host-conformance.mjs --roster`](./conformance/change-set.mjs) over [`conformance/roster.json`](./conformance/roster.json) |
+| report | one line per stage; GREEN only when every stage ran and passed |
+
+The leg stage first checks the corpus against the hosts — every fixture row carries a `since`; the
+roster's codec hosts are §11.0's; every codec host's §27 manifest declares `corpusFamilies` naming
+every family the corpus tree enumerates (§27.7) and no other; every bundled snapshot is the corpus
+under test — and then runs each host's leg in its own checkout with `FUARAN_WIRE_FIXTURES` set. Its
+verdict is **green** only when every check passed and every selected leg ran and passed. A leg whose
+checkout is absent is **unresolved**, which is red. `--legs <host,…>` narrows the run for development
+and the verdict is then **partial**, which is never green. A leg bound to one platform (the Swift
+projection) is reported by name as `n/a` elsewhere. `--dry-run` prints the plan. New families and new
+hosts are rows in the corpus repository's data, never edits to the command. The snapshots record the
+corpus COMMIT they copy, so once the corpus change-set is committed the `resync` stage runs once more;
+it then rewrites only each snapshot's sentinel, and the hosts commit that with their side of the change.
+
+`--perturb <fixture>` is the runner's **altered-fixture probe**: it copies the corpus, inserts one
+non-canonical byte into that fixture's expected payload and, for a node, renames its kind tag, runs the
+legs against the copy, and holds only when every leg goes red naming the fixture. It is the proof that
+each host certifies against the corpus it is pointed at rather than one it found by itself. Two edits,
+because a render projection has no byte-parity bar (§11.0) and decodes whitespace away: the renamed
+kind is what it refuses, as the stray byte is what a codec leg's byte comparison refuses.
+
+**Fixture `since`.** Every row of `manifest.json` carries `since`: the reference tier release (the
+`Fuaran.UI` version line) that first specifies the fixture. The emitter stamps a new row with its own
+`<Version>` and keeps an existing row's value across every later emit; the rows present when the field
+was introduced were back-filled from the corpus history (the first release tagged at or after the
+commit that added the fixture's payload).
+
+**The AHEAD grade.** A host runner that executes a PINNED release, and so knows its tier version,
+grades a fixture whose `since` post-dates that tier **AHEAD**: the pinned release cannot know it, so
+the fixture is not run, and it is reported by id and counted in the run's summary — never silently
+passed, never red. Every fixture at or below the tier must pass. AHEAD is a statement about the host's
+tier, never about the fixture. A runner that cannot read its own tier version, and a host built from
+source at HEAD (every leg of the change-set command), has no tier to be ahead of and grades nothing
+AHEAD. The first adopter is the projection-conformance gate that certifies the corpus against the
+released hosts at a pinned tier.
 
 ---
 
@@ -5547,13 +5712,13 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->614<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->248<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->24<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->177<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->79<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=total -->690<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->255<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->209<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
-<!-- fuaran:count kind=envelope-reject -->2<!-- /fuaran:count --> `envelope-reject`,
+<!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
 <!-- fuaran:count kind=elicitation-reject -->15<!-- /fuaran:count --> `elicitation-reject`,
 <!-- fuaran:count kind=elicitation-answer-accept -->3<!-- /fuaran:count --> `elicitation-answer-accept`,
@@ -5626,6 +5791,7 @@ The corpus also ships [`wire-format-fixtures/idl.json`](./idl.json) – a canoni
 **The two artefacts answer different questions, and neither subsumes the other.** `schema.json` is the **validation surface**: given a payload, is it legal? `idl.json` is the **structural source**: what *is* the vocabulary? A JSON Schema is lossy about precisely the things a vocabulary consumer needs, because validation does not need them:
 
 - **Optionality collapses.** Draft 2020-12 can say a property is `required`; it has no way to say "omitted when equal to this value". So every omit-at-default field (§3.6) is indistinguishable from a plain optional one in the schema, and the identity default **value** is absent entirely. `idl.json` carries a four-way optionality class per field – `required` / `optional` / `omitDefault` (with the default value) / `hostOnly` – which is what makes §3.6 and §9 mechanically derivable rather than prose-only.
+- **The declared-default rule is a declaration (§3.6, Phase 2300).** Rule 1's declaration is the field's `omitDefault` class with its default value, and the §3.6 identity-default table is rendered from it; a host generator applies it to every row without a per-kind site, so the fifteen fields Phase 2300 declared reached every host by regeneration. The two further canonical-form rules want two more per-field declarations — a **presence condition** (which sibling values make the field meaningless, and what absence means) and an **alias list** (the retired spellings that normalise to the canonical name) — that the field model does not yet carry; they land with the announced breaking cut (Phase 2340), and when the IDL engine gains them both tables become projections like this one.
 - **Unions flatten** into `oneOf` branches; `idl.json` keeps the union, its named cases, its type parameters, and its transparent case (the bare-value encoding of `TextSource.Literal`, §3.5).
 - **Host-surface declarations have nowhere to live** in a schema at all.
 
@@ -5954,6 +6120,8 @@ A consumer compares its own supported profile against the authored profile:
 | **Foreign** | different `name`, or different `major` | an incompatible `/vN/` boundary – **hard-refuse**, never silently mis-decode |
 
 Minor-ahead is always tolerable (additive-only by the §15.4 policy); a major or namespace difference is never tolerable (it may have *removed* or *renamed* a kind this consumer relies on).
+
+**A `$profile` that does not parse is `Foreign` (Phase 1938).** A string that is not `<name>@<major>.<minor>` — `"not-a-profile"`, `"core@1"`, `"core@01.0"` — names no capability set a consumer could be compatible with, so negotiation answers `Foreign` and the envelope is refused exactly as a foreign one is: **`FOREIGN_PROFILE` at `$.$profile`**. There is no separate malformed-profile code. The two cases are one fact to a consumer (it cannot read the payload under any profile it holds) and one repair to an author (name a profile this consumer speaks), and a second code would split a refusal into two spellings with nothing to choose between them. A `$profile` that is ABSENT is `MISSING_FIELD`, and one that is not a string `WRONG_TYPE`, both at `$.$profile`: those are shape faults of the envelope rather than a profile the consumer declines.
 
 ### 15.3 Transport-only `Unknown` + must-ignore-but-preserve
 
@@ -6456,7 +6624,7 @@ contract field in **declaration order** – missing-required, then JSON-type-vs-
 
 Structural failures reuse the §6 codes (`INVALID_JSON` / `MISSING_FIELD` / `WRONG_TYPE` /
 `UNKNOWN_DU_CASE`) on the same error envelope; the elicitation layer adds (kept OUT of the core
-six-code set, like §15's `FOREIGN_PROFILE`):
+six-code set, like §15's `FOREIGN_PROFILE`, which also answers a `$profile` that does not parse, §15.2):
 
 | Code | Meaning |
 |---|---|
@@ -7574,7 +7742,7 @@ policy — the pairing is the assertion, since neither half alone distinguishes 
 that simply dislikes the document. Its manifest is hand-authored and is not emitted by any host's
 corpus generator.
 
-A host that has not implemented this section declares the family **not-applicable with a reason**, on
+A host that has not implemented this section declares the family **not-applicable with a reason** — in its capability manifest's `corpusFamilies` member (§27.7), where its own gate reads it — on
 the §22.2 footing. Implementing §23 is optional; being silently untested on it is not.
 
 ---
@@ -8408,6 +8576,174 @@ one keeps whatever pre-manifest path it had (§27.4 rule 5).
 **Forward coupling.** A change to the token grammar or the document members in this section updates
 the normative text, `schemas/host-capability-manifest.v1.json`, every published manifest, and every
 harness that consumes one, in the same change-set.
+
+### 27.7 Corpus families — what a host certifies (Phase 1938)
+
+The token families above say what a host can AUTHOR. A second question has had no machine-readable
+answer: which of this corpus's families does a host's suite actually RUN? Each script host answered it
+with a printer — a hand list of covered fixture kinds beside a loop that logged the rest — and a
+printer cannot be wrong loudly. It saw only the root manifest's kinds, so it could not see a family that
+enumerates itself (`decode-policy/`, `laws/`, `merge-conformance/`, `stored-emissions/`); the same
+copied list logged `style-observer` as a lag on three hosts that certified it in another test; and
+§23.6's "silently untested is not allowed" had nowhere to be checked. `corpusFamilies` replaces the
+printers.
+
+**The family set is derived from this repository's tree, never listed.** A corpus family is:
+
+1. each distinct `kind` among the root [`manifest.json`](./manifest.json)'s `fixtures` — the families
+   the reference emitter generates (`node-round-trip`, `envelope-reject`, `style-observer`, …); and
+2. each top-level directory that carries a `manifest.json` of its own — the **self-enumerated**
+   families — named by the directory (`decode-policy`, `dag`, `merge-conformance`, …). Where that
+   manifest carries a `families` array of objects, the directory is not one family but several: each
+   entry's `id` names the family `<directory>/<id>` (`laws/capabilityLaws`, `apply/limitsApply`).
+
+So a family joins the set by existing — a new root kind, a new directory with its own manifest, or a new
+entry in a self-enumerated manifest's `families` — and nothing else is edited for it to be demanded of
+every host. A top-level directory with no manifest of its own (a single goldens file, a lowering pair
+set) is not yet an enumerated family; giving it a manifest is how it becomes one.
+
+**The member.** A host's capability manifest carries `corpusFamilies`, an object naming **every** family
+in that set exactly once:
+
+```json
+"corpusFamilies": {
+  "decode-policy": { "notApplicable": "this host declares no §23 admission policy" },
+  "laws/transformLaws": { "pending": "the evaluator does not yet run the drawn transform sample" },
+  "node-round-trip": "covered"
+}
+```
+
+- `"covered"` — the host's own suite RUNS the family and asserts its outcomes. A family read only to be
+  counted is not covered.
+- `{ "notApplicable": "<reason>" }` — the family describes a capability this host deliberately does not
+  have (a §23 policy it does not offer, a renderer obligation on a host with no renderer). The §22.2
+  footing: one sentence a reader can check.
+- `{ "pending": "<reason>" }` — a lag: the host has the capability, or should, and its suite does not
+  run the family yet. §11's additive-family step 4 already distinguishes `pending` from `n/a`; this is
+  that answer, where a gate reads it.
+
+**The obligation is on the host's own gate.** A host that publishes the member MUST fail its own gate
+when the member omits a family the corpus has, and when it names one the corpus no longer has — the
+second is a declaration that outlived its family. A harness reading the member derives the set from the
+corpus it is running against, never from a copy. Unlike the token families, the member is a host
+**statement**, not a projection of a type model: no introspection can see which families a test suite
+runs. §27.1's generation rule therefore binds `families` and `tokens`; `corpusFamilies` is declared in
+the host's generator source, published through the same generator, and held to the corpus tree by the
+gate — which is what a printer never was.
+
+**Adoption.** `fuaran-py` publishes it in `conformance/host-capability-manifest.json`; `fuaran-ts` in
+`packages/conformance/host-capability-manifest.json`; `fuaran-go` and `fuaran-rs` in
+`host-capability-manifest.json` at their repository roots. The TypeScript, Go and Rust manifests make no
+token claim yet — each declares the six token families not covered, with its reason, which §27.1 makes
+the honest form until a token generator lands — and their `corpusFamilies` member is what they were
+published for. **The member is required of every codec host in the §11.0 roster (Phase 2301)**: the
+schema makes it a required member, and the change-set runner (§11.3) refuses a roster run in which a
+codec host's manifest is absent, omits a family the corpus enumerates, or names one it does not. The
+reference host therefore publishes one too, `host-capability-manifest.json` at its repository root,
+declared by hand (the runner is its family gate); it makes no token claim yet, for the same reason as
+the three above.
+
+**Forward coupling.** A change to the derivation rule or to the member's value grammar updates this
+section, [`schemas/host-capability-manifest.v1.json`](schemas/host-capability-manifest.v1.json), every
+published manifest and every host's family gate in the same change-set. A new family needs none of
+that: each host's gate turns red until its manifest names it, which is the point.
+
+### 27.8 Every family has a producer and a normative sentence (Phase 2302)
+
+§27.7 says which families a host runs. This section says where each family comes from. The corpus
+certifies behaviour as well as bytes (the apply, law and diff families are behaviour), and a behaviour
+the corpus does not certify is found again in every host by audit. A family whose vectors no program
+writes is worse: it drifts from the behaviour it pins, because nothing re-derives it when the
+behaviour moves. So **every family in the §27.7 set carries a record naming its producer, the stamp
+that pins the producer state it was emitted at, and the section that holds its normative sentence**.
+
+#### 27.8.1 The record
+
+The records live in [`corpus-producers.json`](corpus-producers.json) under `families`, one per family,
+keyed exactly as §27.7 derives the family:
+
+```json
+"envelope-reject": { "spec": "15.2", "producer": { "repository": "fuaran-ui/fuaran-dotnet", "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <corpus dir>" }, "source": "since" },
+"laws/decimal":    { "spec": "27.8.2", "producer": { "repository": "Fuaran-Core/fuaran-core", "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>" }, "source": "kitVersion" },
+"lowers-to":       { "spec": "30.3", "authored": "hand-authored from the section 30 table and never emitted by any host encoder" }
+```
+
+- `spec` — the section of this document (or `<FILE>.md <n>` of a sibling specification) whose text is
+  the family's normative sentence. Text first, vectors second: a family is specified before a vector
+  of it is accepted.
+- `producer` — `{ repository, emit }`: the program that writes the family's vectors and the command
+  that runs it. The vectors are that program's output; a row added by hand to an emitted family is
+  erased by the next emit, and so is a defect.
+- `source` — the stamp pinning the producer state the vectors were emitted at: `"since"` (each root
+  row's reference release, §11.3), `"kitVersion"` (the producer release the family file carries), or
+  `{ "commit": "<40 hex>" }` (a producer commit). Where a producer writes no stamp, the record's
+  commit is the producer's main-line commit at the corpus commit that last wrote the family — the
+  same date approximation §11.3 states for back-filled `since` values — and the next emit replaces it
+  with the commit it ran at.
+- `tier` — optional, and `"ui"` is its one value: the family's vectors carry bytes only a UI-tier codec
+  writes (a UI `TreeOp`, a UI node tree), so the substrate tier cannot emit it and the UI hosts stay its
+  producers. `chain`, `dag`, `merge-conformance` and `diff/treeDiff` carry it (fuaran-core D191, which
+  found every one of their vectors UI-shaped). The check refuses any other value.
+- `authored` — instead of `producer` and `source`: the reason no program emits the family. That is
+  legitimate where the inputs ARE the specification (a §28 repair catalogue, a §23 policy table, a
+  chosen sample of real emissions, the §22 semantic-invariant payloads) and is otherwise a lag, named
+  in the reason, that a producer closes.
+
+**The corpus checks itself.** [`check-family-producers.mjs`](check-family-producers.mjs) derives the
+family set with the same function the change-set runner uses and holds the records to it. A family
+with no record — a family without a producer — is a finding, and so are a record for a family the tree
+no longer has, a record with neither or both of `producer` and `authored`, a producer with no source
+stamp (or a `since` / `kitVersion` source over rows or a file that carry none), and a `spec` naming a
+section the document does not have. A finding fails the corpus repository's own gate. A new family
+therefore lands with its record, exactly as it lands with every host's §27.7 declaration.
+
+#### 27.8.2 Behaviour families with no other home
+
+The sentences below are normative for the families whose vectors are behaviour rather than wire bytes
+and that no other section specifies.
+
+- **`laws/<family>`** (`laws/manifest.json`) — a law-vector family carries `(input, expected)` pairs a
+  producer computed by running its reference implementation; a host that implements the behaviour runs
+  every vector through its own implementation and asserts the expected verdict or value, never the
+  framing of the file. `capabilityLaws` pins the invocable-capability contract (argument validation,
+  capture-replay key, declaration round-trip, id-stable enumeration); `decimal` the exact decimal's
+  canonical text, order, exact sum and refusals; `fieldLaws` the schema field's canonical bytes,
+  decode and refusals; `propagationLaws` (Phase 2328, emitted by Fuaran-Core from
+  `Fuaran.Core.Propagation`) the incremental propagation of a declared dependency graph — which nodes
+  a change makes stale (the changed ids and every node that transitively reads one), the order the
+  reference evaluates them in and its cyclic groups, an incremental re-evaluation from a prior
+  evaluation that equals a full one and recomputes exactly the stale set, and the refusals of a change
+  the graph does not hold and of an undeclared read; a host whose bindings re-render on a write asserts
+  its own stale set against the `dirtySet` vectors; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
+  evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
+  table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
+- **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
+  result's canonical bytes and hash, or is refused with the class the vector names; a `Batch` applies
+  atomically.
+- **`merge-conformance`** — the deterministic three-way tree merge: `merge(base, a, b)` encodes
+  byte-equal to the expected tree, a refusal fixture is refused, and the totality fixtures are merged
+  without exception.
+- **`diff/treeDiff`** (`diff/manifest.json`) — over every authored `(before, after)` pair a host's
+  structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
+  `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
+  host, including one whose diff differs in granularity from the pinned scripts.
+- **`formatting`** (`formatting/manifest.json`, Phase 1941) — the `CellFormat` projection of a number:
+  the text a host renders for a `Metric` value or trend, a `LabelValueRow` value and a grid cell. Each
+  vector is `(value, format, expectedText)`; a host decodes `format` as a `CellFormat`, renders `value`
+  through it, and asserts the text byte for byte. The text is the hydrating JavaScript's, because a
+  server-rendered figure the browser re-renders differently is a hydration mismatch: `None` and
+  `DateTime` are `String(x)`; `Number(d)` is `x.toFixed(d)`, and `Number` with no `decimals` is
+  `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent(d)` is `(x * 100).toFixed(d)`
+  followed by `%`, one place by default; `Currency(code)` is the code, one space and `x.toFixed(2)`;
+  `SignificantDigits(d)` is `Number(x.toPrecision(d)).toString()`. So the text depends on no locale
+  (a decimal point, no grouping), a tie at the last place rounds away from zero over the double's
+  exact value, `String(x)` is positional from `1e-6` up to `1e21` and exponential (`1e+21`,
+  `1.234e-7`) outside it, and a negative zero renders unsigned. A `value` that is a negative zero is
+  written `-0.0`, so every JSON reader keeps its sign. A precision outside JavaScript's own range
+  (`toFixed` 0 to 100, `toPrecision` 1 to 100) is not pinned.
+
+**Forward coupling.** A new family's record lands in the same change-set as the family. A change to
+the record grammar updates this section, the check, and `corpus-producers.json` together.
 
 ---
 

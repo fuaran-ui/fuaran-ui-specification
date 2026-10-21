@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "description": "Fuaran tree-diff conformance corpus (WIRE_FORMAT.md 27.8.2). SELF-ENUMERATED, like apply/ and laws/: the root manifest.json indexes the canonical codec families only. Giving this directory a manifest is what makes the goldens a corpus family (27.7), so every codec host's capability manifest names it as covered, not applicable or pending. The vector count lives in goldens.json; this manifest does not restate it.",
+  "families": [
+    { "id": "treeDiff", "kind": "diff-goldens", "file": "goldens.json", "description": "For each authored (before, after) pair: the canonical TreeOp script a host's structural diff produces, and the law Apply(Diff(before, after), before) == after. `goldens` pairs pin one script every host must produce; `divergent` pairs pin a script per host where the producers legitimately differ in granularity, and the law still binds every host." }
+  ]
+}

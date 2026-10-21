@@ -96,12 +96,29 @@ minus manifest* rather than hand-listing it. The normative rule, the token gramm
 members and the per-host adoption notes are [`WIRE_FORMAT.md` §27](../WIRE_FORMAT.md); the structural
 rendering is [`schemas/host-capability-manifest.v1.json`](../schemas/host-capability-manifest.v1.json).
 
-It is **not** part of the two-leg gate above and does not decide conformance: a host with no manifest
-is not non-conformant, and a declared token says the host has a spelling for a construct, never that
-its bytes are right — which the legs above are what decide. `fuaran-py` is the first host to publish
-one (`fuaran-py/conformance/host-capability-manifest.json`); `fuaran-ts`, `fuaran-go` and `fuaran-rs`
-each adopt on their own phase, per §27.6.
+Its token claims do not decide conformance: a declared token says the host has a spelling for a
+construct, never that its bytes are right — which the legs above are what decide. Its `corpusFamilies`
+member (§27.7) is different: it is **required of every codec host** (Phase 2301), and the change-set
+roster below refuses a run in which a codec host's manifest omits a family the corpus enumerates.
+
+## The change-set roster (Phase 2301)
+
+`node cross-host-conformance.mjs --roster` is the leg stage of the reference host's change-set command
+(`dotnet run --project Build.fsproj -- ChangeSet`, WIRE_FORMAT.md §11.3). It reads
+[`roster.json`](roster.json) — one row per host: its checkout, role, leg commands, capability manifest
+and bundled-snapshot check — checks the corpus against the hosts (fixture `since`, the §11.0 codec-host
+set, each codec host's `corpusFamilies`, each snapshot), then runs every host's leg with
+`FUARAN_WIRE_FIXTURES` naming the corpus under test. The logic is [`change-set.mjs`](change-set.mjs).
+
+```powershell
+node cross-host-conformance.mjs --roster --dry-run          # the plan
+node cross-host-conformance.mjs --roster                    # every leg; exit 0 only when GREEN
+node cross-host-conformance.mjs --roster --legs fuaran-go   # development only: PARTIAL, exit 3
+node cross-host-conformance.mjs --roster --perturb <id>     # the altered-fixture probe
+```
+
+A host or a leg is a row in `roster.json`, never an edit to the runner.
 
 ## Layout note (separate-repo CI)
 
-`fuaran-dotnet/`, `fuaran-ts/`, `fuaran-py/`, and the workspace repo (which owns `wire-format-fixtures/` + this runner + the workflow) are **separate git repos** cloned side-by-side. Leg B resolves the TS host at `../../fuaran-ts/packages/ops/dist/index.js`, Leg E resolves the corpus at `../wire-format-fixtures` from `fuaran-py/`, and both resolve the corpus at `..`, so they require the canonical workspace layout on disk. The CI workflow assembles that layout by checking out all repos into the right relative paths — see the workflow's header comment for the cross-repo checkout token requirement.
+`fuaran-dotnet/`, `fuaran-ts/`, `fuaran-py/`, and the workspace repo (which owns `wire-format-fixtures/` + this runner + the workflow) are **separate git repos** cloned side-by-side. Leg B resolves the TS host at `../../fuaran-ts/packages/ops/dist/index.js` (or under `FUARAN_TS_ROOT`) and the corpus at `FUARAN_WIRE_FIXTURES` when it is set, Leg E resolves the corpus at `../wire-format-fixtures` from `fuaran-py/`, and both resolve the corpus at `..`, so they require the canonical workspace layout on disk. The CI workflow assembles that layout by checking out all repos into the right relative paths — see the workflow's header comment for the cross-repo checkout token requirement.
