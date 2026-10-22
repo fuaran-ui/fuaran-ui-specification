@@ -1188,38 +1188,6 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
-      "source": "lenient/lenient-1521-payload-integer-beyond-int53.expected.json",
-      "consumers": [
-        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-1521-payload-integer-beyond-int53.expected.json"
-      ],
-      "check": "fingerprint",
-      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
-    },
-    {
-      "source": "lenient/lenient-1521-payload-integer-beyond-int53.expected.json",
-      "consumers": [
-        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-1521-payload-integer-beyond-int53.expected.json"
-      ],
-      "check": "fingerprint",
-      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
-    },
-    {
-      "source": "lenient/lenient-1521-payload-integer-beyond-int53.json",
-      "consumers": [
-        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-1521-payload-integer-beyond-int53.json"
-      ],
-      "check": "fingerprint",
-      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
-    },
-    {
-      "source": "lenient/lenient-1521-payload-integer-beyond-int53.json",
-      "consumers": [
-        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-1521-payload-integer-beyond-int53.json"
-      ],
-      "check": "fingerprint",
-      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
-    },
-    {
       "source": "lenient/lenient-1656-state-default-null.expected.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-1656-state-default-null.expected.json"
@@ -9612,6 +9580,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "reject/reject-json-integer-beyond-int53.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-json-integer-beyond-int53.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-json-integer-beyond-int53.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-json-integer-beyond-int53.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "reject/reject-json-lone-high-surrogate.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-json-lone-high-surrogate.json"
@@ -9703,6 +9687,22 @@
       "source": "reject/reject-json-number-no-integer-part.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-json-number-no-integer-part.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-json-number-overflow-exponent.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-json-number-overflow-exponent.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-json-number-overflow-exponent.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-json-number-overflow-exponent.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
