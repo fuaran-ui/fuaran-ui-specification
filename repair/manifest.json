@@ -79,11 +79,11 @@
       "inputFile": "repair/repair-limit-exceeded.input.json",
       "strict": {
         "code": "LIMIT_EXCEEDED",
-        "path": "$"
+        "path": "$[0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0]"
       },
       "outcome": "not-repairable",
       "reason": "limit-exceeded",
-      "description": "arrays nested past the 21 depth limit: LIMIT_EXCEEDED is not malformed JSON, and repair is not attempted"
+      "description": "arrays nested past the 21 depth limit: LIMIT_EXCEEDED is not malformed JSON, and repair is not attempted. The strict answer names the breach's path, the first array past MaxJsonDepth (21.2 rule 2; Phase 2286 moved it from the root)"
     },
     {
       "id": "repair-not-in-catalogue-data-array",

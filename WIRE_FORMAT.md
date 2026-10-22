@@ -99,9 +99,9 @@ These twelve rules make the encoding **deterministic**: two structurally-equal i
      - This differs from the JS native `String(x)` form (lowercase `e`, no sign-padding, a wider fixed-point threshold), so the TypeScript host **normalises** `String(x)` into this layout (see `@fuaran-ui/ops` `encode.ts` `formatFiniteDouble`); the F# host emits it natively via `ToString("R")`. The two are byte-identical over the full finite-double range – exercised by the `metric-float-*` corpus fixtures (1e21, 1e-7, a 17-significant-digit value, an integer > 2^53) and the cross-host property fuzzer.
    - **Negative zero collapses to positive zero** (`0`, never `-0`).
    - **Special values** `NaN`, `+∞`, `-∞` render as the **quoted strings** `"NaN"`, `"Infinity"`, `"-Infinity"` (RFC 8259 forbids them as bare numbers). See §7 for the decode side.
-   - **Integer identity, and where it stops.** The two layouts above are chosen by the SLOT, not by the token. At a **typed float slot** the decoded value is an IEEE-754 double and re-encodes under the float layout whatever the token looked like: `100000000000000000` at a float slot re-encodes as `1E+17`, its base-10 exponent being 17 and the fixed-point window ending at 16. At a **typed integer slot** (§7) it is an integer and re-encodes under the integer layout. In a **rule-12 structured payload position**, where no slot declares a type, the token decides: a token with no `.`, no `e`/`E` and a magnitude within **±(2⁵³−1)** keeps integer identity and re-encodes under the integer layout; every other token is a double and re-encodes under the float layout.
+   - **Integer identity, and where it stops.** The two layouts above are chosen by the SLOT, not by the token. At a **typed float slot** the decoded value is an IEEE-754 double and re-encodes under the float layout whatever the token looked like: `100000000000000000.0` at a float slot re-encodes as `1E+17`, its base-10 exponent being 17 and the fixed-point window ending at 16. At a **typed integer slot** (§7) it is an integer and re-encodes under the integer layout. In a **rule-12 structured payload position**, where no slot declares a type, the token decides: a token with no `.`, no `e`/`E` and a magnitude within **±(2⁵³−1)** keeps integer identity and re-encodes under the integer layout; every other token is a double and re-encodes under the float layout.
 
-     **±(2⁵³−1) is a boundary of the FORMAT, not of one host.** Beyond it a decimal integer token has no representation every host holds exactly — three hosts route every number through a double, one keeps an `int64`, one an arbitrary-precision integer — so one document canonicalises to different bytes on different hosts and therefore to different hash-chain and teleport digests. A conformant **encoder MUST NOT emit** an integer token outside that range: carry a uint64 column or a 19-digit identifier as a **string**. A conformant **decoder MUST** treat one it receives as a double and accept the rounding — `9007199254740993` decodes as `9007199254740992` and re-encodes as such. That is a §16-class lenient normalisation and is pinned as one. Refusing it instead would refuse a document three hosts have always accepted; preserving it exactly would require every host to carry a bignum this format has no slot for.
+     **±(2⁵³−1) is a boundary of the FORMAT, not of one host.** Beyond it a decimal integer token has no representation every host holds exactly — three hosts route every number through a double, one keeps an `int64`, one an arbitrary-precision integer — so one document canonicalises to different bytes on different hosts and therefore to different hash-chain and teleport digests. A conformant **encoder MUST NOT emit** an integer token outside that range: carry a uint64 column or a 19-digit identifier as a **string**. A conformant **decoder MUST refuse** one it receives with `INVALID_JSON`, **unless** the token is the canonical float layout (above) of the double it reads as — `10000000000000000`, the fixed-point layout of `1E+16`, is read, because a conformant encoder writes exactly those bytes for that double and they survive decode-then-encode unchanged; `9007199254740993`, which reads as the double `9007199254740992`, is refused, and so is a 19-digit identifier. The test is on the TOKEN, never on the parsed double, because 2⁵³ + 1 rounds to 2⁵³ and a range check on the value would wrongly admit it. **Amended by Phase 2286 (2026-10-22)**: until then a decoder treated such a token as a double and accepted the rounding, a §16-class lenient normalisation pinned by a `lenient/` fixture. That admitted a document whose canonical bytes differ from its own, which the substrate's grammar refuses at every entry point of the reference host; refusing it costs no legitimate document, since no conformant encoder can emit the token (the `reject-json-integer-beyond-int53` fixture pins the refusal).
 
 6. **Strings** are quoted with these escapes, and **only** these:
    - `"` → `\"`
@@ -4457,7 +4457,7 @@ Rows carry **scalar cells only**. A cell that is itself an object or an array de
 
 **The two encode refusals (normative; Phase 1960).** Two host values in rule 11's recognised set have no faithful encoding, and a conformant row-feed encoder **refuses** each one rather than writing bytes for it. The refusal is typed and names the cell: the row's zero-based position in the feed and the cell's key.
 
-- **A 64-bit integer outside ±2^53** — `ROW_CELL_INEXACT_INTEGER`. Every integer in [−2^53, 2^53] is exactly a double, so its bytes are exact and it encodes in integer form as before. Past either bound, the double an encoder would widen it to is a different number, which a reader cannot detect; the retired reference encoder wrote `9007199254740992` for `9007199254740993`. The rule binds the INTEGER type, not the number: a double holding the same value is a float cell and is never refused, and a value that must survive exactly rides as a string. This is the encode-side twin of the ruling that a JSON integer past 2^53 is not a number a conformant reader admits (Core's `INVALID_JSON`); the reader side moves with the parse, not here.
+- **A 64-bit integer outside ±2^53** — `ROW_CELL_INEXACT_INTEGER`. Every integer in [−2^53, 2^53] is exactly a double, so its bytes are exact and it encodes in integer form as before. Past either bound, the double an encoder would widen it to is a different number, which a reader cannot detect; the retired reference encoder wrote `9007199254740992` for `9007199254740993`. The rule binds the INTEGER type, not the number: a double holding the same value is a float cell and is never refused, and a value that must survive exactly rides as a string. This is the encode-side twin of the ruling that a JSON integer past 2^53 is not a number a conformant reader admits (Core's `INVALID_JSON`); the reader side is §2 rule 5's, amended with the reference host's parse move (Phase 2286).
 - **A date-time that names no instant** — `ROW_CELL_UNSPECIFIED_DATETIME`: a .NET `DateTime` of `Unspecified` kind, a Python naive `datetime`. Its Unix seconds are not a property of the value; the retired reference encoder chose them through the ENCODING MACHINE's time zone, so one value encoded to different seconds on two servers. A date-time that names its instant (UTC, a local time with its zone, an offset) encodes exactly as before. No rule here reads it as UTC instead: a guess that is right on one machine and silently wrong on another is the hazard, restated.
 
 There is no new cell kind, and no byte changes for any other cell. A feed that carries neither hazard encodes byte-for-byte as it did, which the reference host proves differentially over every row-source fixture in this corpus. A host whose authoring surface cannot hold one of the two values (a host whose only date value is an instant, or whose only number is a double) has nothing to refuse there, and says so per vector. The vectors are the hand-authored `row-encode/` family: each is a feed in host-neutral cell descriptors and either its canonical bytes or its refusal, with a boundary vector admitted beside each refusal so that a host refusing too much is caught as surely as one refusing too little.
@@ -4998,7 +4998,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->215<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5712,11 +5712,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->702<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->703<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->260<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->215<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->88<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -6865,6 +6865,15 @@ rather than an adjective. The reference host carries this list in the test that 
 decoders' agreement, so the declaration is executable rather than prose, and the gap closes when the
 substrate and the policy parser are one parser — not by a refinement to either.
 
+**The gap closed on 2026-10-22 (Phase 2286).** The reference host's two entry points are one parser
+since then: its policy decoder carries no JSON parser of its own and reads through the substrate's
+token reader, under this host's §21 values, as its structural layer does. The declaration above is
+kept as the worked example, because the shape of it is the argument for the rule; the test that
+carried it now asserts that the two entry points agree on every §20.2 row and on each §21 bound at
+and past its value, and fails if a second parser returns. Closing it moved the reference host's
+answers on two inputs, both now the substrate's: row 7 and the §2 rule 5 integer past 2⁵³, each a
+refusal, amended here in the same change-set across every host.
+
 ### 20.2 The rules
 
 Each row is `INVALID_JSON` in the §6 envelope unless stated otherwise, with `Path` naming the
@@ -6880,13 +6889,20 @@ document. That is the test a further row must meet.
 | 4 | A **bare `NaN` / `Infinity` / `-Infinity` literal** | **`INVALID_JSON`** | RFC 8259 forbids them as bare numbers. §7's quoted sentinels are the specified representation and are unaffected |
 | 5 | A **raw C0 control character** (`U+0000`–`U+001F`) unescaped inside a string | **`INVALID_JSON`** | RFC 8259 requires them escaped; §2 rule 6 requires a conformant encoder to escape them. A host that passes them through admits bytes its own encoder cannot produce |
 | 6 | An **unpaired surrogate** — a `\uD800`–`\uDBFF` escape not followed by a `\uDC00`–`\uDFFF` escape, or a `\uDC00`–`\uDFFF` escape not preceded by one | **`INVALID_JSON`** | see §20.3 |
-| 7 | An **overflowing exponent** (`1e999`) | **accepted**, decoding to the corresponding IEEE-754 infinity | ratified as-is: all five hosts already agreed, so this row was unspecified rather than divergent, and changing it would break a behaviour every host ships |
+| 7 | An **overflowing exponent** (`1e999`): a number token whose value lies outside the finite double range | **`INVALID_JSON`** | amended by Phase 2286 (2026-10-22) from an accept; see below |
 | 8 | A **§7 sentinel string** (`"NaN"` / `"Infinity"` / `"-Infinity"`) at a typed float slot | **accepted**, decoding to the float | §7. Restated here because it was measured with the rows above; see §20.4 |
 
-Row 7 deserves its oddity called out: it is the one row that ratifies an **accept**, and it sits
-beside row 4 which refuses the same three values written as bare literals. That is not an
-inconsistency. `1e999` is a well-formed JSON number whose value is not representable, and IEEE-754
-already specifies what a finite decimal that overflows becomes; `NaN` is not a JSON token at all.
+**Row 7 was amended by Phase 2286 (2026-10-22).** It was ratified as an **accept** — `1e999`
+decoding to the IEEE-754 infinity a finite decimal overflows to — because all five hosts agreed and
+the row was therefore unspecified rather than divergent. It is now a refusal, and it meets the
+admission test above: the wire's value model has no non-finite float, §7's quoted sentinels are the
+only spelling a conformant encoder writes for an infinity, so no encoder can produce the token, and a
+host that admitted it held a value its own encoder renders as a different document. The reference
+host's substrate grammar refuses it at every entry point (a value outside the finite double range is
+a malformed number there), and the row now says what every entry point answers. An UNDERFLOWING
+exponent (`1e-999`) is unaffected: its value is the finite double zero. Row 4 still refuses the
+bare literals, and row 8 still reads the quoted sentinels. The corpus pins the refusal as
+`reject-json-number-overflow-exponent`.
 
 **Repair is not decode, and §28 is where it lives.** Ratifying row 2 changed what the reference
 host's *parser* does with a surplus closing brace: it refuses now, where before it stopped at the root
@@ -6977,8 +6993,8 @@ Two properties of that fix are worth stating, because a later host will have to 
   non-sentinel string (`"banana"`) at a float slot stays a `WRONG_TYPE` everywhere too: the accept
   set widens by exactly three strings.
 - **The decoded value is the FLOAT, not the sentinel string.** §7 says `JString "NaN"` → NaN, and
-  the distinction is observable: the bare overflowing literal `1e999` already decodes to an infinity
-  (row 7), so a host that answered a re-decode of its own canonical output with a string would hand
+  the distinction is observable: the bare overflowing literal `1e999` then decoded to an infinity
+  (row 7, before Phase 2286 made it a refusal), so a host that answered a re-decode of its own canonical output with a string would hand
   a consumer a float the first time and a string the second. Byte-stability alone does not catch
   that.
 
@@ -7029,9 +7045,10 @@ a row that refused an input a conformant encoder CAN emit. There is no such row 
 preamble makes that the admission test for a further one — which is also why a row cannot be added
 by a host discovering it is stricter than its peers.
 
-**What the corpus carries.** Fourteen `reject` fixtures, and every one of them is a one-character
-corruption of a fixture the corpus ALREADY certifies as canonical — `nodes/markdown-1.json` or
-`nodes/skel-1.json`. That is deliberate: each vector's "corrected twin decodes" is then pinned by an
+**What the corpus carries.** Fourteen `reject` fixtures at ratification, and every one of them is a
+one-character corruption of a fixture the corpus ALREADY certifies as canonical — `nodes/markdown-1.json` or
+`nodes/skel-1.json`. Phase 2286 added two, each a one-token corruption of `nodes/metric-1.json` and
+`nodes/custom-1.json` on the same principle. That is deliberate: each vector's "corrected twin decodes" is then pinned by an
 existing round-trip fixture rather than by a near-duplicate added beside it, and the twin is named in
 each fixture's description so repairing the named defect visibly reproduces those bytes.
 
@@ -7044,14 +7061,16 @@ each fixture's description so repairing the named defect visibly reproduces thos
 | `reject-json-raw-control-char` | 5 |
 | `reject-json-lone-high-surrogate`, `-lone-low-surrogate`, `-surrogate-pair-split` | 6 |
 | `reject-int-slot-fractional`, `reject-int-slot-out-of-range` | §7.1 |
-| `lenient-1521-int-slot-integral-float`, `lenient-1521-payload-integer-beyond-int53` | §7.1, §2 rule 5 (the ACCEPT sides) |
+| `lenient-1521-int-slot-integral-float` | §7.1 (the ACCEPT side) |
+| `reject-json-number-overflow-exponent` | 7 (Phase 2286) |
+| `reject-json-integer-beyond-int53` | §2 rule 5 (Phase 2286; was the lenient `lenient-1521-payload-integer-beyond-int53`) |
 | `custom-nonascii-keys`, `metric-float-1e17` | §2 rules 2 and 5 (round-trips) |
 
 Note that five of those go beyond one vector per row. Rows 3 and 6 are CLASSES, not examples: a
 grammar check that refuses `+1` and admits `01` is a different implementation from one that refuses
 both, and a surrogate check written as "a high must be followed by a low" passes a lone LOW and
 passes a pair whose halves are separated. A family of refusals is also silent about the accept side,
-which is where the two `lenient-` vectors and the two round-trips come in — §7.1 refuses `2.5` and
+which is where the `lenient-` vector and the two round-trips come in — §7.1 refuses `2.5` and
 must still accept `2.0`, and §2 rule 5's boundary is only observable from a document that sits on it.
 
 **What ratification cost each host.** Rows 1–6 are each a decoder-visible **breaking change** for at
@@ -7190,8 +7209,12 @@ by §21.2 rule 5 rather than propose a smaller wire limit.
 
 The reference (F#) host enforces **every limit in §21.1** — the document-bytes ceiling of §21.7 at
 the parse entry point, before any allocation, and the string bound in §21.6's code-point unit.
-Specifically: its JSON parser enforces the
-syntactic-depth, string-length and array-length bounds; its structural decoder enforces the
+Specifically: the JSON-level bounds — syntactic depth, string length, array length (applied to an
+object's members as well as an array's items) and document bytes — are enforced by the substrate's
+limited parse, on the way down, with **this host's values** (Phase 2286: the host passes its own
+limits record to the substrate's reader and carries no parser of its own). The host-side figures
+remain the protocol numbers; the substrate states no wire's limits. A breach is reported at the
+breach's path (§21.2 rule 2). Its structural decoder enforces the
 node-depth and total-node bounds; its **op** decoder enforces the same node-depth figure over
 `TreeOp.Batch` nesting, counted on its own axis; and — per rule 5 — its pre-emit validator, its
 server-side renderer and its interaction-cost accounting each enforce the node-depth bound on their
