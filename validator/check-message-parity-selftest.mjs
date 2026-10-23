@@ -13,7 +13,8 @@
 // believed" with "always refused" would be no better — it would simply relocate the
 // wrong answer.
 //
-// Four assertions, over two committed fixture hosts under `go-red/`:
+// Five assertions, over three committed fixture hosts under `go-red/` (the fifth,
+// Phase 2418, pins the reference extractor to the table-row shape its host writes):
 //
 //   1. the FALSE fixture — a declaration claiming `structured` beside a source whose
 //      findings carry prose — REFUSES under the current checker, and the refusal
@@ -45,6 +46,7 @@ const CHECKER = join(here, 'check-message-parity.mjs');
 const FROZEN = join(here, 'go-red', 'check-message-parity.pre-1659.mjs');
 const FALSE_FIXTURE = join(here, 'go-red', 'false-structured-exemption');
 const TRUE_FIXTURE = join(here, 'go-red', 'true-structured-exemption');
+const DOTNET_FIXTURE = join(here, 'go-red', 'dotnet-severity-rows');
 
 const run = (script, fixture, extra = []) => {
   const r = spawnSync(process.execPath, [script, '--workspace', fixture, ...extra], {
@@ -118,6 +120,20 @@ console.log('\nMessage parity — go-red proof for the structured-exemption arm\
     'the checker proves its probe against its own sample before trusting silence',
     /probe proved on its sample \([1-9][0-9]* hit\(s\)\)/.test(out),
     'no probe-proof line — a probe that cannot match reads exactly like a host with nothing to hide'
+  );
+}
+
+// 5. The reference host's extractor reads its DefectCodes table rows as the host
+//    writes them, severity spelled `Severity.X` (Phase 2418). It used to require
+//    `DefectSeverity.X`, extracted nothing, and the zero-extracted guard failed a
+//    host whose templates were all present.
+{
+  const { exit, out } = run(CHECKER, DOTNET_FIXTURE);
+  if (verbose) console.log(out);
+  check(
+    'the reference extractor reads `Severity.X` table rows, single- and multi-line',
+    exit === 0 && /fuaran-dotnet\s+2 code\(s\) checked/.test(out),
+    `expected exit 0 and 2 codes checked for fuaran-dotnet, got exit ${exit}`
   );
 }
 

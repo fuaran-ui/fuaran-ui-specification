@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "version_note": "FIXTURE — see `fixture` below.",
+  "host": "fuaran-dotnet",
+  "family": "pre-emit",
+  "fixture": "FIXTURE — not a host declaration. Phase 2418's go-red proof for the reference host's message extractor: the source beside it carries DefectCodes table rows whose severity argument is spelled `Severity.X`, the shape the reference moved to. An extractor that reads only `DefectSeverity.X` extracts nothing here and fails the zero-extracted guard. Reached only through `check-message-parity.mjs --workspace`.",
+  "vocabulary": "wire-format-fixtures/validator/defect-vocabulary.json",
+  "posture": "subset",
+  "postureReason": "Fixture. Immaterial to what is under proof.",
+  "implemented": ["FUARAN-EMPTY-ID", "FUARAN083"],
+  "abstentionDefault": "Fixture.",
+  "otherFamilies": {},
+  "machineChecked": false,
+  "machineCheckedNote": "Fixture."
+}

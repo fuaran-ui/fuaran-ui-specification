@@ -72,8 +72,11 @@ const HOSTS = [
     // `DefectCodes.table` row, `row ("Variant", "FUARAN083", DefectSeverity.X,
     // "template", "notes")`, where the template is the argument before the closing
     // notes argument. Reading only one shape made a host that moved to the other
-    // extract nothing, which this check reports as drift rather than passing.
-    re: /"(FUARAN[0-9A-Z-]+)",\s*\n?\s*DefectSeverity\.\w+,\s*\n?\s*([\s\S]{0,600}?)(?=\n\s*\| PreEmitDefect\.|\n\nlet |\n\/\/\/|,\s*\n?\s*"(?:[^"\\\n]|\\.)*"\s*\n?\s*\))/g,
+    // extract nothing, which this check reports as drift rather than passing. The
+    // severity argument is read as `Severity.X` or `DefectSeverity.X` (Phase 2418):
+    // the table rows spell it `Severity.X`, and requiring the longer name matched
+    // no row at all.
+    re: /"(FUARAN[0-9A-Z-]+)",\s*\n?\s*(?:Defect)?Severity\.\w+,\s*\n?\s*([\s\S]{0,600}?)(?=\n\s*\| PreEmitDefect\.|\n\nlet |\n\/\/\/|,\s*\n?\s*"(?:[^"\\\n]|\\.)*"\s*\n?\s*\))/g,
   },
   {
     host: 'fuaran-py',
