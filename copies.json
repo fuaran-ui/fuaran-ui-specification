@@ -6956,6 +6956,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "nodes/metric-comparison-inverted.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/metric-comparison-inverted.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "nodes/metric-comparison-inverted.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/metric-comparison-inverted.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "nodes/metric-duration-1.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/metric-duration-1.json"
@@ -7095,6 +7111,22 @@
       "source": "nodes/metric-nonfinite-sentinel.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/metric-nonfinite-sentinel.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "nodes/metric-two-comparisons.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/metric-two-comparisons.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "nodes/metric-two-comparisons.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/metric-two-comparisons.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
