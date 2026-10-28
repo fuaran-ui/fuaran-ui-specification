@@ -7740,6 +7740,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "nodes/table-selectable-detail.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/table-selectable-detail.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "nodes/table-selectable-detail.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/table-selectable-detail.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "nodes/table-sortable-1.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/table-sortable-1.json"
