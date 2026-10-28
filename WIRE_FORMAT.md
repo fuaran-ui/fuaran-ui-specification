@@ -556,7 +556,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Markdown` | _Display_ | `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
 | `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
-| `Metric` | _Display_ | `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
+| `Metric` | _Display_ | `comparisons?=[]`, `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
 | `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
 | `Skeleton` | _Display_ | `rows` |  |
 | `Sparkline` | _Display_ | `source` |  |
@@ -1958,6 +1958,7 @@ read-compat):
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
+| `comparisons` | `MetricComparison[]` | `[]` | `MetricSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `copyable` | `bool` | `true` | `CodeBlockSpec` | Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity. |
 | `default` | `ToneVariant` | `Default` | `CellKindErased.TonedPill` | The tone for a value the `map` does not mention. |
@@ -1974,7 +1975,7 @@ read-compat):
 | `expandable` | `bool` | `false` | `ImageSpec` |  |
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
-| `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricSpec` |  |
+| `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricComparison`, `MetricSpec` |  |
 | `highlightLines` | `int[]` | `[]` | `CodeBlockSpec` |  |
 | `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -1988,6 +1989,7 @@ read-compat):
 | `ordered` | `bool` | `false` | `ListSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `FormFieldKind.SegmentedChoice`, `TabsSpec` | `TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default). |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
+| `polarity` | `TrendPolarity` | `HigherIsBetter` | `MetricComparison` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
 | `required` | `bool` | `false` | `FormField` |  |
@@ -2279,6 +2281,18 @@ Sentiment carried by **colour alone fails WCAG 1.4.1**, so a rendering host owes
 for it. That obligation is a §22-class semantic invariant rather than a byte contract — the reference
 renderers discharge it with a sentiment glyph carrying an `aria-label`, and a native surface may
 discharge it differently — but discharging it somehow is not optional.
+
+**Further comparisons — `comparisons` (Phase 2472).** A figure compared against more than one period
+at once (yesterday against the same day last week AND last year) carries each further comparison as a
+`MetricComparison` in `comparisons`: `label` and `value` required, `format` omitted at `None`,
+`polarity` omitted at `HigherIsBetter`; the list itself is omitted when empty, so every earlier
+document keeps its bytes. `trend` is untouched and stays the primary comparison. Each entry composes
+exactly as `trend` does under the rule above, with **its own** `polarity` in place of
+`trendPolarity` — the clauses apply per entry, and no entry's sentiment reads another's. A rendering
+host draws each as one more trend line after the primary one, in authored order, the label after the
+formatted figure; an entry whose value does not resolve states no sentiment. The two vectors are
+`nodes/metric-two-comparisons.json` and `nodes/metric-comparison-inverted.json`, and on the latter
+every server renderer in the conformance roster emits the same bytes.
 
 ### 3.6.2 `Image` presentation — `fit`, `aspectRatio` and `loading` (Phase 1077)
 
@@ -5712,8 +5726,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->705<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->262<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->707<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->264<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
