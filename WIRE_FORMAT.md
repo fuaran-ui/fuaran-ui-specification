@@ -2025,6 +2025,34 @@ The distinction the two vocabularies were built on (`code` vs `isoCode`, `format
 therefore stands, and this paragraph is where a later reader finds that it was decided rather than
 overlooked.
 
+**A figure's `locale` (Phase 2490).** `CellFormat`'s three figure cases – `Number`, `Currency` and
+`Percent` – carry an **optional** `locale` (a `LocaleSource`, the member `Binding.Format` carries):
+`{"$type":"Currency","code":"GBP","locale":{"$type":"Explicit","tag":"en-GB"}}`. **Absent**, the figure
+is the locale-free projection the `formatting` family pins (§ "formatting" below), byte for byte on
+every host, so no existing document, fixture or golden moves. **Present**, the figure renders through
+the SAME locale formatter a `Binding.Format` slot renders through for the matching `Format` case
+(`Number(decimals)`, `Currency(code)` as `isoCode`, `Percent(decimals)`) under the resolved tag –
+`Explicit` names it, `Ambient` reads the host's ambient locale exactly as `Binding.Format` does – and
+it takes that route's cross-host caveat and no new one: the browser's `Intl` is the visual source of
+truth, the reference host's server pipeline is its documented `System.Globalization` fallback, and
+each script host renders through its own `Format` implementation (a host with no locale database
+renders its declared locale-free fallback). Its text is therefore **not** byte-compared across hosts,
+as no locale-database rendition is. An exact decimal cell keeps its digits up to that formatter, which
+takes a double on every pipeline: the canonical text converts once, at that boundary. The other cases
+take no `locale`: `SignificantDigits` has no `Format` twin to route to, `Duration` is locale-independent
+by design, and `DateTime` / `RelativeTime` are not figures. A currency figure **without** fraction
+digits (`£412,380`) is not reachable: `Format.Currency` carries no `decimals`, so the currency's own
+digits (or, on the reference host's fallback, the locale's) always apply.
+
+**Where a located figure renders.** A `Metric` / `LabelValueRow` value, a `Metric` trend and each
+`MetricComparison` render it on every tier that renders the figure. A **grid column**'s figure is a
+CELL, so it renders wherever the host renders bound cells: the reference host's server tier serves a
+bound grid as its hydration placeholder (§3.2's `DataGrid` fallback) and the client grid formats each
+cell through the browser's locale formatter; a host whose server tier renders bound cells renders
+them through its own locale formatter, and hydration replaces that text with the browser's exactly as
+it replaces a `Binding.Format` text slot's. A `staticRows` table's cells are authored text and are
+never formatted.
+
 `CellFormat`'s own per-case payloads (`Currency.code`, `DateTime.format`, `SignificantDigits.digits`)
 stay **required** – only the parent *field* is omittable, never a DU payload. Note the table carries
 `emphasis` **twice**, at two different types: the `Emphasis` style DU (`MetricSpec`, `SemanticStyle`)
@@ -5726,8 +5754,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->709<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->266<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->710<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->267<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
@@ -8773,7 +8801,7 @@ and that no other section specifies.
   `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent(d)` is `(x * 100).toFixed(d)`
   followed by `%`, one place by default; `Currency(code)` is the code, one space and `x.toFixed(2)`;
   `SignificantDigits(d)` is `Number(x.toPrecision(d)).toString()`. So the text depends on no locale
-  (a decimal point, no grouping), a tie at the last place rounds away from zero over the double's
+  (a decimal point, no grouping; a figure that declares a `locale` is outside this family, Phase 2490), a tie at the last place rounds away from zero over the double's
   exact value, `String(x)` is positional from `1e-6` up to `1e21` and exponential (`1e+21`,
   `1.234e-7`) outside it, and a negative zero renders unsigned. A `value` that is a negative zero is
   written `-0.0`, so every JSON reader keeps its sign. A precision outside JavaScript's own range
