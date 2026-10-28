@@ -4450,6 +4450,121 @@ answer:
 - The epoch reading per unit: `lenient/lenient-transform-epoch-timestamp-units`.
 - Refusals: `reject/reject-transform-timestamp-{ms-finer-fraction,us-finer-fraction,fractional-second,ms-padded-fraction,unknown-unit,ms-epoch-before-0000}`.
 
+### 3.6.26 Embedded `Transform` source — field metadata (Phase 2207)
+
+A schema entry says what a column IS (its `name` and `type`); since this section it can also say what
+the column MEANS. An entry carries up to four optional metadata members: a `unit`, a `label`, a
+`description` and an `ext` object. The authority is the Fuaran.Core columnar codec (fuaran-core#427,
+its `Field`), whose unit text is the canonical text of Core's unit algebra (fuaran-core#426,
+`Fuaran.Core.Unit`); this section is the same rule stated for every host that decodes an embedded
+`Transform` source. It is additive: an entry that states no metadata is `{name, type}` and keeps its
+bytes.
+
+```json
+{"description":"The mass carried, measured at departure.","ext":{"vendor.format":"0.00"},"label":"Payload mass","name":"mass","type":"float","unit":"kg"}
+```
+
+**The members.**
+
+| Member | Value | Meaning |
+|---|---|---|
+| `unit` | a string, the text of a unit the algebra parses | what the column's values are measured in |
+| `label` | a string | a short display name for the column |
+| `description` | a string | a sentence saying what the column holds |
+| `ext` | an object whose every member is a string | namespaced extension members (`vendor.key` by convention) |
+
+**Absent when empty, and only then.** A member a field does not state is omitted, never written as
+`null` or `""`. A STATED empty string is a statement: `"label":""` is kept and re-encoded, and differs
+from no label. `ext` is the one exception: an empty `ext` object states nothing, so it is read as no
+extension members and never written. The canonical encoding is the §2 discipline — members in key
+order, so `description`, `ext`, `label`, `name`, `type`, `unit`, and `ext`'s own members sorted by key.
+
+**The unit's text and its canonical form.** `unit` is read in UCUM's case-sensitive syntax over the
+subset Core admits — the SI base units with mass at the gram, the twenty UCUM prefixes on metric atoms,
+the SI coherent derived units, `L` (and its spelling `l`), `t`, `bar`, the time units `min` `h` `d` `wk`
+`a`, the ratios `%` `[ppm]` `[ppb]`, the international customary `[in_i]` `[ft_i]` `[yd_i]` `[mi_i]`
+`[lb_av]` `[oz_av]`, and an ISO 4217 code in brackets (`[GBP]`, prefixable: `c[GBP]`); products `.`,
+left-associative quotients `/` with an optional leading `/`, parentheses, a signed integer exponent
+written directly after an atom (`s-1`, `m+2`), and the factor `1`. The admitted atom table, the prefix
+table and the refusal classes are Core's `docs/units.md`, which governs where this summary is silent.
+A host reads the text to the unit and writes the unit back in its ONE canonical text:
+
+1. factors ordered by atom symbol, then by prefix, ordinally; equal factors merged and zero exponents
+   dropped (`m.m` is `m2`, `m/m` is `1`);
+2. the positive-exponent factors joined by `.`, then each negative-exponent factor as `/` and the
+   factor (`kg.m/s2`, `kg/m/s2`);
+3. an exponent written as its magnitude, omitted where it is 1, never with a sign;
+4. the dimensionless unit is `1`, and a unit with only negative exponents starts with `/` (`/min`);
+5. a spelling alias is written as its canonical atom (`l` renders `L`).
+
+So decode CANONICALISES the unit — `s-1.m` re-encodes `m/s`, `m/s/s` re-encodes `m/s2`, `l`
+re-encodes `L` — and the bytes a host emits for an entry are the same whichever spelling it read. The
+unit's identity is its product, not what it denotes: `km/h` and `m/s` are different units, and a host
+writes back the one it read.
+
+**A unit the algebra does not parse is refused, naming the column and the reason.** That covers an empty
+text (the dimensionless unit is written `1`), a symbol outside the subset (`furlong`), an annotation
+(`m{tall}`), an arbitrary unit (`[IU]`), a non-ratio unit (`Cel`, `[degF]`, `dB`), a prefix on a
+non-metric atom (`kmin`), a numeric factor other than `1` (`10*3`), and any text that leaves the grammar
+(`m^2`, `m.`, white space). A host never carries an unparseable unit through as text: a unit is either
+one the algebra reads or a refusal, so two hosts can never disagree about what a column is measured in.
+
+**The other refusals.** A `unit`, `label` or `description` that is not a string, an `ext` that is not an
+object, and an `ext` member whose value is not a string are each refused, naming the column and the
+member.
+
+**`ext` is preserved verbatim.** A host interprets no extension member. It reads every one, keeps its
+key and value exactly as written, and writes every one back — a key it has never seen included. An
+extension member dropped on a round trip is metadata a producer can no longer rely on, so dropping one is
+a conformance failure, not a simplification.
+
+**A member the entry does not define is read past**, as a member of the source object is (§3.6's
+lenient-ingest posture): `{"name":"c","type":"float","nullable":true}` decodes as the field `c` and
+re-encodes `{"name":"c","type":"float"}`.
+
+**The refusal class.** Every refusal above is a defect in the Transform's columnar source. It surfaces as
+`WRONG_TYPE` at the Transform's `.source` path, as every other columnar-codec defect does (§3.6.25); in a
+law vector the reference names it `MalformedShape`.
+
+**What the metadata moves beyond the entry.** The field is part of the schema's identity, and three
+schema operations a host may carry read it exactly as the reference does — the `laws/fieldLaws` vectors
+pin each one:
+
+- the schema **fingerprint** (FNV-1a over the UTF-16 code units of the canonical field pre-image): a
+  field that states metadata contributes, after its `name:type` element, one element encoding its
+  members in order — the canonical unit text prefixed `u`, the label prefixed `l`, the description
+  prefixed `d` (each only when stated), then each extension key and value in ordinal key order — so a
+  schema without metadata keeps the fingerprint it had before this section, and metadata moves it;
+- the schema **delta** gains `amended`, present only when a member moved: one entry per moved member of a
+  column common to both schemas, in old column order and, within a column, the unit, the label, the
+  description, then each extension key in ordinal order — `{"member":"unit"|"label"|"description",
+  "name","from"?,"to"?}` or `{"member":"ext","key","name","from"?,"to"?}`, with `from` or `to` absent
+  where that side stated none; replaying the delta over the old schema yields the target;
+- the **compatibility** verdict for a consumer's depended-on columns: a depended-on column whose stated
+  unit was REPLACED or WITHDRAWN is `breaking` (its values no longer mean what was read), a unit stated
+  for the first time is compatible, a moved label or description is compatible, and a moved extension
+  member is `unknown` (no host interprets one); `breaking` outranks `unknown`.
+
+**Forward coupling.** A host that has not taken this section reads past the four members, so a round
+trip through it DROPS them — the failure the preservation rule forbids. So **no producer may emit
+`unit`, `label`, `description` or `ext` on a schema entry until every conformant host certifies the
+`laws/fieldLaws` family.** Under §11 the members, this text, the corpus and every host codec move as one
+change-set.
+
+**The vocabulary charter does not govern these members.** They are members of a value inside the
+columnar source, whose schema entry the Fuaran.Core codec owns, and they were admitted there
+(fuaran-core#427). The gates have answers all the same: the demand is a column's unit and meaning
+travelling between hosts; a unit cannot be composed from a label without losing the algebra that
+refuses `kg` read as `[lb_av]`; the cost is this section, the law vectors and every host codec; and the
+confusion delta is nil, because inference never states metadata — an emitter meets the members only
+where it already declares a `schema` entry by hand.
+
+**Vectors.** The `laws/fieldLaws` family (`laws/field-laws.json`, emitted by Fuaran-Core per §27.8):
+`fieldEncode` (an entry's canonical bytes from its members: every member, an empty label, currencies,
+derived and dimensionless units, sorted extension keys), `codecDecode` (a zero-row source's canonical
+re-encoding: every member, the three canonicalising spellings, an empty `ext` dropped, an unknown member
+read past, and the eight refusals), `fingerprint`, `delta` and `classify`.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -8772,8 +8887,8 @@ and that no other section specifies.
   every vector through its own implementation and asserts the expected verdict or value, never the
   framing of the file. `capabilityLaws` pins the invocable-capability contract (argument validation,
   capture-replay key, declaration round-trip, id-stable enumeration); `decimal` the exact decimal's
-  canonical text, order, exact sum and refusals; `fieldLaws` the schema field's canonical bytes,
-  decode and refusals; `propagationLaws` (Phase 2328, emitted by Fuaran-Core from
+  canonical text, order, exact sum and refusals; `fieldLaws` (§3.6.26) the schema field's canonical
+  bytes, decode and refusals, and what its metadata moves in the schema fingerprint, delta and compatibility verdict; `propagationLaws` (Phase 2328, emitted by Fuaran-Core from
   `Fuaran.Core.Propagation`) the incremental propagation of a declared dependency graph — which nodes
   a change makes stale (the changed ids and every node that transitively reads one), the order the
   reference evaluates them in and its cyclic groups, an incremental re-evaluation from a prior
