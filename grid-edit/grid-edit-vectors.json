@@ -1,0 +1,3553 @@
+{
+  "description": "Grid edits as columnar ops (WIRE_FORMAT.md, \"Edits as column ops - GridEdit\", Phase 1891). NOT YET AN ENUMERATED FAMILY: this directory carries no manifest.json, on the grid-window-writer/ precedent (27.7), so no host's corpusFamilies names it until its hosts adopt it. Emitted by the reference host (fuaran-dotnet: FUARAN_REGEN=1 over the GridEditTests of Fuaran.UI.ServerDriven.Tests), whose answers are the columnar op substrate's. BEHAVIOUR vectors, not byte-parity fixtures: tables are the canonical column codec's embedded form, ops the columnar op codec's, deltas the row-delta codec's, compared after decoding. vectors: apply input.edit.op to input.table. A refused op expects refused, the refusal token. Otherwise expected.after is the table it produced; expected.delta the row delta the op induces under the identity input.edit.rowKeyField declares (scheme column:<field>), or, where it declares none, the top delta with referencePath noRowIdentityDeclared; expected.inverse the op that undoes it and expected.undone the table that inverse restores (equal to input.table), or expected.notInvertible true. histories: from input.table, run input.gestures in order through one edit history - edit applies its op, undo applies the most recent undoable edit's inverse, redo re-applies the most recently undone op; a new edit clears what could be redone, and a non-invertible edit clears what could be undone - and compare each entry of expected.steps: the table and both flags, or refused with nothingToUndo, nothingToRedo or a refusal token.",
+  "family": "gridEdit",
+  "histories": [
+    {
+      "description": "two edits, both undone, a third undo refused, one redone",
+      "expected": {
+        "steps": [
+          {
+            "canRedo": false,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": false,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": true,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": true,
+            "canUndo": false,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    3,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "refused": "nothingToUndo"
+          },
+          {
+            "canRedo": true,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "id": "undo-redo",
+      "input": {
+        "gestures": [
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "setCell",
+                "col": "qty",
+                "row": 0,
+                "value": {
+                  "$type": "Int",
+                  "v": 1
+                }
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "removeColumn",
+                "name": "note"
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "undo": true
+          },
+          {
+            "undo": true
+          },
+          {
+            "undo": true
+          },
+          {
+            "redo": true
+          }
+        ],
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "an undone edit is superseded by a new one",
+      "expected": {
+        "steps": [
+          {
+            "canRedo": false,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": true,
+            "canUndo": false,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    3,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": false,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    3,
+                    2,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "refused": "nothingToRedo"
+          }
+        ]
+      },
+      "id": "edit-clears-redo",
+      "input": {
+        "gestures": [
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "setCell",
+                "col": "qty",
+                "row": 0,
+                "value": {
+                  "$type": "Int",
+                  "v": 1
+                }
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "undo": true
+          },
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "setCell",
+                "col": "qty",
+                "row": 1,
+                "value": {
+                  "$type": "Int",
+                  "v": 2
+                }
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "redo": true
+          }
+        ],
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a non-invertible edit applies and nothing before it can be undone",
+      "expected": {
+        "steps": [
+          {
+            "canRedo": false,
+            "canUndo": true,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth"
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "canRedo": false,
+            "canUndo": false,
+            "table": {
+              "columns": {
+                "id": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true,
+                    true
+                  ],
+                  "values": [
+                    "a",
+                    "b",
+                    "c",
+                    "d",
+                    "e"
+                  ]
+                },
+                "note": {
+                  "validity": [
+                    true,
+                    false,
+                    true,
+                    true,
+                    false
+                  ],
+                  "values": [
+                    "first",
+                    "",
+                    "third",
+                    "fourth",
+                    ""
+                  ]
+                },
+                "qty": {
+                  "validity": [
+                    true,
+                    true,
+                    true,
+                    true,
+                    false
+                  ],
+                  "values": [
+                    1,
+                    5,
+                    8,
+                    13,
+                    0
+                  ]
+                }
+              },
+              "schema": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "qty",
+                  "type": "int"
+                },
+                {
+                  "name": "note",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "refused": "nothingToUndo"
+          }
+        ]
+      },
+      "id": "append-ends-history",
+      "input": {
+        "gestures": [
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "setCell",
+                "col": "qty",
+                "row": 0,
+                "value": {
+                  "$type": "Int",
+                  "v": 1
+                }
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "edit": {
+              "$type": "GridEdit",
+              "key": "orders",
+              "op": {
+                "$type": "appendRows",
+                "rows": [
+                  [
+                    {
+                      "col": "id",
+                      "value": {
+                        "$type": "Str",
+                        "v": "e"
+                      }
+                    }
+                  ]
+                ]
+              },
+              "rowKeyField": "id"
+            }
+          },
+          {
+            "undo": true
+          }
+        ],
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "vectors": [
+    {
+      "description": "a value edit: one row changed by key; the inverse restores the old cell",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                21,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [
+            {
+              "$type": "changed",
+              "key": "s:b"
+            }
+          ],
+          "scheme": "column:id"
+        },
+        "inverse": {
+          "$type": "setCell",
+          "col": "qty",
+          "row": 1,
+          "value": {
+            "$type": "Int",
+            "v": 5
+          }
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-cell",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "qty",
+            "row": 1,
+            "value": {
+              "$type": "Int",
+              "v": 21
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a cell set to null; the inverse restores the text",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                false,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [
+            {
+              "$type": "changed",
+              "key": "s:a"
+            }
+          ],
+          "scheme": "column:id"
+        },
+        "inverse": {
+          "$type": "setCell",
+          "col": "note",
+          "row": 0,
+          "value": {
+            "$type": "Str",
+            "v": "first"
+          }
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-cell-null",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "note",
+            "row": 0,
+            "value": {
+              "$type": "Null"
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a cell set to the value it holds: the empty delta",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [],
+          "scheme": "column:id"
+        },
+        "inverse": {
+          "$type": "setCell",
+          "col": "qty",
+          "row": 2,
+          "value": {
+            "$type": "Int",
+            "v": 8
+          }
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-cell-unchanged",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "qty",
+            "row": 2,
+            "value": {
+              "$type": "Int",
+              "v": 8
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "an edit to the key column: the old key removed, the new one added",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "z"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [
+            {
+              "$type": "removed",
+              "key": "s:d"
+            },
+            {
+              "$type": "added",
+              "key": "s:z"
+            }
+          ],
+          "scheme": "column:id"
+        },
+        "inverse": {
+          "$type": "setCell",
+          "col": "id",
+          "row": 3,
+          "value": {
+            "$type": "Str",
+            "v": "d"
+          }
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-cell-key",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "id",
+            "row": 3,
+            "value": {
+              "$type": "Str",
+              "v": "z"
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "the same value edit on a grid declaring no rowKeyField: the top delta, the reference path named",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                21,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "fullRefresh"
+        },
+        "inverse": {
+          "$type": "setCell",
+          "col": "qty",
+          "row": 1,
+          "value": {
+            "$type": "Int",
+            "v": 5
+          }
+        },
+        "referencePath": "noRowIdentityDeclared",
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-cell-unkeyed",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "qty",
+            "row": 1,
+            "value": {
+              "$type": "Int",
+              "v": 21
+            }
+          }
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a whole column replaced: every row whose cell moved, by key",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                6,
+                8,
+                0
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [
+            {
+              "$type": "changed",
+              "key": "s:b"
+            },
+            {
+              "$type": "changed",
+              "key": "s:d"
+            }
+          ],
+          "scheme": "column:id"
+        },
+        "inverse": {
+          "$type": "setColumn",
+          "column": {
+            "cells": [
+              {
+                "$type": "Int",
+                "v": 3
+              },
+              {
+                "$type": "Int",
+                "v": 5
+              },
+              {
+                "$type": "Int",
+                "v": 8
+              },
+              {
+                "$type": "Int",
+                "v": 13
+              }
+            ],
+            "name": "qty",
+            "type": "int"
+          }
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setColumn",
+            "column": {
+              "cells": [
+                {
+                  "$type": "Int",
+                  "v": 3
+                },
+                {
+                  "$type": "Int",
+                  "v": 6
+                },
+                {
+                  "$type": "Int",
+                  "v": 8
+                },
+                {
+                  "$type": "Int",
+                  "v": 0
+                }
+              ],
+              "name": "qty",
+              "type": "int"
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a column inserted: the top delta (the schema moved); the inverse removes it",
+      "expected": {
+        "after": {
+          "columns": {
+            "flag": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                true,
+                false,
+                true,
+                false
+              ]
+            },
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "flag",
+              "type": "bool"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "fullRefresh"
+        },
+        "inverse": {
+          "$type": "removeColumn",
+          "name": "flag"
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "insert-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "insertColumn",
+            "column": {
+              "cells": [
+                {
+                  "$type": "Bool",
+                  "v": true
+                },
+                {
+                  "$type": "Bool",
+                  "v": false
+                },
+                {
+                  "$type": "Bool",
+                  "v": true
+                },
+                {
+                  "$type": "Bool",
+                  "v": false
+                }
+              ],
+              "name": "flag",
+              "type": "bool"
+            },
+            "index": 1
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a column removed: the inverse re-inserts it at its index",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "fullRefresh"
+        },
+        "inverse": {
+          "$type": "insertColumn",
+          "column": {
+            "cells": [
+              {
+                "$type": "Str",
+                "v": "first"
+              },
+              {
+                "$type": "Null"
+              },
+              {
+                "$type": "Str",
+                "v": "third"
+              },
+              {
+                "$type": "Str",
+                "v": "fourth"
+              }
+            ],
+            "name": "note",
+            "type": "string"
+          },
+          "index": 2
+        },
+        "undone": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "remove-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "removeColumn",
+            "name": "note"
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a row appended: added by key; not invertible, so it ends an undo history",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d",
+                "e"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true,
+                false
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth",
+                ""
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13,
+                21
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "rowSet",
+          "columns": [],
+          "rows": [
+            {
+              "$type": "added",
+              "key": "s:e"
+            }
+          ],
+          "scheme": "column:id"
+        },
+        "notInvertible": true
+      },
+      "id": "append-rows",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "appendRows",
+            "rows": [
+              [
+                {
+                  "col": "id",
+                  "value": {
+                    "$type": "Str",
+                    "v": "e"
+                  }
+                },
+                {
+                  "col": "qty",
+                  "value": {
+                    "$type": "Int",
+                    "v": 21
+                  }
+                }
+              ]
+            ]
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a whole-table transform: the top delta; not invertible",
+      "expected": {
+        "after": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true
+              ],
+              "values": [
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        },
+        "delta": {
+          "$type": "fullRefresh"
+        },
+        "notInvertible": true
+      },
+      "id": "apply-transform",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "applyTransform",
+            "pipeline": [
+              {
+                "$type": "filter",
+                "pred": {
+                  "$type": "binary",
+                  "left": {
+                    "$type": "col",
+                    "name": "qty"
+                  },
+                  "op": "gt",
+                  "right": {
+                    "$type": "lit",
+                    "cell": {
+                      "$type": "Int",
+                      "value": 4
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a cell past the last row is refused",
+      "expected": {
+        "refused": "rowOutOfRange"
+      },
+      "id": "refuse-row-out-of-range",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "qty",
+            "row": 4,
+            "value": {
+              "$type": "Int",
+              "v": 1
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a cell of the wrong type is refused",
+      "expected": {
+        "refused": "cellTypeMismatch"
+      },
+      "id": "refuse-cell-type",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "setCell",
+            "col": "qty",
+            "row": 0,
+            "value": {
+              "$type": "Str",
+              "v": "many"
+            }
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "a column that does not exist is refused",
+      "expected": {
+        "refused": "noSuchColumn"
+      },
+      "id": "refuse-no-such-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "removeColumn",
+            "name": "price"
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "inserting a column that exists is refused",
+      "expected": {
+        "refused": "duplicateColumn"
+      },
+      "id": "refuse-duplicate-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "insertColumn",
+            "column": {
+              "cells": [
+                {
+                  "$type": "Int",
+                  "v": 0
+                },
+                {
+                  "$type": "Int",
+                  "v": 0
+                },
+                {
+                  "$type": "Int",
+                  "v": 0
+                },
+                {
+                  "$type": "Int",
+                  "v": 0
+                }
+              ],
+              "name": "qty",
+              "type": "int"
+            },
+            "index": 0
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "an appended row naming an unknown column is refused",
+      "expected": {
+        "refused": "rowShapeUnknownColumn"
+      },
+      "id": "refuse-unknown-row-column",
+      "input": {
+        "edit": {
+          "$type": "GridEdit",
+          "key": "orders",
+          "op": {
+            "$type": "appendRows",
+            "rows": [
+              [
+                {
+                  "col": "id",
+                  "value": {
+                    "$type": "Str",
+                    "v": "e"
+                  }
+                },
+                {
+                  "col": "price",
+                  "value": {
+                    "$type": "Int",
+                    "v": 1
+                  }
+                }
+              ]
+            ]
+          },
+          "rowKeyField": "id"
+        },
+        "table": {
+          "columns": {
+            "id": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "note": {
+              "validity": [
+                true,
+                false,
+                true,
+                true
+              ],
+              "values": [
+                "first",
+                "",
+                "third",
+                "fourth"
+              ]
+            },
+            "qty": {
+              "validity": [
+                true,
+                true,
+                true,
+                true
+              ],
+              "values": [
+                3,
+                5,
+                8,
+                13
+              ]
+            }
+          },
+          "schema": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "version": 1
+}

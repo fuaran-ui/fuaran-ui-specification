@@ -1258,6 +1258,66 @@ edit's state is the data itself, which the grid already reads through `source`.
 destination, a `Query` source that could not otherwise receive a write, and a third column
 explicitly read-only.
 
+##### Edits as column ops — `GridEdit` (Phase 1891)
+
+`editStateKey` says where an edit lands; the whole-rows write says nothing about what the edit WAS,
+so a reader of the key had to rediscover it by comparing tables. A host that keeps an edit history
+may carry the edit as the columnar op it is instead — beside the whole-rows write, which is
+unchanged and remains what every renderer emits:
+
+```json
+{"$type":"GridEdit","key":"orders","op":{"$type":"setCell","col":"qty","row":1,"value":{"$type":"Int","v":21}},"rowKeyField":"id"}
+```
+
+- **`key`** (`string`, required, non-empty) — the State key the edit commits to: the grid's
+  `editStateKey`, or its direct `State` source where it declares none.
+- **`op`** (required) — the edit in the columnar op codec's own form: `setCell`, `setColumn`,
+  `insertColumn`, `removeColumn`, `appendRows` or `applyTransform`, with tables, columns and cells in
+  the canonical column codec's form.
+- **`rowKeyField`** (`string`, optional, non-empty) — the grid's own `rowKeyField`, carried so a
+  receiver can name the rows the op touched without the tree. No second identity vocabulary is
+  minted. **Absence means no identity is declared**, never "the same as before".
+
+The payload is **strict**: a member outside these four, an empty `key` or `rowKeyField`, or an op
+the codec does not know is refused, because an edit a receiver would apply differently from the one
+sent is worse than one it refuses. Encoding follows the canonical rules of §2 — sorted keys, the
+cross-host number layout — so two hosts encode one edit to the same bytes.
+
+**What a receiver derives from it.** Applying `op` to the table the key holds yields the edited
+table, or a refusal (the op's refusal classes: `rowOutOfRange`, `cellTypeMismatch`, `noSuchColumn`,
+`duplicateColumn`, `columnLengthMismatch`, `rowShapeUnknownColumn`, `transformRejected`). Under the
+declared `rowKeyField` the op also yields the **row delta** it induces — a value edit names its one
+row by key, an edit to the key column removes the old key and adds the new one, appended rows are
+added by key, and an op that moves the schema or the whole table is the top delta — so a reader of
+the key can refresh from the edit rather than by comparison. With **no** `rowKeyField` the delta is
+the top element and the receiver says it took the reference path (`noRowIdentityDeclared`); the
+answer is the same, only the saving is lost.
+
+**Undo is not a second payload.** An undo is the `GridEdit` whose `op` is the inverse of the edit it
+undoes, read from the table that edit was applied to: `setCell` restores the old cell, `setColumn`
+the old column, `insertColumn` and `removeColumn` invert each other. `appendRows` and
+`applyTransform` have no inverse; a history that applies one cannot be undone past it. A redo is the
+original op again. A host's history MAY be bounded; past its bound an undo is refused
+(`nothingToUndo`), never approximated.
+
+The behaviour — the edited table, the delta, the inverse and the table it restores, for every op
+kind and refusal class, and three scripted undo/redo histories — is pinned by the
+[`grid-edit/`](./grid-edit/) vectors. **It is not yet an enumerated family** (§27.7): the directory
+carries no manifest, on the `grid-window-writer/` precedent, so no host's `corpusFamilies` names it
+until the hosts that receive grid edits adopt it.
+
+**Host adoption (the `grid-edit/` vectors).** Recorded on the §11.0 convention:
+
+| Host | Adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the codec, an edit history (apply, undo, redo, a bounded hash-chained record that replays to the live table) and the refresh of every live `Transform` over the edited key from the op's own delta, in its server-driven tier; it emits the vectors |
+| `fuaran-ts` | pending — its client grid commits the whole-rows write and keeps no edit history yet |
+| `fuaran-py` | pending — its rendering tier is the static floor, which edits nothing |
+| `fuaran-go` | pending — codec only for the node vocabulary; no edit history |
+| `fuaran-rs` | pending — codec only for the node vocabulary; no edit history |
+
+A pending host is not exempt: it owes the behaviour and has simply not made its answer visible.
+
 ##### Near-miss names are refused, not ignored (Phase 863)
 
 Rule 2's tolerance of unknown keys has one **enumerated** exception, on `DataGrid` and its columns.
