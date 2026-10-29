@@ -1481,7 +1481,7 @@ Three shapes are **decode errors**, each a relation between slots rather than a 
 
 The vocabulary of record is `validator/defect-vocabulary.json`; this section names the three because a reader arriving at `rule` from the form side would otherwise meet only the decode errors and conclude the slot is fully specified by them.
 
-`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string), `Percent` (optional `decimals` integer), `DateTime` (`Date` until Phase 1811 — an honest name once 1810 made it render a time; OPTIONAL `dateStyle` bare-enum + OPTIONAL `timeStyle` bare-enum — Phase 1810: `dateStyle` alone is a date, `timeStyle` alone a time of day, both a date-time, each at its own breadth; alphabetical field order; NEITHER present decodes structurally and is refused by the validator as `FUARAN155`, never by the codec), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Percent` omit `decimals` when `None` (rule 4).
+`Binding.Format` (Phase 102) is the locale-aware formatted-value case: `{"$type":"Format","format":<Format>,"locale":<LocaleSource>,"source":<Binding>}`. `source` is always a numeric `Binding<float>`; the case produces a display string (constrained to `Binding<string>` use). `Format` is a `$type`-DU – `Number` (optional `decimals` integer), `Currency` (`isoCode` string, optional `decimals` integer — Phase 2499), `Percent` (optional `decimals` integer), `DateTime` (`Date` until Phase 1811 — an honest name once 1810 made it render a time; OPTIONAL `dateStyle` bare-enum + OPTIONAL `timeStyle` bare-enum — Phase 1810: `dateStyle` alone is a date, `timeStyle` alone a time of day, both a date-time, each at its own breadth; alphabetical field order; NEITHER present decodes structurally and is refused by the validator as `FUARAN155`, never by the codec), `RelativeTime` (`unit` bare-enum), `Duration` (`style` + `unit` bare-enums), `Since` (OPTIONAL `unit` bare-enum — §3.3.1). `LocaleSource` is a `$type`-DU – `Ambient` (no fields; defers to the host locale) or `Explicit` (`tag` BCP-47 string). `Number` / `Currency` / `Percent` omit `decimals` when `None` (rule 4).
 
 #### 3.3.1 The host instant — `Binding.Now`, its grain, and `Format.Since`
 
@@ -2091,7 +2091,7 @@ overlooked.
 is the locale-free projection the `formatting` family pins (§ "formatting" below), byte for byte on
 every host, so no existing document, fixture or golden moves. **Present**, the figure renders through
 the SAME locale formatter a `Binding.Format` slot renders through for the matching `Format` case
-(`Number(decimals)`, `Currency(code)` as `isoCode`, `Percent(decimals)`) under the resolved tag –
+(`Number(decimals)`, `Currency(code, decimals)` as `isoCode`, `Percent(decimals)`) under the resolved tag –
 `Explicit` names it, `Ambient` reads the host's ambient locale exactly as `Binding.Format` does – and
 it takes that route's cross-host caveat and no new one: the browser's `Intl` is the visual source of
 truth, the reference host's server pipeline is its documented `System.Globalization` fallback, and
@@ -2100,9 +2100,21 @@ renders its declared locale-free fallback). Its text is therefore **not** byte-c
 as no locale-database rendition is. An exact decimal cell keeps its digits up to that formatter, which
 takes a double on every pipeline: the canonical text converts once, at that boundary. The other cases
 take no `locale`: `SignificantDigits` has no `Format` twin to route to, `Duration` is locale-independent
-by design, and `DateTime` / `RelativeTime` are not figures. A currency figure **without** fraction
-digits (`£412,380`) is not reachable: `Format.Currency` carries no `decimals`, so the currency's own
-digits (or, on the reference host's fallback, the locale's) always apply.
+by design, and `DateTime` / `RelativeTime` are not figures.
+
+**A figure's `decimals` (Phase 2499).** Every figure case carries an **optional** `decimals`:
+`Number` and `Percent` always did, and `Currency` gains it on both vocabularies, `CellFormat.Currency`
+(`{"$type":"Currency","code":"GBP","decimals":0,"locale":{"$type":"Explicit","tag":"en-GB"}}`) and
+`Format.Currency` (`{"$type":"Currency","decimals":0,"isoCode":"GBP"}`), so a currency figure can be
+whole pounds (`£412,380`). **Absent**, every host and every path renders exactly as before: two places
+on the locale-free projection, and the currency's own digits (on the reference host's fallback, the
+locale's) through a locale formatter. **Present without a locale**, it is the fixed digit count of the
+locale-free projection, `code + " " + x.toFixed(d)`, as `Number` and `Percent` already are (the
+`formatting` family pins it); an exact decimal keeps its exactness there, rounding half up at the
+declared digit from its own digits. **Present with a locale** (or on `Format.Currency`), the formatter
+receives it as both its minimum and maximum fraction digits, overriding the currency's and the
+locale's defaults, exactly as a present `decimals` on `Number` and `Percent` does on every host whose
+locale route renders them.
 
 **Where a located figure renders.** A `Metric` / `LabelValueRow` value, a `Metric` trend and each
 `MetricComparison` render it on every tier that renders the figure. A **grid column**'s figure is a
@@ -5929,8 +5941,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->710<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->267<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->711<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->268<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
@@ -8974,7 +8986,7 @@ and that no other section specifies.
   server-rendered figure the browser re-renders differently is a hydration mismatch: `None` and
   `DateTime` are `String(x)`; `Number(d)` is `x.toFixed(d)`, and `Number` with no `decimals` is
   `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent(d)` is `(x * 100).toFixed(d)`
-  followed by `%`, one place by default; `Currency(code)` is the code, one space and `x.toFixed(2)`;
+  followed by `%`, one place by default; `Currency(code, d)` is the code, one space and `x.toFixed(d)`, two places by default (Phase 2499);
   `SignificantDigits(d)` is `Number(x.toPrecision(d)).toString()`. So the text depends on no locale
   (a decimal point, no grouping; a figure that declares a `locale` is outside this family, Phase 2490), a tie at the last place rounds away from zero over the double's
   exact value, `String(x)` is positional from `1e-6` up to `1e21` and exponential (`1e+21`,
