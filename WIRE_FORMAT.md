@@ -4625,6 +4625,89 @@ derived and dimensionless units, sorted extension keys), `codecDecode` (a zero-r
 re-encoding: every member, the three canonicalising spellings, an empty `ext` dropped, an unknown member
 read past, and the eight refusals), `fingerprint`, `delta` and `classify`.
 
+### 3.6.27 Rendering a bound field's metadata — header, axis, value, accessible name (Phase 2209)
+
+§3.6.26 puts a column's unit and label on the wire; this section is where a renderer shows them, so a reader
+sees what a number measures without the author restating it. It is ONE rule for every renderer, stated here
+once. It is additive: a document whose fields state no metadata renders byte-for-byte as it did before this
+section, because every clause below fires only on a stated `label` or `unit`.
+
+**The bound field.** A slot reads its value from a field only when its binding is a `Transform`, so only a
+`Transform` has a bound field. For a ROWS slot — a `DataGrid`'s or a `Chart`'s `source` — the bound field of a
+column is the result schema's entry whose `name` is that column's `field` (a chart's `xField`, or the first of
+its `yFields`). For a SCALAR slot — a `Metric`'s `value`, an accessibility `label` — it is the one entry of the
+1×1 result §24.8 reads. Every other binding case, and a name the result schema does not hold, has no bound field,
+and the slot renders exactly as before.
+
+**Three derived texts.** For a field `F`:
+
+- its **unit text** is `F`'s canonical `unit` text (§3.6.26) when `F` states a unit other than the dimensionless
+  `1`; otherwise there is none (a `1` says the value is a pure number, and `(1)` beside it tells a reader nothing);
+- its **display name** is `F`'s `label` when stated and non-empty, else its `name`;
+- its **column title** EXISTS only when `F` states a non-empty `label` or has a unit text, and is the display
+  name followed, when there is a unit text, by a space and the unit text in parentheses.
+
+| Field | Column title | Unit text |
+|---|---|---|
+| `{"label":"Payload mass","name":"mass","type":"float","unit":"kg"}` | `Payload mass (kg)` | `kg` |
+| `{"name":"mass","type":"float","unit":"kg"}` | `mass (kg)` | `kg` |
+| `{"label":"Payload mass","name":"mass","type":"float"}` | `Payload mass` | none |
+| `{"label":"","name":"speed","type":"float","unit":"m/s"}` | `speed (m/s)` | `m/s` |
+| `{"name":"ratio","type":"float","unit":"1"}` | none | none |
+| `{"name":"mass","type":"float"}` | none | none |
+
+**The read sites.** A tree that states the text itself always wins; the field supplies only what the tree left
+unstated.
+
+1. **A `DataGrid` column header.** A column with a `field` whose `label` is empty renders its bound field's column
+   title as its header. A non-empty `label` is the explicit header and renders verbatim, unit and all — the field
+   never appends to an author's header, which may already say `Mass (t)`.
+2. **A `Chart` axis title.** An absent `xTitle` takes the x field's column title, and an absent `yTitle` takes the
+   first y field's column title (the same field the capitalised fallback names, §3.2 `Chart`). A title taken from
+   the field is a STATED title: it draws on a temporal x axis, whose suppression applies to the capitalised
+   fallback alone. With no column title, the existing fallback and its suppression are unchanged. A declared
+   `xTitle` / `yTitle`, whatever its arm, wins.
+3. **A `Metric`.** Where the value resolves, its rendered figure is followed by a space and the bound field's unit
+   text — when there is one and the metric's `format` is `None`, `Number` or `SignificantDigits`. The other formats
+   state their own unit (`Currency`, `Percent`, `Duration`, `RelativeTime`, `DateTime`) or are the host's
+   (`Custom`), and a second unit beside them would contradict or repeat it. The em-dash placeholder and the error
+   sentinels take no unit: no value was read. Its caption is the explicit `label` when that resolves non-empty;
+   when it resolves empty and the bound field has a column title, the caption is the field's display name.
+4. **An accessible name.** A node's accessibility `label` whose binding is a `Transform` reads a value, so the
+   resolved name is followed by a space and the bound field's unit text when there is one: a screen-reader user
+   hears what the number measures. The empty-name rule is unchanged — an empty resolved name is still dropped,
+   unit or not. The visible texts above are the accessible names of a header cell, an axis title and a metric, so
+   they carry the unit without a second rule.
+
+**What the rule never does.** It changes no cell text — a grid's header carries the unit once, so each cell does
+not repeat it — no legend entry, no wire byte, and no decision a renderer takes before drawing (which slot shows,
+which row sorts). It converts nothing: a unit is displayed as the producer stated it, never rescaled.
+
+**Parity.** The table above and these cases are the fixture set every renderer that takes this section certifies
+against, by these ids (each a `Transform` source over the fields in the table, one row):
+
+| Id | Tree | Expected |
+|---|---|---|
+| `fm-header-derived` | grid column `{field:"mass", label:""}` over the first field | header `Payload mass (kg)` |
+| `fm-header-explicit` | grid column `{field:"mass", label:"Mass (t)"}` over the first field | header `Mass (t)` |
+| `fm-header-plain` | grid column `{field:"mass", label:""}` over the last field | header `` (unchanged) |
+| `fm-axis-derived` | chart `xField:"mass"`, `yFields:["speed"]`, no titles, over the first and fourth fields | x title `Payload mass (kg)`, y title `speed (m/s)` |
+| `fm-axis-explicit` | the same chart with `xTitle` `Mass` | x title `Mass` |
+| `fm-axis-plain` | chart over the last field | x title `Mass` (the capitalised fallback, unchanged) |
+| `fm-metric-unit` | metric, `format` `None`, value `12.5` in the first field | value `12.5 kg` |
+| `fm-metric-percent` | metric, `format` `Percent`, over the first field | value without `kg` |
+| `fm-metric-caption` | metric with an empty `label` over the first field | caption `Payload mass` |
+| `fm-a11y-unit` | accessibility `label` bound to a `Transform` yielding `12.5` in the first field | `aria-label` `12.5 kg` |
+| `fm-plain` | each site over `{"name":"mass","type":"float"}` | byte-identical to the render before this section |
+
+**Which renderers apply it.** fuaran-dotnet's server and browser renderers and fuaran-ts's client and string
+server renderers apply it from Phase 2209. A renderer that has not taken this section renders a metadata-bearing
+document as it would the same document without metadata — conformant, only less informative — and §3.6.26's
+emission hold stays the gate on producers either way.
+
+**The vocabulary charter does not govern this section.** It adds no wire member and no `NodeKind`: it is a
+rendering obligation over members §3.6.26 already admitted.
+
 ---
 
 ### The declarative floor (Phase 430)
