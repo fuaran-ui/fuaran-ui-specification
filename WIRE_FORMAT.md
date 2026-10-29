@@ -8954,7 +8954,7 @@ and that no other section specifies.
   reference evaluates them in and its cyclic groups, an incremental re-evaluation from a prior
   evaluation that equals a full one and recomputes exactly the stale set, and the refusals of a change
   the graph does not hold and of an undeclared read; a host whose bindings re-render on a write asserts
-  its own stale set against the `dirtySet` vectors; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
+  its own stale set against the `dirtySet` vectors, and its binding walk against `binding-propagation`; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
   evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
   table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
@@ -8981,6 +8981,23 @@ and that no other section specifies.
   `1.234e-7`) outside it, and a negative zero renders unsigned. A `value` that is a negative zero is
   written `-0.0`, so every JSON reader keeps its sign. A precision outside JavaScript's own range
   (`toFixed` 0 to 100, `toPrecision` 1 to 100) is not pinned.
+- **`binding-propagation`** (`binding-propagation/manifest.json`, Phase 1764) — which bindings a write
+  makes stale. A write names the channels it changed: a state key, a filter name, the selection a
+  producer node publishes, a named query's result. **The bindings a write makes stale are exactly those
+  of every node whose spec holds a binding that reads a written channel** — a `State` read of the key,
+  which includes a `Transform` whose live `source` is that key and a `Transform` whose `params` bind a
+  param to it; a `Filter` read of the name, including a param bound to it; a `Selection` read of that
+  producer; and a `Query` read of that query, or of a query whose `dependsOn` names a written filter.
+  No other binding is stale, and a write that names no channel makes nothing stale. Staleness is per
+  node, not per slot: a host may re-evaluate every binding of a stale node. A read the spec cannot
+  attribute widens the set and says so — a `Custom` node's host renderer may read any state key, so
+  every state write makes it stale, and a filter, selection or query write does not. Each vector is
+  `(tree, write, expected)`: a host decodes `tree` with its own decoder, computes the stale set with
+  its own walk, and asserts `expected.readers`, the stale node ids sorted ordinally, and
+  `expected.verdict` — `Exact` when no unattributable read took part, the set then being minimal as
+  well as sound, and `Conservative` otherwise, naming each such read in `expected.because`. The
+  vectors pass through a tree, which `laws/propagationLaws` does not: they certify the walk that
+  derives the dependency graph, where those certify the graph's closure.
 
 **Forward coupling.** A new family's record lands in the same change-set as the family. A change to
 the record grammar updates this section, the check, and `corpus-producers.json` together.

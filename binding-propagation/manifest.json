@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "$id": "https://fuaran.dev/wire-format/v1/binding-propagation/manifest.json",
+  "description": "The Fuaran BINDING-PROPAGATION conformance family (WIRE_FORMAT.md 27.8.2): which bindings a write makes stale. Each vector is (tree, write, expected): `tree` is a canonical node, `write` the channels a write changed (`State` key, `Filter` name, the `Selection` a producer node publishes, a `Query` result), and `expected` the stale set. A host decodes the tree with its own decoder, computes the stale set with its own binding walk, and asserts `expected.readers` - the node ids whose spec holds a binding reading a written channel, directly or through a query whose `dependsOn` names a written filter, ordinal-sorted - and `expected.verdict`: `Exact` when no opaque read took part (the set is then minimal), `Conservative` naming each opaque read in `expected.because` (a `Custom` node is stale on every state write). Generated from the reference host's BindingGraph, which PROVES every vector, through its decoder, before this file is written.",
+  "vectors": [
+    {
+      "id": "custom-clean-on-filter",
+      "description": "a filter write is not a state write: a Custom node stays clean and the verdict is Exact",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"f","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"c","kind":{"$type":"Custom","componentId":"trend-card","moduleId":"analytics","props":{}}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Filter","name":"region"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "f"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "custom-conservative-on-state",
+      "description": "a Custom node's host renderer may read any state key, so every state write makes it stale, and the verdict is Conservative naming it",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"a","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"c","kind":{"$type":"Custom","componentId":"trend-card","moduleId":"analytics","props":{}}},{"id":"b","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"x"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Conservative",
+        "readers": [
+          "a",
+          "c"
+        ],
+        "because": [{"$type":"Custom","nodeId":"c"}
+        ]
+      }
+    },
+    {
+      "id": "custom-conservative-unread-key",
+      "description": "a state write no binding reads still reaches a Custom node",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"a","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"c","kind":{"$type":"Custom","componentId":"trend-card","moduleId":"analytics","props":{}}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"unread"}
+      ],
+      "expected": {
+        "verdict": "Conservative",
+        "readers": [
+          "c"
+        ],
+        "because": [{"$type":"Custom","nodeId":"c"}
+        ]
+      }
+    },
+    {
+      "id": "filter-param-source",
+      "description": "a Transform param bound to a filter is stale on that filter's write",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"p","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"Filter","name":"dept"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"q","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"other"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Filter","name":"dept"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "p"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "filter-reaches-direct-and-scoped-query",
+      "description": "a filter write makes stale its direct reader and the reader of a query whose dependsOn names the filter; a query that does not depend on it stays clean",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Filter","name":"region"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "filter-region",
+          "query-scoped"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "multi-site-nested",
+      "description": "readers of one key at several depths are all stale, wherever they sit; readers of another key at the same depths are not",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"top","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"panel","kind":{"$type":"Box","children":[{"id":"mid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"inner","kind":{"$type":"Box","children":[{"id":"deep","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"deep-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"x"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Group"}}],"layout":{"$type":"Auto"},"role":"Group"}},{"id":"top-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"x"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "deep",
+          "mid",
+          "top"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "query-direct",
+      "description": "a query result write makes stale its reader and no other query's",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Query","name":"summary"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "query-direct"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "selection-other-producer",
+      "description": "a selection published by another producer reaches nothing",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Selection","nodeId":"another-grid"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [],
+        "because": []
+      }
+    },
+    {
+      "id": "selection-read",
+      "description": "a selection write makes stale the readers of that producer's selection",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"Selection","nodeId":"orders-grid"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "selection-grid"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "state-all-three-surfaces",
+      "description": "a write to a state key makes stale every reader of it on all three State-channel surfaces: a plain State read, a Transform whose live source is the key, and a Transform param bound to it",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "live-orders",
+          "param-orders",
+          "state-orders"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "state-other-key",
+      "description": "a write to a different state key reaches only its own reader",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"notes"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "state-other"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "state-plain-read",
+      "description": "a plain State read alone: the reader is stale and the inert sibling is not",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"a","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"b","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "a"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "state-transform-live-source",
+      "description": "a Transform's live source slot alone: the reader whose source is the written key is stale",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"t","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"u","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"x"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "t"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "state-transform-param",
+      "description": "a Transform param bound to state alone: the source is embedded, so only the param carries the read",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"p","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"u","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"x"}},"variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"orders"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "p"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "write-empty",
+      "description": "an empty write makes nothing stale",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [],
+        "because": []
+      }
+    },
+    {
+      "id": "write-several-channels",
+      "description": "a write naming several channels makes stale the union of their readers",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"notes"},{"$type":"Filter","name":"region"},{"$type":"Selection","nodeId":"orders-grid"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [
+          "filter-region",
+          "query-scoped",
+          "selection-grid",
+          "state-other"
+        ],
+        "because": []
+      }
+    },
+    {
+      "id": "write-touches-nothing",
+      "description": "a write to a key no binding reads makes nothing stale",
+      "tree": {"id":"root","kind":{"$type":"Box","children":[{"id":"state-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"orders"}},"variant":"Info"}},{"id":"state-other","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"State","key":"notes"}},"variant":"Info"}},{"id":"live-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","pipeline":[{"$type":"groupBy","aggs":[{"fn":"count","name":"n","of":"a"}],"keys":[]}],"source":{"$type":"State","key":"orders"}}},"variant":"Info"}},{"id":"param-orders","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Transform","params":[{"from":{"$type":"State","key":"orders"},"name":"t"}],"pipeline":[{"$type":"filter","pred":{"$type":"binary","left":{"$type":"col","name":"a"},"op":"gt","right":{"$type":"param","name":"t"}}}],"source":{"columns":{"a":{"validity":[true],"values":[1]}},"schema":[{"name":"a","type":"int"}]}}},"variant":"Info"}},{"id":"filter-region","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Filter","name":"region"}},"variant":"Info"}},{"id":"selection-grid","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Selection","field":"id","nodeId":"orders-grid"}},"variant":"Info"}},{"id":"query-direct","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","name":"summary"}},"variant":"Info"}},{"id":"query-scoped","kind":{"$type":"Badge","label":{"$type":"Bound","binding":{"$type":"Query","dependsOn":["region"],"name":"totals"}},"variant":"Info"}},{"id":"inert","kind":{"$type":"Badge","label":"static","variant":"Info"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}},
+      "write": [{"$type":"State","key":"unread"}
+      ],
+      "expected": {
+        "verdict": "Exact",
+        "readers": [],
+        "because": []
+      }
+    }
+  ]
+}
