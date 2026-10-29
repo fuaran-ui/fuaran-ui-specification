@@ -1,7 +1,7 @@
 {
   "version": 1,
   "$id": "https://fuaran.dev/wire-format/v1/formatting/manifest.json",
-  "description": "The Fuaran number-FORMATTING conformance family (WIRE_FORMAT.md 27.8.2). Each vector is (value, format, expected text): `value` is a JSON number (a negative zero is written `-0.0`), `format` a canonical `CellFormat`, and `expectedText` the text every conformant host renders for that number under that format - the projection behind a Metric value and trend, a LabelValueRow value and a grid cell. The text is the hydrating JavaScript's, so a server-rendered figure and its hydration agree byte for byte: `None` and `DateTime` are `String(x)`; `Number` is `x.toFixed(d)`, or with no declared places `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent` is `(x * 100).toFixed(d)` plus `%` (one place by default); `Currency` is the code, a space and `x.toFixed(2)`; `SignificantDigits` is `Number(x.toPrecision(d)).toString()`. The text depends on no locale. Generated from the reference host's own formatter, which PROVES every vector, through its decoder, before this file is written.",
+  "description": "The Fuaran number-FORMATTING conformance family (WIRE_FORMAT.md 27.8.2). Each vector is (value, format, expected text): `value` is a JSON number (a negative zero is written `-0.0`), `format` a canonical `CellFormat`, and `expectedText` the text every conformant host renders for that number under that format - the projection behind a Metric value and trend, a LabelValueRow value and a grid cell. The text is the hydrating JavaScript's, so a server-rendered figure and its hydration agree byte for byte: `None` and `DateTime` are `String(x)`; `Number` is `x.toFixed(d)`, or with no declared places `x.toFixed(0)` for an integer and `String(x)` otherwise; `Percent` is `(x * 100).toFixed(d)` plus `%` (one place by default); `Currency` is the code, a space and `x.toFixed(d)` (two places by default); `SignificantDigits` is `Number(x.toPrecision(d)).toString()`. The text depends on no locale. Generated from the reference host's own formatter, which PROVES every vector, through its decoder, before this file is written.",
   "vectors": [
     {
       "id": "currency-code-prefix",
@@ -9,6 +9,20 @@
       "format": {"$type":"Currency","code":"USD"},
       "expectedText": "USD 1234.50",
       "description": "the cell vocabulary's currency is the ISO code, a space and two places"
+    },
+    {
+      "id": "currency-decimals-0",
+      "value": 412380.5,
+      "format": {"$type":"Currency","code":"GBP","decimals":0},
+      "expectedText": "GBP 412381",
+      "description": "a present decimals replaces the two places; the tie rounds up"
+    },
+    {
+      "id": "currency-decimals-3",
+      "value": 1.5,
+      "format": {"$type":"Currency","code":"USD","decimals":3},
+      "expectedText": "USD 1.500",
+      "description": "a present decimals pads with zeros like toFixed"
     },
     {
       "id": "none-1e20",
