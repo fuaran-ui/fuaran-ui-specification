@@ -172,6 +172,26 @@
         "commit": "9a9c9f81426bf7ffb5ac90b2522115c45310e685"
       }
     },
+    "grid-edit": {
+      "spec": "3.2",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.ServerDriven.Tests -- --filter-test-list \"the grid-edit corpus vectors\""
+      },
+      "source": {
+        "commit": "ad754cc1076f584926c2a1bdf36f7a17aa2c2d5b"
+      }
+    },
+    "grid-window-writer": {
+      "spec": "3.2",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-ui-specification",
+        "emit": "node grid-window-writer/generate.mjs"
+      },
+      "source": {
+        "commit": "8c61ebf3ed7393b840e6b596b87a25d585f0ec63"
+      }
+    },
     "laws/capabilityLaws": {
       "spec": "27.8.2",
       "producer": {

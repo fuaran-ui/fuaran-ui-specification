@@ -1,0 +1,7 @@
+{
+  "description": "Grid edits as columnar ops (WIRE_FORMAT.md 3.2, \"Edits as column ops - GridEdit\", Phase 1891). SELF-ENUMERATED, so the directory is one corpus family (27.7): `grid-edit`. grid-edit-vectors.json carries one vector per op kind and refusal class (the edited table, the row delta, the inverse and the table it restores) and three scripted undo/redo histories. A host that receives grid edits decodes each GridEdit with its own codec, applies, inverts and replays it through its own edit history, and asserts every expected answer after decoding. Emitted by the reference host (fuaran-dotnet, FUARAN_REGEN=1 over the GridEditTests of Fuaran.UI.ServerDriven.Tests).",
+  "files": [
+    "grid-edit-vectors.json"
+  ],
+  "version": 1
+}

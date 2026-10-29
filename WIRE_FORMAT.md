@@ -1225,6 +1225,18 @@ function.
 
 A pending host is not exempt: it owes the behaviour and has simply not made its answer visible.
 
+**Host adoption (the `grid-window-writer/` family).** The writer family is self-enumerated (§27.7,
+Phase 2500): its directory's `manifest.json` names the vectors file, `corpus-producers.json` names
+`generate.mjs` beside it as the producer, and every codec host declares it:
+
+| Host | Adoption |
+|---|---|
+| `fuaran` (F#) | **covered** — `BindingResolver.stepWindowWriter`, run over every vector |
+| `fuaran-ts` | **covered** — `stepWindowWriter`, run over every vector |
+| `fuaran-py` | **not applicable** — this host renders a grid as static HTML and has no grid viewport, so nothing it runs measures a viewport or writes a window descriptor |
+| `fuaran-go` | **not applicable** — the same: static HTML, no grid viewport |
+| `fuaran-rs` | **not applicable** — this host renders a grid as inert HTML and leaves event-to-store wiring to the app, so no viewport of its, server or `wasm32` client, writes a window descriptor |
+
 ##### Editing — `editStateKey` / per-column `editable` (Phase 863)
 
 The write side, and the one member of the family whose key is a **destination** rather than a
@@ -1302,21 +1314,23 @@ original op again. A host's history MAY be bounded; past its bound an undo is re
 
 The behaviour — the edited table, the delta, the inverse and the table it restores, for every op
 kind and refusal class, and three scripted undo/redo histories — is pinned by the
-[`grid-edit/`](./grid-edit/) vectors. **It is not yet an enumerated family** (§27.7): the directory
-carries no manifest, on the `grid-window-writer/` precedent, so no host's `corpusFamilies` names it
-until the hosts that receive grid edits adopt it.
+[`grid-edit/`](./grid-edit/) vectors, a **self-enumerated family** (§27.7, Phase 2500): the directory's
+own `manifest.json` names the vectors file, so every codec host's `corpusFamilies` declares
+`grid-edit`, and `corpus-producers.json` names the reference host as its producer (§27.8). A host
+runs the codec over every vector's `edit`, applies, inverts and restores each one through its own
+implementation, and replays the three histories through its own edit history.
 
 **Host adoption (the `grid-edit/` vectors).** Recorded on the §11.0 convention:
 
 | Host | Adoption |
 |---|---|
 | `fuaran` (F#) | **adopted** — the codec, an edit history (apply, undo, redo, a bounded hash-chained record that replays to the live table) and the refresh of every live `Transform` over the edited key from the op's own delta, in its server-driven tier; it emits the vectors |
-| `fuaran-ts` | pending — its client grid commits the whole-rows write and keeps no edit history yet |
-| `fuaran-py` | pending — its rendering tier is the static floor, which edits nothing |
-| `fuaran-go` | pending — codec only for the node vocabulary; no edit history |
-| `fuaran-rs` | pending — codec only for the node vocabulary; no edit history |
+| `fuaran-ts` | **adopted** (Phase 2500) — the codec, the op's apply and inverse, the row delta and an edit history (apply, undo, redo) in `@fuaran-ui/ops`; its client grid still commits the whole-rows write, which the edit is carried beside |
+| `fuaran-py` | **adopted** (Phase 2500) — the codec, the op's apply and inverse, the row delta and an edit history in `fuaran_ui.dataframe.grid_edit`; its rendering tier remains the static floor, which edits nothing |
+| `fuaran-go` | **adopted** (Phase 2500) — the codec, the op's apply and inverse, the row delta and an edit history in its `dataframe` package, as pure library functions holding no session state |
+| `fuaran-rs` | **adopted** (Phase 2500) — the codec, the op's apply and inverse, the row delta and an edit history in `wire::grid_edit` |
 
-A pending host is not exempt: it owes the behaviour and has simply not made its answer visible.
+Every host runs the family; no row is pending.
 
 ##### Near-miss names are refused, not ignored (Phase 863)
 
