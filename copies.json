@@ -3652,6 +3652,70 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "lenient/lenient-transform-int-inferred-past-int32.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-transform-int-inferred-past-int32.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-transform-int-inferred-past-int32.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-transform-int-inferred-past-int32.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "lenient/lenient-transform-int-inferred-past-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-transform-int-inferred-past-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-transform-int-inferred-past-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-transform-int-inferred-past-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "lenient/lenient-transform-int-whole-float-token.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-transform-int-whole-float-token.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-transform-int-whole-float-token.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-transform-int-whole-float-token.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "lenient/lenient-transform-int-whole-float-token.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-transform-int-whole-float-token.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "lenient/lenient-transform-int-whole-float-token.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-transform-int-whole-float-token.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "lenient/lenient-transform-schemaless.expected.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-transform-schemaless.expected.json"
@@ -6247,6 +6311,22 @@
       "source": "nodes/grid-toned-pill.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/grid-toned-pill.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "nodes/grid-transform-int-bounds.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/nodes/grid-transform-int-bounds.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "nodes/grid-transform-int-bounds.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/grid-transform-int-bounds.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
@@ -11255,6 +11335,54 @@
       "source": "reject/reject-tooltip-nonstring.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-tooltip-nonstring.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-transform-int-above-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-transform-int-above-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-transform-int-above-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-transform-int-above-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-transform-int-below-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-transform-int-below-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-transform-int-below-int32.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-transform-int-below-int32.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "reject/reject-transform-int-fractional.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-transform-int-fractional.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-transform-int-fractional.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-transform-int-fractional.json"
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
