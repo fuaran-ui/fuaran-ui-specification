@@ -4708,6 +4708,45 @@ emission hold stays the gate on producers either way.
 **The vocabulary charter does not govern this section.** It adds no wire member and no `NodeKind`: it is a
 rendering obligation over members §3.6.26 already admitted.
 
+### 3.6.28 Embedded `Transform` source — an `int` column value is a signed 32-bit integer (Phase 2484)
+
+An `int` column holds **signed 32-bit integers**, and a value in one is read under §7.1's integer-slot rule:
+a present value is accepted when, and only when, it is a JSON number that is finite, has **no fractional
+part**, and lies within `−2 147 483 648` … `2 147 483 647`. The authority is the Fuaran.Core columnar codec,
+whose `int` column stores an int32 vector and reads only an integer within that range; this section states
+the same rule for every host that decodes an embedded `Transform` source.
+
+- **Whole values are read by value, not by spelling.** `2.0` in an `int` column is the integer `2`, and
+  re-encodes as `2`, exactly as at a typed integer slot. A canonical writer never emits the point; a reader
+  does not refuse it.
+- **Everything else is refused.** `2.5` is refused, never truncated to `2`. `2147483648` and `−2147483649`,
+  one past either end, are refused, never widened to a 64-bit cell, wrapped, or clamped. So are a string, a
+  boolean and a §7 sentinel string, as before.
+- **The refusal is a `WRONG_TYPE` at the Transform's `.source` path**, the code and path every other
+  columnar-codec defect in an embedded source carries (§3.6.25's timestamp refusals included). The repair is
+  a different value or a wider column type, not a different document shape, so a host attaches no
+  shape hint.
+- **A wider integer travels in a `decimal` or a `string` column.** A `decimal` column reads decimal text
+  exactly (and an integer token exactly up to 2⁵³); a `string` column carries any digits as text. Neither
+  is an `int` column whose bound a host may lift.
+
+**Inference (the schema-less embedded source) classifies a number by the same rule.** A number is an *int*
+for inference when it is whole-valued and inside the 32-bit range, and a *float* otherwise. So the
+inference rule "all-int numerics ⇒ `int`, any non-int number ⇒ `float`" reads a column of whole values
+holding one past the range as **`float`**: the value is accepted, as a float, and is never a refusal. A
+column `[2.0, 3]` infers `int`, by the same reading of `2.0`. A writer that needs such a column to be an
+integer column beyond 32 bits declares it `decimal`.
+
+**Stability.** This is breaking for READERS only. The reference codec, and every host that decodes
+through it, already refused these values; a host that accepted a 64-bit or arbitrary-precision integer, or
+truncated a fraction, in an `int` column now refuses it. A canonical writer is unaffected: it never wrote
+one.
+
+**Vectors.** `grid-transform-int-bounds` (both boundary values round-trip),
+`reject-transform-int-above-int32`, `reject-transform-int-below-int32`, `reject-transform-int-fractional`,
+`lenient-transform-int-whole-float-token` (`2.0` reads as `2`) and
+`lenient-transform-int-inferred-past-int32` (a whole value past the range infers `float`).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -5298,7 +5337,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6012,11 +6051,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->710<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->267<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->716<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->268<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
