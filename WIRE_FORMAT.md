@@ -4637,6 +4637,128 @@ derived and dimensionless units, sorted extension keys), `codecDecode` (a zero-r
 re-encoding: every member, the three canonicalising spellings, an empty `ext` dropped, an unknown member
 read past, and the eight refusals), `fingerprint`, `delta` and `classify`.
 
+### 3.6.27 Rendering a bound field's metadata — header, axis, value, accessible name (Phase 2209)
+
+§3.6.26 puts a column's unit and label on the wire; this section is where a renderer shows them, so a reader
+sees what a number measures without the author restating it. It is ONE rule for every renderer, stated here
+once. It is additive: a document whose fields state no metadata renders byte-for-byte as it did before this
+section, because every clause below fires only on a stated `label` or `unit`.
+
+**The bound field.** A slot reads its value from a field only when its binding is a `Transform`, so only a
+`Transform` has a bound field. For a ROWS slot — a `DataGrid`'s or a `Chart`'s `source` — the bound field of a
+column is the result schema's entry whose `name` is that column's `field` (a chart's `xField`, or the first of
+its `yFields`). For a SCALAR slot — a `Metric`'s `value`, an accessibility `label` — it is the one entry of the
+1×1 result §24.8 reads. Every other binding case, and a name the result schema does not hold, has no bound field,
+and the slot renders exactly as before.
+
+**Three derived texts.** For a field `F`:
+
+- its **unit text** is `F`'s canonical `unit` text (§3.6.26) when `F` states a unit other than the dimensionless
+  `1`; otherwise there is none (a `1` says the value is a pure number, and `(1)` beside it tells a reader nothing);
+- its **display name** is `F`'s `label` when stated and non-empty, else its `name`;
+- its **column title** EXISTS only when `F` states a non-empty `label` or has a unit text, and is the display
+  name followed, when there is a unit text, by a space and the unit text in parentheses.
+
+| Field | Column title | Unit text |
+|---|---|---|
+| `{"label":"Payload mass","name":"mass","type":"float","unit":"kg"}` | `Payload mass (kg)` | `kg` |
+| `{"name":"mass","type":"float","unit":"kg"}` | `mass (kg)` | `kg` |
+| `{"label":"Payload mass","name":"mass","type":"float"}` | `Payload mass` | none |
+| `{"label":"","name":"speed","type":"float","unit":"m/s"}` | `speed (m/s)` | `m/s` |
+| `{"name":"ratio","type":"float","unit":"1"}` | none | none |
+| `{"name":"mass","type":"float"}` | none | none |
+
+**The read sites.** A tree that states the text itself always wins; the field supplies only what the tree left
+unstated.
+
+1. **A `DataGrid` column header.** A column with a `field` whose `label` is empty renders its bound field's column
+   title as its header. A non-empty `label` is the explicit header and renders verbatim, unit and all — the field
+   never appends to an author's header, which may already say `Mass (t)`.
+2. **A `Chart` axis title.** An absent `xTitle` takes the x field's column title, and an absent `yTitle` takes the
+   first y field's column title (the same field the capitalised fallback names, §3.2 `Chart`). A title taken from
+   the field is a STATED title: it draws on a temporal x axis, whose suppression applies to the capitalised
+   fallback alone. With no column title, the existing fallback and its suppression are unchanged. A declared
+   `xTitle` / `yTitle`, whatever its arm, wins.
+3. **A `Metric`.** Where the value resolves, its rendered figure is followed by a space and the bound field's unit
+   text — when there is one and the metric's `format` is `None`, `Number` or `SignificantDigits`. The other formats
+   state their own unit (`Currency`, `Percent`, `Duration`, `RelativeTime`, `DateTime`) or are the host's
+   (`Custom`), and a second unit beside them would contradict or repeat it. The em-dash placeholder and the error
+   sentinels take no unit: no value was read. Its caption is the explicit `label` when that resolves non-empty;
+   when it resolves empty and the bound field has a column title, the caption is the field's display name.
+4. **An accessible name.** A node's accessibility `label` whose binding is a `Transform` reads a value, so the
+   resolved name is followed by a space and the bound field's unit text when there is one: a screen-reader user
+   hears what the number measures. The empty-name rule is unchanged — an empty resolved name is still dropped,
+   unit or not. The visible texts above are the accessible names of a header cell, an axis title and a metric, so
+   they carry the unit without a second rule.
+
+**What the rule never does.** It changes no cell text — a grid's header carries the unit once, so each cell does
+not repeat it — no legend entry, no wire byte, and no decision a renderer takes before drawing (which slot shows,
+which row sorts). It converts nothing: a unit is displayed as the producer stated it, never rescaled.
+
+**Parity.** The table above and these cases are the fixture set every renderer that takes this section certifies
+against, by these ids (each a `Transform` source over the fields in the table, one row):
+
+| Id | Tree | Expected |
+|---|---|---|
+| `fm-header-derived` | grid column `{field:"mass", label:""}` over the first field | header `Payload mass (kg)` |
+| `fm-header-explicit` | grid column `{field:"mass", label:"Mass (t)"}` over the first field | header `Mass (t)` |
+| `fm-header-plain` | grid column `{field:"mass", label:""}` over the last field | header `` (unchanged) |
+| `fm-axis-derived` | chart `xField:"mass"`, `yFields:["speed"]`, no titles, over the first and fourth fields | x title `Payload mass (kg)`, y title `speed (m/s)` |
+| `fm-axis-explicit` | the same chart with `xTitle` `Mass` | x title `Mass` |
+| `fm-axis-plain` | chart over the last field | x title `Mass` (the capitalised fallback, unchanged) |
+| `fm-metric-unit` | metric, `format` `None`, value `12.5` in the first field | value `12.5 kg` |
+| `fm-metric-percent` | metric, `format` `Percent`, over the first field | value without `kg` |
+| `fm-metric-caption` | metric with an empty `label` over the first field | caption `Payload mass` |
+| `fm-a11y-unit` | accessibility `label` bound to a `Transform` yielding `12.5` in the first field | `aria-label` `12.5 kg` |
+| `fm-plain` | each site over `{"name":"mass","type":"float"}` | byte-identical to the render before this section |
+
+**Which renderers apply it.** fuaran-dotnet's server and browser renderers and fuaran-ts's client and string
+server renderers apply it from Phase 2209. A renderer that has not taken this section renders a metadata-bearing
+document as it would the same document without metadata — conformant, only less informative — and §3.6.26's
+emission hold stays the gate on producers either way.
+
+**The vocabulary charter does not govern this section.** It adds no wire member and no `NodeKind`: it is a
+rendering obligation over members §3.6.26 already admitted.
+
+### 3.6.28 Embedded `Transform` source — an `int` column value is a signed 32-bit integer (Phase 2484)
+
+An `int` column holds **signed 32-bit integers**, and a value in one is read under §7.1's integer-slot rule:
+a present value is accepted when, and only when, it is a JSON number that is finite, has **no fractional
+part**, and lies within `−2 147 483 648` … `2 147 483 647`. The authority is the Fuaran.Core columnar codec,
+whose `int` column stores an int32 vector and reads only an integer within that range; this section states
+the same rule for every host that decodes an embedded `Transform` source.
+
+- **Whole values are read by value, not by spelling.** `2.0` in an `int` column is the integer `2`, and
+  re-encodes as `2`, exactly as at a typed integer slot. A canonical writer never emits the point; a reader
+  does not refuse it.
+- **Everything else is refused.** `2.5` is refused, never truncated to `2`. `2147483648` and `−2147483649`,
+  one past either end, are refused, never widened to a 64-bit cell, wrapped, or clamped. So are a string, a
+  boolean and a §7 sentinel string, as before.
+- **The refusal is a `WRONG_TYPE` at the Transform's `.source` path**, the code and path every other
+  columnar-codec defect in an embedded source carries (§3.6.25's timestamp refusals included). The repair is
+  a different value or a wider column type, not a different document shape, so a host attaches no
+  shape hint.
+- **A wider integer travels in a `decimal` or a `string` column.** A `decimal` column reads decimal text
+  exactly (and an integer token exactly up to 2⁵³); a `string` column carries any digits as text. Neither
+  is an `int` column whose bound a host may lift.
+
+**Inference (the schema-less embedded source) classifies a number by the same rule.** A number is an *int*
+for inference when it is whole-valued and inside the 32-bit range, and a *float* otherwise. So the
+inference rule "all-int numerics ⇒ `int`, any non-int number ⇒ `float`" reads a column of whole values
+holding one past the range as **`float`**: the value is accepted, as a float, and is never a refusal. A
+column `[2.0, 3]` infers `int`, by the same reading of `2.0`. A writer that needs such a column to be an
+integer column beyond 32 bits declares it `decimal`.
+
+**Stability.** This is breaking for READERS only. The reference codec, and every host that decodes
+through it, already refused these values; a host that accepted a 64-bit or arbitrary-precision integer, or
+truncated a fraction, in an `int` column now refuses it. A canonical writer is unaffected: it never wrote
+one.
+
+**Vectors.** `grid-transform-int-bounds` (both boundary values round-trip),
+`reject-transform-int-above-int32`, `reject-transform-int-below-int32`, `reject-transform-int-fractional`,
+`lenient-transform-int-whole-float-token` (`2.0` reads as `2`) and
+`lenient-transform-int-inferred-past-int32` (a whole value past the range infers `float`).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -5227,7 +5349,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5941,11 +6063,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->711<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->268<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->717<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->269<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->217<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->87<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
