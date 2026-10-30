@@ -562,11 +562,11 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
-| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
+| `Button` | _Input_ | `affordance?`, `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
 | `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple?=false`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
+| `Select` | _Input_ | `affordance?`, `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
@@ -875,6 +875,8 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
   `reject/reject-unknown-drawing-curve-command.json`.
 
 **`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written (`nodes/select-multiple-false.json`) — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
+
+**The `affordance` member (Phase 2517).** `Select`, `Button` and every `Form` field carry an optional `affordance` object — the set / read phrasings, spoken aliases, description, `clearable` and `neverControllable` an agent-initiated instruction may use over and above what the node already says. Absent at `None`, every member omit-at-default; its slot rule and the derivation it feeds are §31.
 
 The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`). A multi-select that still carries a `value` is a **§16 lenient accept**: the `value` is decoded (so a malformed one refuses exactly as any malformed binding does) and then **dropped**, normalising the document to the clean form — whether it is the empty-`Static` placeholder every multi-select carried before Phase 1962 (`{"$type":"Static"}`, or `{"$type":"Static","value":null}`) or a real binding a model wrote beside its `values`. A multi-select never reads `value`, so dropping it changes nothing a reader can observe, and every stored document still reads (`lenient/lenient-1962-multiselect-value-dropped.json`, all three spellings). Refusing a non-placeholder `value` instead was considered and rejected on measurement: of the 16 stored model emissions carrying both keys, 14 carry a real binding (typically a `State` "primary" selection), so a refusal would have stopped 14 documents that decode today from reading. A reference-host pre-emit validator names a constructed multi-select that still carries one (`FUARAN164`, Warning). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
@@ -2025,6 +2027,7 @@ read-compat):
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `activeIndex` | `Binding<int>` | `Static{value=0}` | `TabsSpec` |  |
 | `activeStep` | `Binding<int>` | `Static{value=0}` | `StepperSpec` |  |
+| `aliases` | `AffordanceAlias[]` | `[]` | `Affordance` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
@@ -2032,6 +2035,7 @@ read-compat):
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
+| `clearable` | `bool` | `false` | `Affordance` |  |
 | `comparisons` | `MetricComparison[]` | `[]` | `MetricSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `copyable` | `bool` | `true` | `CodeBlockSpec` | Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity. |
@@ -2060,10 +2064,13 @@ read-compat):
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
 | `multiple` | `bool` | `false` | `FileUploadSpec` |  |
+| `neverControllable` | `bool` | `false` | `Affordance` |  |
 | `ordered` | `bool` | `false` | `ListSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `FormFieldKind.SegmentedChoice`, `TabsSpec` | `TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default). |
+| `patterns` | `string[]` | `[]` | `Affordance` |  |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `polarity` | `TrendPolarity` | `HigherIsBetter` | `MetricComparison` |  |
+| `readPatterns` | `string[]` | `[]` | `Affordance` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
 | `required` | `bool` | `false` | `FormField` |  |
@@ -9749,6 +9756,213 @@ reasons, and the conditions that would reopen it are recorded in the language ti
 that does not know this vocabulary nothing it can act on — a leaf it cannot perform is still a leaf
 it cannot perform — and costs every document bytes and every host a migration, while two hosts
 already agree on this table under the vectors above.
+
+---
+
+## 31. The operable surface (normative, Phase 2517)
+
+A tree already says what a reader can do with it: a `Select` names a closed option set and a label, a
+form field a typed value, a button an action. This section makes that a **specified projection** — the
+tree's *operable surface* — so an instruction an agent supplies on a reader's behalf can be resolved
+against the tree itself rather than against declarations kept beside it, and so every host reads the
+same surface. Four parts: an optional `affordance` member on the wire (§31.1–31.2), the derivation
+(§31.3), the resolution contract (§31.4–31.6), and the `operability/` family that certifies them
+(§31.7). §31.8 is the renderer's annotation obligation for a node that declares an affordance.
+
+### 31.1 The `affordance` member
+
+`Select`, `Button` and every `Form` field (`FormField`) carry an OPTIONAL `affordance` object. It is
+absent at `None` — every document written before it encodes to the bytes it always did — and every
+member inside it is omit-at-default, so `{}` is the affordance that declares nothing beyond the node.
+
+| Member | Type | Default (omitted) | Meaning |
+|---|---|---|---|
+| `patterns` | `string[]` | `[]` | Further SET forms (a `Select` / field) or CLICK forms (a `Button`). |
+| `readPatterns` | `string[]` | `[]` | Further question forms; they resolve only to a `read` (§31.4). |
+| `aliases` | `{alias, value}[]` | `[]` | A spoken `alias` resolving to the canonical option `value`. |
+| `description` | `string` | absent | Free text a reader may render and MUST NOT parse. |
+| `clearable` | `bool` | `false` | The node may be cleared (`clear <label>`). |
+| `neverControllable` | `bool` | `false` | The node is withdrawn from the operable surface entirely. |
+
+### 31.2 The slot rule (decode)
+
+A pattern is literal text with at most one slot, spelled exactly `{value}`; any other `{` or `}` is
+refused, so the pattern grammar stays closed. Which patterns must name the slot is the CARRYING kind's:
+
+- On a `Select` or a field — a SET — every `patterns` entry names exactly one `{value}`. A set pattern
+  naming none is refused: the instruction's value would have nowhere to go.
+- On a `Button` — a CLICK — no `patterns` entry names one: there is no value for it to name.
+- No `readPatterns` entry names one, on any kind.
+- A blank pattern is refused.
+
+Each refusal is `WRONG_TYPE` at the offending entry (`$.kind.affordance.patterns[0]`,
+`$.kind.fields[0].affordance.readPatterns[1]`, …). An alias missing either member is `MISSING_FIELD`.
+
+### 31.3 The derivation
+
+`derive(mountId?, tree)` is a pure, total function from a tree to its affordances, in document order:
+pre-order over the positions the node's KIND holds (its ordered children and its arms; never an
+envelope `fallback`, and never a `Mount`'s inputs, which are the guest's own scope and are derived by the
+host under the guest's mount id).
+
+**Which nodes.** A `Select` or `Button` whose `id` is non-empty, and each field of a `Form` whose `id`
+is non-empty. A node or field whose affordance says `neverControllable` yields NOTHING — it is absent,
+not marked; an agent cannot tell it from a node that does not exist.
+
+**Each affordance** carries:
+
+- `node` — the node's `id` (a field's `id`), qualified as `<mountId>/<id>` when the host supplied a
+  mount id.
+- `kind` — one of `set`, `clear`, `click`, `navigate`, `read`.
+- `id` — `<node>:<kind>`, unique within one derivation. It is the string a host's dispatch gate sees for
+  an agent-initiated operation (`ActionDescriptor.Operate` on the reference host).
+- `label` — the node's label when it is a `Literal`, else its `id` with `-` and `_` read as spaces;
+  ASCII-lowercased and whitespace-collapsed (§31.4).
+- `forms` — the label-derived defaults below, then the declared patterns (normalised the same way),
+  duplicates removed, first occurrence kept.
+- `slot` — on a `set` only (below).
+- `description` — the declared description, verbatim.
+
+**Per node:**
+
+| Node | Affordances, in this order |
+|---|---|
+| `Select`, single | `set` (when it has a slot, or declared patterns), `clear` (when `clearable`), `read` |
+| `Select`, `multiple: true` | `read` only — a single slot value cannot say which members of a list to keep |
+| field | `set` (when it has a slot, or declared patterns), `clear` (when `clearable`), `read` |
+| `Button` whose `onClick` is a `Navigate` | `navigate` |
+| any other `Button` | `click` |
+
+**Default forms.** `set`: `set <label> to {value}`, `change <label> to {value}`. `clear`: `clear
+<label>`. `read`: `what is <label>`, then the `readPatterns`. `click`: `click <label>`, `press
+<label>`. `navigate`: `go to <label>`, `open <label>`. The declared `patterns` follow the defaults of
+the `set`, `click` or `navigate`.
+
+**The slot** is typed by the node's value space:
+
+| Value space | Slot |
+|---|---|
+| `Select` with a `Static` option list; field `Choice`, `SegmentedChoice`, `Combobox` with a `Static` list | `enumeration` — each option's `label` and `value`, and the aliases whose `value` names it |
+| field `Number` | `number`, unbounded, not integral |
+| field `RangedNumber`, `Range` | `number` with the field's `min` / `max`; integral when its `step` is a whole number |
+| field `Rating` | `number` from `0` to `max`; integral unless `allowHalf` |
+| field `Checkbox`, `Toggle` | `boolean` |
+| field `Text`, `TextArea`, `DateTime`, `DateTimeRange`, `Color`, `Tokens`; a `Select` whose options are not `Static` | none: FREE TEXT |
+
+**Free text has no slot of its own**, so it gets no default set forms, and a free-text node with no
+declared pattern has no `set` at all. A declared pattern IS the deliberate slot: the `set` then carries
+the declared forms only, and a `text` slot bounded at 256 UTF-16 code units. That is the author's
+exposure, and §31.6 says so.
+
+**`Resolve`** — host-side, never on the wire — is the node's OWN action applied to a slot value: a
+`Select`'s `onChange` with the option value or, when it declares no handler and its `value` is a
+`State` binding, a `SetState` of that key (the write-back default, §4); a field's `onChange` with the
+value as a JSON value of the field's type, or the same write-back; a button's `onClick`. A `clear`
+passes the absence (`onChange` with no value, a `SetState` with no value, an empty string to a field
+handler). A `read` dispatches nothing.
+
+### 31.4 Normalisation and clauses
+
+1. An instruction longer than **512** UTF-16 code units resolves to nothing.
+2. Runs of ASCII whitespace collapse to one space; the ends are trimmed.
+3. Literals compare **ASCII-lowercased** (`A`–`Z` → `a`–`z`) and nothing else. A Unicode case fold
+   differs between runtimes, which would make one instruction resolve differently on two hosts; the
+   ASCII fold is also length-preserving, which is what lets a `text` slot keep the instruction's own
+   spelling.
+4. The instruction is **question-shaped** when it ends with `?` or its first word is one of `what`,
+   `what's`, `whats`, `which`, `who`, `how`, `is`, `are`, `does`, `do`. A question-shaped instruction
+   resolves only to `read` affordances, and an instruction that is not one never resolves to a `read`.
+5. Trailing `?`, `.` and `!` are removed.
+6. The instruction splits into **clauses** on the whole words `and` and `then`. More than **8** clauses,
+   or an empty clause, resolves to nothing. A value containing `and` or `then` as a word is therefore
+   reachable only through an alias or its option value.
+
+### 31.5 Resolution
+
+Each clause is matched against every form of every eligible affordance, **anchored at both ends**:
+
+- A form with no slot matches a clause equal to it.
+- A form with a slot matches a clause that starts with the text before `{value}` and ends with the text
+  after it, with something between. The slot is **greedy** — it takes everything between the anchored
+  literals — and **typed**: the captured text, trimmed, must decode against the affordance's slot.
+  `enumeration`: equal to an option's label, an option's value, or one of its aliases (all compared
+  ASCII-lowercased), yielding the option VALUE. `number`: a decimal numeral (`-`? digits, optionally `.`
+  digits), within the bounds, whole when integral, yielding the numeral as written. `boolean`: `on`,
+  `true`, `yes`, `enabled`, `checked` → `true`; `off`, `false`, `no`, `disabled`, `unchecked` → `false`.
+  `text`: non-empty and within its bound, yielding the instruction's own spelling.
+
+The outcome of `resolve(instruction, affordances)`:
+
+- `resolved` — every clause matched exactly one affordance with one value: the `(id, value?)` pairs in
+  clause order (a `set` carries its value; the other kinds carry none).
+- `notResolved` — a cap was broken, or SOME clause matched nothing. Resolution is **all-or-nothing**:
+  nothing in a partly-understood instruction is dispatched.
+- `ambiguous` — every clause matched something and some clause matched more than one `(id, value)`:
+  the distinct ids of the first such clause. The matcher never chooses.
+
+### 31.6 What is not claimed
+
+The matcher does not understand the instruction. It matches declared forms; a paraphrase none declares
+is refused, which is the property this contract exists to provide, and an instruction asking for
+analysis — to summarise, compare, or explain — matches no form and is refused for the same reason. A
+declared pattern on a free-text node accepts any text within its bound, so an injection placed in the
+value position IS the value: that is the author's exposure, opened deliberately. Dispatch is the host's:
+an agent-initiated resolution is offered to the host's dispatch gate as a descriptor of its own,
+default-deny, before the resolved action meets its own descriptor.
+
+### 31.7 The `operability/` family
+
+`operability/manifest.json` names `operability/operability-vectors.json`, so the directory is one
+self-enumerated family, `operability` (§27.7). The reference host emits it (§27.8). Four sections:
+
+- `wire.roundTrip` — `{id, canonical}`: decode `canonical` and re-encode; the bytes are equal (§31.1).
+- `wire.reject` — `{id, input, expectedErrorCode, expectedPath}`: decoding `input` refuses with that
+  code, at a path starting with `expectedPath` (§31.2).
+- `trees` — `{id, mountId?, tree, affordances}`: decode `tree` with the host's codec, derive under
+  `mountId` (absent: no mount), and compare the canonical encoding (§2) of the derived list with
+  `affordances` byte for byte.
+- `resolve` — `{id, stratum, tree, instruction, expected}`: resolve `instruction` over the derivation of
+  the named tree and compare the canonical encoding of the outcome with `expected`.
+
+An affordance encodes as `{id, node, kind, label, forms, slot?, description?}`; a slot as
+`{kind:"enumeration", options:[{value, label, aliases?}]}`, `{kind:"number", integral, min?, max?}`,
+`{kind:"boolean"}` or `{kind:"text", maxLength}`; an outcome as `{outcome:"resolved", resolved:[{id,
+value?}]}`, `{outcome:"notResolved"}` or `{outcome:"ambiguous", ids:[…]}`.
+
+`stratum` names the calibration stratum a case was recast from: **S1** declared and label-derived
+verbatim hits; **S2** paraphrase misses; **S3** aliases and option labels; **S4** clears and reads;
+**S5** compound clauses, all-or-nothing and the caps; **S6** analytical refusals; **S7** adversarial
+refusals (withdrawn nodes, an injection in the value position, the length cap).
+
+**The affordance-carrying documents live in this family, not in `nodes/` or `reject/`.** A host whose
+codec predates §31.1 tolerates the unknown member on decode (§2 rule 2) and drops it on re-encode, so an
+`affordance` in a `nodes/` round-trip would fail every such host until it adopts; here it is demanded
+only of the hosts that declare the family covered (§27.7).
+
+### 31.8 The renderer's annotations
+
+A renderer stamps a `Select`, `Button` or field that DECLARES an affordance (and is not
+`neverControllable`) with, in order: `data-ai-name` (its `id`); for a value node, `data-fuaran-shape`
+(`choice`, `number`, `boolean`, `text`, or `unknown` when it has no `set`) and
+`data-fuaran-controllable` (`true` when it has a `set`); `data-fuaran-commands` (every form, as
+`[{phrase, effect}]` with effect `write` / `read` / `invoke` / `navigate`); `data-fuaran-aliases`
+(`[{alias, value}]`, when any); `data-fuaran-values` (`{kind:"oneOf", values}` for an enumeration or a
+boolean, `{kind:"numberRange", min?, max?}`, `{kind:"textLength", maxLength}`);
+`data-fuaran-description` (when declared); and an `aria-description` sentence naming the first three
+forms. JSON-valued attributes are canonical (§2). They go on the element an agent operates — the button
+itself, a select's wrapper, the field's control — and an attribute the author already set wins. **A node
+that declares no affordance is not annotated**, so every document written before §31 renders
+byte-for-byte as it did.
+
+### 31.9 Adoption
+
+| Host | `operability` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — emits the family; `Fuaran.UI.Operability` is the resident derivation and matcher |
+| `fuaran-ts` | pending — the codec round-trips and refuses per §31.1–31.2; the derivation and matcher are not yet ported |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending |
+| `fuaran-rs` | pending |
 
 ---
 

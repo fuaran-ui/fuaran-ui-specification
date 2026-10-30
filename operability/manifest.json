@@ -1,0 +1,7 @@
+{
+  "description": "The operable surface of a tree (WIRE_FORMAT.md 31, Phase 2517). SELF-ENUMERATED, so the directory is one corpus family (27.7): `operability`. operability-vectors.json carries the affordance member's wire round-trips and refusals (31.1, 31.2), authored trees with the affordances the derivation yields (31.3), and instructions over those trees with the outcome the resolution contract gives (31.4, 31.5), each recast from a calibration stratum S1-S7. A host decodes each tree with its own codec, derives, resolves, and compares the canonical encodings byte for byte. Emitted by the reference host (fuaran-dotnet, FUARAN_REGEN=1 over Fuaran.UI.Operability.Tests).",
+  "files": [
+    "operability-vectors.json"
+  ],
+  "version": 1
+}

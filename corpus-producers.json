@@ -281,6 +281,16 @@
       },
       "source": "since"
     },
+    "operability": {
+      "spec": "31",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Operability.Tests"
+      },
+      "source": {
+        "commit": "3e9e2ada7f0fa44b1dfc04b9d59452168511446b"
+      }
+    },
     "reject": {
       "spec": "6",
       "producer": {
