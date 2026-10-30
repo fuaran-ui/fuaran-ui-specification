@@ -43,6 +43,10 @@
       "spec": "3.4",
       "authored": "the wire specification states the normalisation rule and these vectors with it; no reference emitter writes host-tree apply vectors yet"
     },
+    "apply/updatePropApply": {
+      "spec": "3.4",
+      "authored": "the wire specification states the write-path rule and these vectors with it; no reference emitter writes host-tree apply vectors yet"
+    },
     "binding-propagation": {
       "spec": "27.8.2",
       "producer": {

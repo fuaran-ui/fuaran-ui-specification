@@ -1801,6 +1801,27 @@ that is ignored does not fail — the op decodes, applies, and puts the node som
 the author asked. A wrong id fails loudly; a stale index succeeds quietly. Refusing by name is what
 converts the second into the first.
 
+#### `UpdateProp` writes through the decoder's field rules (Phase 1925)
+
+`UpdateProp` is the second way a value enters a tree's field, and it is held to **exactly the rules the
+first way is**. Applied, the op's `value` is read by the field's own decode rule, not by a parallel
+coercion, and the applied tree is one a decode could have produced:
+
+- **The slot rule (§7.1).** A typed integer field admits a finite integral number inside the signed
+  32-bit range and nothing else. `2.5` at `Level` is REFUSED (`KindMismatch`), never truncated to `2`;
+  `3.0` is the integer `3`, exactly as a decode reads it; a number outside the 32-bit range is refused,
+  never wrapped or narrowed.
+- **The field's bound (§21).** A value the slot can hold but a §21 bound refuses is refused with the
+  shared `LimitExceeded` code: `Rows` past `MaxSkeletonRows` (§21.9). **The slot rule decides first**,
+  as it does at decode, so `Rows` at `10^15` is a `KindMismatch` and never a limit breach.
+- **Omission at a declared default (§3.6).** A field set to its declared default is stored AS the
+  default, so the applied tree encodes with the member absent: `UpdateProp Tone "Default"` and a tree
+  that never set the tone are byte-identical. A host that stores the token it was handed emits
+  `"tone":"Default"`, bytes no decode produces, and `encode(apply(op))` stops being a canonical fixed point.
+
+The vectors are `apply/update-prop-apply.json` (the `updatePropApply` family, self-enumerated in
+`apply/manifest.json`).
+
 #### `PatchStyle` – the field-level style edit (Phase 2291)
 
 `UpdateStyle` writes the WHOLE `SemanticStyle` record: under the §3.6 omitted-when-default rule an
@@ -7901,6 +7922,9 @@ limit is satisfied, and each is satisfied because none of them is looking at the
 counted per node rather than per document — a tree may carry many `Skeleton` nodes, each bounded
 here, with the whole still bounded by max total nodes and max document bytes. `Path` is the `rows`
 member; `Message` names the bound and the observed value, as §21.2 rule 2 requires everywhere.
+**The bound holds on the write path too** (Phase 1925): an `UpdateProp` setting `Rows` past it is
+refused with the shared `LimitExceeded` apply code, in the same §7.1-first order (§3.4,
+`apply/update-prop-apply.json`).
 
 **§7.1 decides FIRST, and the ORDER is the whole of what keeps the two rules apart.** §7.1 governs
 what a typed integer slot can HOLD, and `2147483647` is finite, fraction-free and inside signed
