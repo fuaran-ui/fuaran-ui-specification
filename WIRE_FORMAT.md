@@ -1757,7 +1757,7 @@ the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
-For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
+For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `UpdateAccessibility`, `UpdateTooltip`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
 
 
 **Membership and order are separate ops (0.4.0).** `InsertChild` and `MoveNode` change which children
@@ -1843,6 +1843,33 @@ fields that moved, and the whole-record `UpdateStyle` only when every field move
 different claims about the edit, and the difference is what a concurrency footprint reads: two
 `PatchStyle`s naming different fields of one node are independent edits, where two `UpdateStyle`s on
 one node always overlap. `UpdateStyle` remains the op for an author who means to REPLACE a style.
+
+#### `UpdateAccessibility` and `UpdateTooltip` – the trait edits (Phase 2527)
+
+A node's envelope carries two traits beside `state` and `style` (§3.1). Each has an op, with the shape of
+`UpdateStyle`: the op addresses a node and replaces the slot.
+
+```jsonc
+{"$type":"UpdateAccessibility","accessibility":{"describedBy":"help-1","role":"status"},"target":"metric-1"}
+{"$type":"UpdateTooltip","target":"metric-1","tooltip":"Updated nightly."}
+{"$type":"UpdateTooltip","target":"metric-1"}                     // clears the tooltip
+```
+
+**Members, in the pinned order:** `$type`, `accessibility`, `target`, and `$type`, `target`, `tooltip`. Each
+payload is the node envelope's own slot and decodes through that slot's decoder, near-miss refusals included:
+`accessibility` is an `Accessibility` record (§3.1) and `tooltip` a `TextSource`, whose literal form is the bare
+string. `accessibility` is REQUIRED; `tooltip` is OPTIONAL, and it is the one optional member of any op. See
+`ops/op-updateaccessibility*.json`, `ops/op-updatetooltip*.json` and `reject/reject-op-update{accessibility,tooltip}-*.json`.
+
+**Apply semantics.** `UpdateAccessibility` writes the WHOLE record: a member the payload leaves absent is cleared.
+A record setting no member (`"accessibility":{}`) is stored as the ABSENT slot, so the target encodes with no
+`accessibility` member; that is how the trait is removed, and it mirrors `UpdateStyle` over a default record.
+`UpdateTooltip` sets the slot to its payload, and an absent `tooltip` member clears it. An unknown `target` is
+`NodeNotFound` on both. Neither op writes any other slot.
+
+**Which op a producer emits.** A tree diff that observes a trait change on a matched node emits the trait's op, the
+accessibility op first, after any `EditNode`, field edit, state or style edit of that node. An absent accessibility
+and an empty record are the same trait, so a diff between them emits nothing. See `diff/goldens.json`.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -5370,7 +5397,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->225<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6084,10 +6111,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->717<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->727<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->269<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=op-round-trip -->33<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->225<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
