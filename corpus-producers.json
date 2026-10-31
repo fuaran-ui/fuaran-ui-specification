@@ -291,6 +291,16 @@
         "commit": "3e9e2ada7f0fa44b1dfc04b9d59452168511446b"
       }
     },
+    "page-document": {
+      "spec": "32",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Tests -- --filter \"Phase 2522\""
+      },
+      "source": {
+        "commit": "43c345fad3f634c6a1fe6788a87a814f6e935a0e"
+      }
+    },
     "reject": {
       "spec": "6",
       "producer": {

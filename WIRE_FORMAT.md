@@ -9966,6 +9966,188 @@ byte-for-byte as it did.
 
 ---
 
+## 32. The page document (normative, Phase 2522)
+
+A page a reader reshapes at run time is data a host stores, verifies and renders without compiling anything.
+A tree alone is not that data: a `Query` binding names a source by string, and nothing in the tree says what
+the source is. A **page document** is the tree with the rest of the answer beside it — a sidecar of
+**requests** keyed by string, and the **provenance** a reader needs to say where the page came from — together
+with a derived **demanded document** that says, before the page loads, everything it can reach.
+
+It is a document a host decodes *beside* a tree, like the attested document envelope (§26): no node kind, no
+binding case and no tree byte changes, so a host that renders no stored page holds no reader for it and is
+conformant (§32.8). Two rules a page's safety rests on are stated here and are not a host's choice: **every
+data-bearing source in a page names a request**, and **a page carries no inline rows** (§32.6).
+
+### 32.1 The document
+
+```json
+{ "kind": "pageDocument", "version": 1,
+  "tree": <node>,
+  "requests": { "<key>": { "kind": "<request kind>", "payload": <JSON value>, "dependsOn": ["<parameter>"] } },
+  "provenance": { "author": "<principal>", "at": "YYYY-MM-DDTHH:MM:SSZ",
+                  "seededFrom": "<origin>", "opsHeads": { "<layer>": "<head>" } } }
+```
+
+| Member | Rule |
+|---|---|
+| `kind`, `version` | `"pageDocument"` and `1`. Read first: another kind is `UnknownTag` at `kind`, another version `OutOfRange` at `version`. |
+| `tree` | A node (§3), in its canonical form, decoded by the host's node decoder. |
+| `requests` | An object. Each key is a non-empty string, named once. Each value has exactly `kind` (a non-empty string), `payload` (any JSON value, carried verbatim) and, omitted when empty, `dependsOn` (non-empty strings, none twice, written sorted Ordinal). |
+| `provenance` | Exactly `author` (non-empty), `at` (a UTC instant in the twenty-character form above), `seededFrom` (optional, non-empty) and `opsHeads` (optional; omitted when empty; an object of non-empty strings). |
+
+Every undeclared member at any of these levels is refused (`UndeclaredMember`, at the member). The document is
+written under the cross-host rendering (§2): members sorted Ordinal at every depth, no whitespace. A canonical
+document re-encodes byte-identically.
+
+**`dependsOn`** names the page parameters — state keys and filter names — whose change re-resolves the
+request. Inverted (parameter → the request keys that name it) it is the map a host hands its bounded driver,
+so a selector re-resolves exactly its dependents and nothing else.
+
+**`provenance`** is the writer's account: what the page was seeded from, the head of the op stream each
+layer of the document stood at when it was written, who wrote it and when. It is carried for a reader and is
+**not covered by the signature** (§32.5).
+
+### 32.2 Request kinds
+
+The language tier does not know what a request means. Two kinds are **declared**, and of those the tier reads
+exactly the fields named here; every other member of a payload is opaque.
+
+| Kind | Declared fields |
+|---|---|
+| `presentation` | `tableId` (non-empty string), `metrics` (one or more non-empty strings, none twice), `subjectLevel` (optional, non-empty string) |
+| `pipeline` | `tableId`, `metrics` (as above), `pipeline` (a `Transform` step array, §3, that the reference evaluator reads) |
+
+A request of any other kind is carried, named in the demanded document's `requestKinds`, and never read. A
+declared kind's field that is absent or ill-formed refuses the document at the field's path (`MissingField`,
+`WrongKind`, `OutOfRange`). `metrics` is required and enumerated for both kinds: a request that read "every
+metric of the table" would have a read-set nobody could state.
+
+### 32.3 The binding rule (decode)
+
+Over a document of the declared shape, the decoder compares the tree's query reads — every `Query` binding
+the tree holds, in the sense `binding-propagation` reads them (§27.8.2) — with the sidecar's keys, and
+refuses the document when they disagree:
+
+- **`DanglingRequestKey`** — a `Query` read by a node names a key the sidecar does not hold. The host could
+  not resolve it, and the read-set could not describe it.
+- **`UnnamedRequest`** — the sidecar holds a key no `Query` names. It is reach the page claims and never uses.
+
+Every disagreement is reported, the dangling keys in tree order then the unnamed requests in key order. A
+shape fault is reported first and alone, as Core's decode refusal: the code (`InvalidJson`, `MissingField`,
+`WrongKind`, `UnknownTag`, `OutOfRange`, `UndeclaredMember`) and the path in Core's `$["member"][index]`
+rendering, from the document root (a tree fault keeps its path below `tree`).
+
+### 32.4 The demanded document
+
+The demanded document is a pure, total function of a valid page document, so any verifier recomputes it:
+
+```json
+{ "kind": "demandedPage", "version": 1,
+  "reads": [ { "table": "<tableId>", "metrics": [...], "levels": [...] } ],
+  "verbs": [...], "kinds": [...], "capabilities": [...], "endpoints": [...], "requestKinds": [...] }
+```
+
+- **`reads`** — one entry per table a declared request reads, sorted by table; its `metrics` are every metric
+  a request on that table declares, and its `levels` every `subjectLevel`.
+- **`verbs`** — the `$type` of every step of every `pipeline` request, as the reference codec writes it.
+- **`kinds`** — the wire kind (§3.2) of every node the tree holds at any position: children, arms, the state
+  alternatives, the fallback and slot arguments.
+- **`capabilities`** — in the tree's canonical encoding, every tag of every object whose `$type` is `Mount`
+  (`capabilities`), and every `capabilityId` of every object whose `$type` is `Invoke`.
+- **`endpoints`** — every `endpoint` of every object whose `$type` is `Call`.
+- **`requestKinds`** — the kind of every request in the sidecar, declared or not.
+
+Every list is sorted Ordinal and holds no member twice; every member is always present. A decoder of the
+demanded document refuses an undeclared member and a name repeated in a list, and reads lists in any order as
+the same document.
+
+**Coverage.** A host declares the most it serves as a demanded document. A page is within it when the page
+reaches nothing the coverage does not: no table, no metric or level of a table, and no verb, kind, capability,
+endpoint or request kind outside it. Otherwise the **excess** is itself a demanded document — a table the
+coverage lacks whole, a table it has with only the metrics and levels it lacks — so every item beyond the
+coverage is named in the vocabulary the reader already reads.
+
+### 32.5 The signed read-set
+
+A page is signed over the canonical preimage
+
+```json
+{"demanded":"<demanded bytes>","kind":"signedPage","requestsHash":"sha256:<hex>","treeHash":"sha256:<hex>","version":1}
+```
+
+where `treeHash` is SHA-256 over the tree's canonical encoding, `requestsHash` SHA-256 over the canonical
+encoding of the `requests` object, both in the `sha256:` + 64-lowercase-hex form, and `demanded` the demanded
+document's canonical bytes. The signed record is the same five members with `keyId` and `signature` beside
+them. A signer derives the demanded document itself and does not sign a document that is not valid (§32.1–32.3)
+or that breaks the page rules (§32.6).
+
+A verifier holds the page, the record and a public key, and **recomputes before it checks**. The refusals are
+distinct, checked in this order, and the first is the answer:
+
+1. **NoKey** — no key was offered. Refused, never skipped.
+2. **ForeignKey** — the record names another key than the one offered. Nothing is recomputed.
+3. **InvalidDocument** — the page is not one §32.1–32.3 accept.
+4. **PageRulesBroken** — the page breaks §32.6.
+5. **Drift** — the recomputed demanded document is not the signed one (compared as documents, not bytes).
+   The **excess** (reached by the page, absent from the signed read-set) and the **shortfall** (named by the
+   read-set, not reached) are each a demanded document; unreadable signed bytes make the excess the whole
+   recomputation.
+6. **BadSignature** — the read-set matches, and the signature does not verify over the RECOMPUTED preimage
+   under the key. The carried and recomputed hashes tell a tree or sidecar that moved without moving its reach
+   (they differ) from forged bytes (they agree).
+
+**What is not claimed.** The signature says a named key paired this tree and this sidecar with this read-set.
+It does not say the reach is acceptable — that is coverage (§32.4), asked afterwards of the host's declaration
+— and it does not cover the provenance, which a reader takes as the writer's assertion. Whether a key is one
+to believe is the host's key directory's question, answered before the key is offered.
+
+### 32.6 The page rules (validator)
+
+Inside a page document, the data-bearing slots are a `Chart`'s `source`, a `DataGrid`'s `source`, `rowTotal`
+and `staticRows`, a `Metric`'s `value`, `trend` and every comparison's `value`, and a `Sparkline`'s `source`, at
+every position the tree holds a node. Two rules hold over them:
+
+- **FUARAN166 — a data-bearing source names a request.** Each such slot is a `Query` binding whose name is a
+  key of the sidecar. A `State`, `Filter`, `Selection`, `Transform` or any other binding there is refused by
+  name, as is a `Query` naming no request.
+- **FUARAN167 — no inline rows.** A `Static` binding carrying a value in such a slot, and a `DataGrid`'s
+  `staticRows`, are refused: they are numbers the tree carries itself, outside every request, which no request
+  supplies and the read-set cannot name.
+
+The two rules belong to the page-document mode; an ordinary tree may carry its own rows and is not judged by
+them. Their codes, severities and message shapes are in the validator vocabulary
+([`validator/defect-vocabulary.json`](validator/defect-vocabulary.json)).
+
+### 32.7 The `page-document/` family
+
+Self-enumerated (§27.7): `page-document/manifest.json` names `page-document-vectors.json`, so the directory is
+one family, `page-document`, emitted by the reference host. Its vectors:
+
+- **`accept`** — `canonical` decodes and re-encodes byte-identically; `demanded`, `treeHash`, `requestsHash`
+  and `preimage` are what §32.4–32.5 derive from it, byte for byte.
+- **`reject`** — `input` is refused with `expected`: `{refusal: "Malformed", code, path}` or
+  `{refusal: "Unbound", defects}`, each defect `{defect, key, nodeId?}` in order.
+- **`rules`** — `input` decodes; the page rules give exactly `expectedDefects`, each `{code, nodeId, slot}`, in
+  walk order.
+- **`drift`** — verifying `document` against a read-set signed over `signedDemanded` is refused as drift with
+  the canonical `excess` and `shortfall` given.
+
+### 32.8 Adoption
+
+A host decodes a page document only when it renders one. Every host but the reference is not applicable until
+it renders a stored page, and from then on covers this family whole.
+
+| Host | `page-document` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — emits the family; `Fuaran.UI.PageDocument`, `DemandedPage` and `SignedPage` are the resident codec, derivation and verifier, and `PreEmitValidate.validatePage` the page rules |
+| `fuaran-ts` | not applicable — renders no stored page |
+| `fuaran-py` | not applicable — renders no stored page |
+| `fuaran-go` | not applicable — renders no stored page |
+| `fuaran-rs` | not applicable — renders no stored page |
+
+---
+
 ## See also
 
 - [`MARKDOWN.md`](../fuaran-dotnet/docs/MARKDOWN.md) – the deterministic GFM markdown-render contract (render-only; §14).
