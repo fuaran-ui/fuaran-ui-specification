@@ -1,0 +1,1888 @@
+{
+  "apply": [
+    {
+      "dom": {
+        "after": "<form data-fuaran-node-id=\"f\"><select data-fuaran-field=\"size\" aria-invalid=\"true\"><option>S</option><option>M</option></select></form>",
+        "before": "<form data-fuaran-node-id=\"f\"><select data-fuaran-field=\"size\"><option>S</option><option>M</option></select></form>"
+      },
+      "name": "a field-addressed SetAttr lands on the field itself, not its first child",
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "aria-invalid",
+          "nodeId": "size",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<form data-fuaran-node-id=\"f\"><select data-fuaran-field=\"size\"><option>S</option></select></form>",
+        "before": "<form data-fuaran-node-id=\"f\"><select data-fuaran-field=\"size\" aria-invalid=\"true\"><option>S</option></select></form>"
+      },
+      "name": "a field-addressed RemoveAttr lands on the field itself",
+      "patches": [
+        {
+          "kind": "RemoveAttr",
+          "name": "aria-invalid",
+          "nodeId": "size"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"x\"><span>new</span></div><input data-fuaran-field=\"x\">",
+        "before": "<div data-fuaran-node-id=\"x\"><span>old</span></div><input data-fuaran-field=\"x\">"
+      },
+      "name": "a node marker wins over a field marker of the same id",
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "x",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"say &quot;hi&quot; \\ there\"><p>new</p></div>",
+        "before": "<div data-fuaran-node-id=\"say &quot;hi&quot; \\ there\"><p>old</p></div>"
+      },
+      "name": "a node id the CSS selector syntax must escape is still addressed",
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "say \"hi\" \\ there",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"><h2>&lt;b&gt;bold&lt;/b&gt; &amp; more</h2></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2></div>"
+      },
+      "name": "SetText writes text, never markup",
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "h",
+          "text": "<b>bold</b> & more"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div></div>"
+      },
+      "name": "a patch addressed at a node the page does not hold changes nothing",
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "ghost",
+          "text": "x"
+        },
+        {
+          "kind": "SetAttr",
+          "name": "class",
+          "nodeId": "ghost",
+          "value": "x"
+        },
+        {
+          "kind": "RemoveAttr",
+          "name": "class",
+          "nodeId": "ghost"
+        },
+        {
+          "html": "<div data-fuaran-node-id=\"ghost\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "ghost"
+        },
+        {
+          "html": "<div data-fuaran-node-id=\"x\"></div>",
+          "kind": "InsertFragment",
+          "parentId": "ghost",
+          "position": 0
+        },
+        {
+          "kind": "RemoveNode",
+          "nodeId": "ghost"
+        },
+        {
+          "kind": "ReorderChildren",
+          "orderedIds": [
+            "m"
+          ],
+          "parentId": "ghost"
+        },
+        {
+          "kind": "MoveNode",
+          "newParentId": "dash",
+          "nodeId": "ghost",
+          "position": 0
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"x\"></div><div data-fuaran-node-id=\"n\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"></div></div>"
+      },
+      "name": "InsertFragment at a position inside the children inserts before that child",
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"x\"></div>",
+          "kind": "InsertFragment",
+          "parentId": "dash",
+          "position": 1
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"a\"></div><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"b\"></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"a\"></div><div data-fuaran-node-id=\"b\"></div></div></div>"
+      },
+      "name": "MoveNode to a position inside the new parent's children inserts before that child",
+      "patches": [
+        {
+          "kind": "MoveNode",
+          "newParentId": "other",
+          "nodeId": "m",
+          "position": 1
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"f\"><input data-fuaran-field=\"email\" value=\"hello world\" aria-invalid=\"true\"></div>",
+        "before": "<div data-fuaran-node-id=\"f\"><input data-fuaran-field=\"email\" value=\"hello world\"></div>"
+      },
+      "focus": {
+        "after": {
+          "element": "input",
+          "same": false,
+          "selection": [
+            3,
+            5
+          ]
+        },
+        "before": {
+          "element": "input",
+          "selection": [
+            3,
+            5
+          ]
+        }
+      },
+      "name": "QW5: a ReplaceFragment of the node holding the focused field keeps focus and caret",
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"f\"><input data-fuaran-field=\"email\" value=\"hello world\" aria-invalid=\"true\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "f"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<textarea data-fuaran-node-id=\"notes\" rows=\"2\" style=\"height:40px\" class=\"saved\">1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12</textarea>",
+        "before": "<textarea data-fuaran-node-id=\"notes\" rows=\"2\" style=\"height:40px\">1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12</textarea>"
+      },
+      "focus": {
+        "after": {
+          "element": "textarea",
+          "same": false,
+          "scrollTop": 30,
+          "selection": [
+            4,
+            4
+          ]
+        },
+        "before": {
+          "element": "textarea",
+          "scrollTop": 30,
+          "selection": [
+            4,
+            4
+          ]
+        }
+      },
+      "name": "QW5: a ReplaceFragment of the focused node itself keeps focus, caret and scroll",
+      "patches": [
+        {
+          "html": "<textarea data-fuaran-node-id=\"notes\" rows=\"2\" style=\"height:40px\" class=\"saved\">1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12</textarea>",
+          "kind": "ReplaceFragment",
+          "nodeId": "notes"
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"m\"><input data-fuaran-field=\"q\" value=\"hello world\"></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><input data-fuaran-field=\"q\" value=\"hello world\"></div><div data-fuaran-node-id=\"other\"></div></div>"
+      },
+      "focus": {
+        "after": {
+          "element": "input",
+          "same": true,
+          "selection": [
+            2,
+            4
+          ]
+        },
+        "before": {
+          "element": "input",
+          "selection": [
+            2,
+            4
+          ]
+        }
+      },
+      "name": "QW5: MoveNode keeps the moved node's focused field, its caret and its identity",
+      "patches": [
+        {
+          "kind": "MoveNode",
+          "newParentId": "other",
+          "nodeId": "m",
+          "position": 0
+        }
+      ]
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"a\" style=\"height:30px;overflow:auto\"><div style=\"height:300px\"></div></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"a\" style=\"height:30px;overflow:auto\"><div style=\"height:300px\"></div></div><div data-fuaran-node-id=\"other\"></div></div>"
+      },
+      "name": "QW5: MoveNode keeps the moved node's scroll position",
+      "patches": [
+        {
+          "kind": "MoveNode",
+          "newParentId": "other",
+          "nodeId": "a",
+          "position": 0
+        }
+      ],
+      "scroll": {
+        "after": {
+          "[data-fuaran-node-id=\"a\"]": 50
+        },
+        "before": {
+          "[data-fuaran-node-id=\"a\"]": 50
+        }
+      }
+    },
+    {
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"list\"><div data-fuaran-node-id=\"b\"><input data-fuaran-field=\"q\" value=\"hello\"></div><div data-fuaran-node-id=\"a\" style=\"height:30px;overflow:auto\"><div style=\"height:300px\"></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"list\"><div data-fuaran-node-id=\"a\" style=\"height:30px;overflow:auto\"><div style=\"height:300px\"></div></div><div data-fuaran-node-id=\"b\"><input data-fuaran-field=\"q\" value=\"hello\"></div></div>"
+      },
+      "focus": {
+        "after": {
+          "element": "input",
+          "same": true,
+          "selection": [
+            1,
+            3
+          ]
+        },
+        "before": {
+          "element": "input",
+          "selection": [
+            1,
+            3
+          ]
+        }
+      },
+      "name": "QW5: ReorderChildren keeps focus, caret and a reordered child's scroll position",
+      "patches": [
+        {
+          "kind": "ReorderChildren",
+          "orderedIds": [
+            "b",
+            "a"
+          ],
+          "parentId": "list"
+        }
+      ],
+      "scroll": {
+        "after": {
+          "[data-fuaran-node-id=\"a\"]": 50
+        },
+        "before": {
+          "[data-fuaran-node-id=\"a\"]": 50
+        }
+      }
+    }
+  ],
+  "description": "The DomPatch frame contract (WIRE_FORMAT.md 33, Phase 2528). lowering: decode `before` (a node) and `ops` (TreeOps) and lower `ops` as a script applied to `before`, each op read against the tree its predecessors built (33.3), every fragment drawn by `renderer`; the patches must equal `patches` in order. Then, in a DOM holding `dom.before`, apply `patches` in order; the DOM must equal `dom.after`. apply: patch lists the lowering does not produce under `renderer` (field addresses, positions inside a child list, absent addresses, and the focus, caret and scroll survival cases); apply `patches` to `dom.before` and compare with `dom.after`. Where `focus` is given, focus `focus.before.element` with its `selection` and `scrollTop` first; afterwards `focus.after.element` holds focus with those values, and is the same element object when `same` is true. Where `scroll` is given, each selector's scrollTop is set first and holds the `after` value afterwards. Emitted by the reference host (fuaran-dotnet, FUARAN_REGEN=1 over Fuaran.UI.ServerDriven.Tests): the inputs and both DOMs are authored, every lowering case's `patches` is the reference's.",
+  "lowering": [
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "RemoveNode lowers to RemoveNode",
+      "ops": [
+        {
+          "$type": "RemoveNode",
+          "target": "m"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "RemoveNode",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"m\"><p>hello</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "ReorderChildren lowers to ReorderChildren, ids as strings",
+      "ops": [
+        {
+          "$type": "ReorderChildren",
+          "newOrder": [
+            "n",
+            "m"
+          ],
+          "parentId": "dash"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "ReorderChildren",
+          "orderedIds": [
+            "n",
+            "m"
+          ],
+          "parentId": "dash"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            },
+            {
+              "id": "other",
+              "kind": {
+                "$type": "Box",
+                "children": [],
+                "layout": {
+                  "$type": "Auto"
+                },
+                "role": "Dashboard"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"m\"><p>hello</p></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"other\"></div></div>"
+      },
+      "name": "MoveNode lowers to an identity-preserving MoveNode at the landed index",
+      "ops": [
+        {
+          "$type": "MoveNode",
+          "newParentId": "other",
+          "target": "m"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "MoveNode",
+          "newParentId": "other",
+          "nodeId": "m",
+          "position": 0
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"fresh\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "InsertChild lowers to InsertFragment of the rendered child at the append position",
+      "ops": [
+        {
+          "$type": "InsertChild",
+          "child": {
+            "id": "fresh",
+            "kind": {
+              "$type": "Markdown",
+              "text": "new"
+            }
+          },
+          "parentId": "dash"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"fresh\"></div>",
+          "kind": "InsertFragment",
+          "parentId": "dash",
+          "position": 2
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            },
+            {
+              "id": "other",
+              "kind": {
+                "$type": "Box",
+                "children": [],
+                "layout": {
+                  "$type": "Auto"
+                },
+                "role": "Dashboard"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"other\"><div data-fuaran-node-id=\"fresh\"></div></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"other\"></div></div>"
+      },
+      "name": "InsertChild under a childless parent lands at position 0",
+      "ops": [
+        {
+          "$type": "InsertChild",
+          "child": {
+            "id": "fresh",
+            "kind": {
+              "$type": "Markdown",
+              "text": "new"
+            }
+          },
+          "parentId": "other"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"fresh\"></div>",
+          "kind": "InsertFragment",
+          "parentId": "other",
+          "position": 0
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"n\"><p>world</p></div><div data-fuaran-node-id=\"fresh\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "Batch flattens to its inner ops, each read against the tree its predecessors built",
+      "ops": [
+        {
+          "$type": "Batch",
+          "ops": [
+            {
+              "$type": "RemoveNode",
+              "target": "m"
+            },
+            {
+              "$type": "InsertChild",
+              "child": {
+                "id": "fresh",
+                "kind": {
+                  "$type": "Markdown",
+                  "text": "new"
+                }
+              },
+              "parentId": "dash"
+            }
+          ]
+        }
+      ],
+      "patches": [
+        {
+          "kind": "RemoveNode",
+          "nodeId": "m"
+        },
+        {
+          "html": "<div data-fuaran-node-id=\"fresh\"></div>",
+          "kind": "InsertFragment",
+          "parentId": "dash",
+          "position": 1
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "EditNode of a kind with no text-only arm re-renders the node",
+      "ops": [
+        {
+          "$type": "EditNode",
+          "newKind": {
+            "$type": "Markdown",
+            "text": "x"
+          },
+          "target": "m"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"m\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateProp on a kind the prop map does not cover re-renders the node",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Text",
+          "target": "m",
+          "value": "x"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"m\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateStyle re-renders the node",
+      "ops": [
+        {
+          "$type": "UpdateStyle",
+          "style": {
+            "emphasis": "Loud",
+            "tone": "Success",
+            "weight": "Spacious"
+          },
+          "target": "n"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"n\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "n"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "PatchStyle re-renders the node",
+      "ops": [
+        {
+          "$type": "PatchStyle",
+          "style": {
+            "tone": "Success"
+          },
+          "target": "n"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"n\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "n"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateAccessibility re-renders the node: the trait lands on the wrapper, which no granular patch reaches",
+      "ops": [
+        {
+          "$type": "UpdateAccessibility",
+          "accessibility": {
+            "liveRegion": "polite",
+            "role": "status"
+          },
+          "target": "m"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"m\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateTooltip re-renders the node",
+      "ops": [
+        {
+          "$type": "UpdateTooltip",
+          "target": "m",
+          "tooltip": "Updated nightly."
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"m\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "rev",
+              "kind": {
+                "$type": "Metric",
+                "label": "Revenue",
+                "value": {
+                  "$type": "Static",
+                  "value": 1
+                }
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"rev\"></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"rev\"><dl><dt>Revenue</dt><dd>1</dd></dl></div></div>"
+      },
+      "name": "ReplaceBinding re-renders the node",
+      "ops": [
+        {
+          "$type": "ReplaceBinding",
+          "binding": {
+            "$type": "Static",
+            "value": 99.5
+          },
+          "slot": "Value",
+          "target": "rev"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"rev\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "rev"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "ReplaceRoot re-renders the root",
+      "ops": [
+        {
+          "$type": "ReplaceRoot",
+          "node": {
+            "id": "dash",
+            "kind": {
+              "$type": "Box",
+              "children": [
+                {
+                  "id": "z",
+                  "kind": {
+                    "$type": "Markdown",
+                    "text": "fresh"
+                  }
+                }
+              ],
+              "layout": {
+                "$type": "Auto"
+              },
+              "role": "Dashboard"
+            }
+          }
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"dash\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "dash"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"page\"></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "ReplaceRoot under a new root id replaces the root the page holds",
+      "ops": [
+        {
+          "$type": "ReplaceRoot",
+          "node": {
+            "id": "page",
+            "kind": {
+              "$type": "Box",
+              "children": [
+                {
+                  "id": "z",
+                  "kind": {
+                    "$type": "Markdown",
+                    "text": "fresh"
+                  }
+                }
+              ],
+              "layout": {
+                "$type": "Auto"
+              },
+              "role": "Dashboard"
+            }
+          }
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"page\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "dash"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateState that gives a node a state re-renders it",
+      "ops": [
+        {
+          "$type": "UpdateState",
+          "state": {
+            "onLoading": {
+              "id": "skel-1",
+              "kind": {
+                "$type": "Skeleton",
+                "rows": 3
+              }
+            }
+          },
+          "target": "m"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"m\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "m"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "UpdateState that leaves a stateless node stateless lowers to nothing",
+      "ops": [
+        {
+          "$type": "UpdateState",
+          "state": {},
+          "target": "m"
+        }
+      ],
+      "patches": []
+    },
+    {
+      "before": {
+        "id": "dash",
+        "kind": {
+          "$type": "Box",
+          "children": [
+            {
+              "id": "m",
+              "kind": {
+                "$type": "Markdown",
+                "text": "hello"
+              }
+            },
+            {
+              "id": "n",
+              "kind": {
+                "$type": "Markdown",
+                "text": "world"
+              }
+            }
+          ],
+          "layout": {
+            "$type": "Auto"
+          },
+          "role": "Dashboard"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>",
+        "before": "<div data-fuaran-node-id=\"dash\"><div data-fuaran-node-id=\"m\"><p>hello</p></div><div data-fuaran-node-id=\"n\"><p>world</p></div></div>"
+      },
+      "name": "a content op for an absent node lowers to nothing",
+      "ops": [
+        {
+          "$type": "UpdateStyle",
+          "style": {
+            "tone": "Success"
+          },
+          "target": "ghost"
+        }
+      ],
+      "patches": []
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"><h2>new</h2><span class=\"fuaran-tooltip-hint\">More</span></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "UpdateProp on a Heading's text lowers to SetText on the body, not the wrapper",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Text",
+          "target": "h",
+          "value": "new"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "h",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"><h2 class=\"fuaran-heading fuaran-heading-lead\">old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "UpdateProp on a Heading's variant lowers to SetAttr class",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Variant",
+          "target": "h",
+          "value": "Lead"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "class",
+          "nodeId": "h",
+          "value": "fuaran-heading fuaran-heading-lead"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "UpdateProp on a prop the map does not cover keeps the floor",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Level",
+          "target": "h",
+          "value": 3
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"h\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "h"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "b",
+        "kind": {
+          "$type": "Badge",
+          "label": "old",
+          "variant": "Info"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"b\"><span class=\"badge\">new</span></div>",
+        "before": "<div data-fuaran-node-id=\"b\"><span class=\"badge\">old</span></div>"
+      },
+      "name": "UpdateProp on a Badge's label lowers to SetText",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Label",
+          "target": "b",
+          "value": "new"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "b",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "b",
+        "kind": {
+          "$type": "Badge",
+          "label": "old",
+          "variant": "Info"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"b\"><span class=\"fuaran-badge fuaran-badge-success\">old</span></div>",
+        "before": "<div data-fuaran-node-id=\"b\"><span class=\"badge\">old</span></div>"
+      },
+      "name": "UpdateProp on a Badge's variant lowers to SetAttr class",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Variant",
+          "target": "b",
+          "value": "Success"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "class",
+          "nodeId": "b",
+          "value": "fuaran-badge fuaran-badge-success"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "go",
+        "kind": {
+          "$type": "Button",
+          "label": "old",
+          "onClick": {
+            "$type": "Chain",
+            "ops": []
+          }
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"go\"><button type=\"button\">new</button></div>",
+        "before": "<div data-fuaran-node-id=\"go\"><button type=\"button\">old</button></div>"
+      },
+      "name": "UpdateProp on a Button's label lowers to SetText",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Label",
+          "target": "go",
+          "value": "new"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "go",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "go",
+        "kind": {
+          "$type": "Button",
+          "icon": "refresh",
+          "label": "old",
+          "onClick": {
+            "$type": "Chain",
+            "ops": []
+          }
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"go\"></div>",
+        "before": "<div data-fuaran-node-id=\"go\"><button type=\"button\">old</button></div>"
+      },
+      "name": "UpdateProp on the label of a Button with an icon keeps the floor",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Label",
+          "target": "go",
+          "value": "new"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"go\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "go"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "l",
+        "kind": {
+          "$type": "Link",
+          "href": {
+            "$type": "Static",
+            "value": "/about"
+          },
+          "label": "old",
+          "rel": "external"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">new</a></div>",
+        "before": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">old</a></div>"
+      },
+      "name": "UpdateProp on a Link's label lowers to SetText",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Label",
+          "target": "l",
+          "value": "new"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "l",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "l",
+        "kind": {
+          "$type": "Link",
+          "href": {
+            "$type": "Static",
+            "value": "/about"
+          },
+          "label": "old",
+          "rel": "external"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"author\">old</a></div>",
+        "before": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">old</a></div>"
+      },
+      "name": "UpdateProp on a Link's rel lowers to SetAttr",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Rel",
+          "target": "l",
+          "value": "author"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "rel",
+          "nodeId": "l",
+          "value": "author"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "l",
+        "kind": {
+          "$type": "Link",
+          "href": {
+            "$type": "Static",
+            "value": "/about"
+          },
+          "label": "old",
+          "rel": "external"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"l\"><a href=\"/about\">old</a></div>",
+        "before": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">old</a></div>"
+      },
+      "name": "UpdateProp emptying a Link's rel lowers to RemoveAttr",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Rel",
+          "target": "l",
+          "value": ""
+        }
+      ],
+      "patches": [
+        {
+          "kind": "RemoveAttr",
+          "name": "rel",
+          "nodeId": "l"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "l",
+        "kind": {
+          "$type": "Link",
+          "href": {
+            "$type": "Static",
+            "value": "/about"
+          },
+          "label": "old",
+          "rel": "external"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external noopener noreferrer\" target=\"_blank\">old</a></div>",
+        "before": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">old</a></div>"
+      },
+      "name": "UpdateProp on a Link's target moves the rel it decides",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Target",
+          "target": "l",
+          "value": "_blank"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "target",
+          "nodeId": "l",
+          "value": "_blank"
+        },
+        {
+          "kind": "SetAttr",
+          "name": "rel",
+          "nodeId": "l",
+          "value": "external noopener noreferrer"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "l",
+        "kind": {
+          "$type": "Link",
+          "href": {
+            "$type": "Static",
+            "value": "/about"
+          },
+          "label": "old",
+          "rel": "external"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\" download=\"\">old</a></div>",
+        "before": "<div data-fuaran-node-id=\"l\"><a href=\"/about\" rel=\"external\">old</a></div>"
+      },
+      "name": "UpdateProp on a Link's download lowers to SetAttr",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Download",
+          "target": "l",
+          "value": true
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "download",
+          "nodeId": "l",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "i",
+        "kind": {
+          "$type": "Icon",
+          "icon": "moon"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"i\"><span class=\"icon\" data-icon=\"moon\" role=\"img\" aria-label=\"A moon\"></span></div>",
+        "before": "<div data-fuaran-node-id=\"i\"><span class=\"icon\" data-icon=\"moon\" aria-hidden=\"true\"></span></div>"
+      },
+      "name": "UpdateProp on an Icon's label names it and clears aria-hidden",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Label",
+          "target": "i",
+          "value": "A moon"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "role",
+          "nodeId": "i",
+          "value": "img"
+        },
+        {
+          "kind": "SetAttr",
+          "name": "aria-label",
+          "nodeId": "i",
+          "value": "A moon"
+        },
+        {
+          "kind": "RemoveAttr",
+          "name": "aria-hidden",
+          "nodeId": "i"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "i",
+        "kind": {
+          "$type": "Icon",
+          "icon": "moon"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"i\"><span class=\"icon\" data-icon=\"sun\" aria-hidden=\"true\"></span></div>",
+        "before": "<div data-fuaran-node-id=\"i\"><span class=\"icon\" data-icon=\"moon\" aria-hidden=\"true\"></span></div>"
+      },
+      "name": "UpdateProp on an Icon's glyph lowers to SetAttr data-icon",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Icon",
+          "target": "i",
+          "value": "sun"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetAttr",
+          "name": "data-icon",
+          "nodeId": "i",
+          "value": "sun"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"><h2>new</h2><span class=\"fuaran-tooltip-hint\">More</span></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "a text-only EditNode of a Heading lowers to SetText",
+      "ops": [
+        {
+          "$type": "EditNode",
+          "newKind": {
+            "$type": "Heading",
+            "level": 2,
+            "text": "new"
+          },
+          "target": "h"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "h",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "an EditNode that moves more than the text keeps the floor",
+      "ops": [
+        {
+          "$type": "EditNode",
+          "newKind": {
+            "$type": "Heading",
+            "level": 2,
+            "text": "old",
+            "variant": "Lead"
+          },
+          "target": "h"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"h\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "h"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"><h2>new</h2><span class=\"fuaran-tooltip-hint\">More</span></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "the stateless UpdateState the diff pairs with an EditNode costs nothing",
+      "ops": [
+        {
+          "$type": "EditNode",
+          "newKind": {
+            "$type": "Heading",
+            "level": 2,
+            "text": "new"
+          },
+          "target": "h"
+        },
+        {
+          "$type": "UpdateState",
+          "state": {},
+          "target": "h"
+        }
+      ],
+      "patches": [
+        {
+          "kind": "SetText",
+          "nodeId": "h",
+          "text": "new"
+        }
+      ]
+    },
+    {
+      "before": {
+        "id": "h",
+        "kind": {
+          "$type": "Heading",
+          "level": 2,
+          "text": "old"
+        }
+      },
+      "dom": {
+        "after": "<div data-fuaran-node-id=\"h\"></div>",
+        "before": "<div data-fuaran-node-id=\"h\"><h2>old</h2><span class=\"fuaran-tooltip-hint\">More</span></div>"
+      },
+      "name": "two adjacent re-renders of one node ship the last",
+      "ops": [
+        {
+          "$type": "UpdateProp",
+          "path": "Level",
+          "target": "h",
+          "value": 3
+        },
+        {
+          "$type": "UpdateStyle",
+          "style": {
+            "tone": "Success"
+          },
+          "target": "h"
+        }
+      ],
+      "patches": [
+        {
+          "html": "<div data-fuaran-node-id=\"h\"></div>",
+          "kind": "ReplaceFragment",
+          "nodeId": "h"
+        }
+      ]
+    }
+  ],
+  "renderer": "A node renders as <div data-fuaran-node-id=\"ID\"></div>, ID its id with & < > \" written as character references. The family certifies where a fragment goes, not what a renderer draws.",
+  "version": 1
+}

@@ -10173,6 +10173,123 @@ it renders a stored page, and from then on covers this family whole.
 | `fuaran-go` | not applicable — renders no stored page |
 | `fuaran-rs` | not applicable — renders no stored page |
 
+## 33. The DomPatch frame (normative, Phase 2528)
+
+A server-driven session keeps the tree on the server and sends the browser **frames**: each a sequence number, a
+list of `DomPatch`es that move the page's DOM from the tree it showed to the tree it now shows, and a list of
+`ClientEffect`s. The browser sends back **client events**. Both are a contract between whoever produces a frame
+and whoever applies it, stated here and certified by the `server-driven/` family, so a second host that drives or
+applies a session has something to certify against.
+
+**§11 status: one producer, one applier.** Today `fuaran-dotnet` is the only host that lowers ops to patches
+(`Fuaran.UI.ServerDriven.Lowering`) and its shim (`fuaran-live-patch.js`) the only applier. The family is
+therefore not a §11 forward-coupling obligation on the other codec hosts: a change to the frame moves the
+producer, the applier and this family together, and a host that neither drives nor applies a session declares the
+family not applicable (§33.6). The vocabulary below is closed; a new patch or effect kind is a change to this
+section first.
+
+### 33.1 The DOM a frame addresses
+
+A node's `data-fuaran-node-id` sits on its **wrapper** element; what the node renders is the wrapper's first
+element child, its **body**, with any tooltip hint after it. A form field that is not a node is addressed by its
+own `data-fuaran-field`. An address resolves to the element carrying that `data-fuaran-node-id`, else the element
+carrying that `data-fuaran-field`; an address resolving to nothing makes the patch a no-op, never an error.
+
+### 33.2 `DomPatch`
+
+Tagged objects, discriminator `kind`, members in the order shown when written:
+
+| `kind` | Members | Applying it |
+|---|---|---|
+| `SetAttr` | `nodeId`, `name`, `value` | Set the attribute on the node's body, or on the addressed field itself. |
+| `RemoveAttr` | `nodeId`, `name` | Remove the attribute from the node's body, or from the field itself. |
+| `SetText` | `nodeId`, `text` | Replace the text content of the node's body, or of the field itself. Text, never markup. |
+| `ReplaceFragment` | `nodeId`, `html` | Replace the addressed element with the fragment's first element. |
+| `InsertFragment` | `parentId`, `position`, `html` | Insert the fragment before the parent's node child at `position`, or after its last node child when `position` is at or past the count. |
+| `RemoveNode` | `nodeId` | Remove the addressed element. |
+| `ReorderChildren` | `parentId`, `orderedIds` | Move each listed child to the end of its parent, in order. The elements move; none is re-created. |
+| `MoveNode` | `nodeId`, `newParentId`, `position` | Move the addressed element under the new parent, as `InsertFragment` places a fragment. The element moves; it is not re-created. |
+
+A parent's **node children** are the elements carrying `data-fuaran-node-id` whose nearest marked ancestor is that
+parent. Applying a frame **preserves the reader's place** (Phase 158 QW5): when a `ReplaceFragment` replaces an
+element holding focus, focus returns to the replacement (the same element when the node itself was focused, else
+its first focusable descendant) with its caret and scroll; a moved element keeps focus, caret and scroll, its own
+included.
+
+### 33.3 The lowering
+
+A producer lowers an op **script** — the ops one turn applies to the tree, in order — reading each op against the
+tree as it stands after that op (the reading under which every patch addresses what the DOM holds at that point).
+The arms, each a vector:
+
+- `RemoveNode`, `ReorderChildren` lower directly; `MoveNode` and `InsertChild` lower to `MoveNode` /
+  `InsertFragment` at the index the child landed at (the ops append, so the append position).
+- A content op (`EditNode`, `UpdateProp`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `UpdateAccessibility`,
+  `UpdateTooltip`, `ReplaceBinding`) re-renders the node: `ReplaceFragment`. `ReplaceRoot` re-renders the new root
+  into the root the page holds, whatever the new root's id.
+- The granular arm writes no fragment: an `UpdateProp` of a prop the producer maps to the body lowers to `SetText`,
+  or `SetAttr` / `RemoveAttr` for each attribute it moves; a text-only `EditNode` of a `Heading` or `Badge` lowers
+  to `SetText`; an `UpdateState` that leaves a stateless node stateless lowers to nothing.
+- `Batch` lowers to its inner ops in order; an op the apply engine refuses lowers to nothing; of two adjacent
+  `ReplaceFragment`s of one node, only the second ships.
+
+The prop map is the producer's: the family pins the reference's.
+
+### 33.4 The fragments
+
+A fragment is HTML whose first element is the node's wrapper. What a renderer draws is not part of this contract,
+so the family draws every fragment with a **reference renderer**: a node renders as
+`<div data-fuaran-node-id="ID"></div>`, `ID` its id with `&`, `<`, `>` and `"` written as character references.
+
+### 33.5 The frame envelope and the client event
+
+**Frame.** `{"seq":N,"patches":[…],"effects":[…]}`, members in that order, no whitespace, `N` the connection's
+sequence. Over Server-Sent Events it is one `patch` event: `id: N`, `event: patch`, `data: <the JSON body>` and a
+blank line, each line ending LF; the `id` is the key a reconnecting client replays from.
+
+**`ClientEffect`** — `kind` with: `WriteToClipboard` (`text`), `Navigate` (`route`, and `target: "Blank"` only
+for a new browsing context; absent is the same tab), `PushState` (`route`), `Focus` (`nodeId`), `Download` (`url`,
+`name`), `ReadFileBody` (`nodeId`, `encoding`), `Print`, `Confirm` (`prompt`, `token`).
+
+**Strings** are JSON strings escaping `"`, `\`, LF, CR and TAB short and every other character below U+0020 as
+`\u00XX` in lower-case hex; nothing else is escaped.
+
+**Client event.** `{"nodeId":…,"event":…,"payload":{…},"lastSeq":N}`, `lastSeq` the sequence of the last frame
+the client applied. A server reads a payload value as a string, a number, a boolean or null, refuses a body that is
+not JSON, and reads a missing member as empty (a missing or out-of-range `lastSeq` as `0`); its trust boundary then
+judges the event.
+
+### 33.6 The family and its schema
+
+Self-enumerated (§27.7): `server-driven/manifest.json` names two files, so the directory is one family,
+`server-driven`, emitted by the reference host. Every member below is required unless marked; an undeclared
+member is refused.
+
+`dom-patch-vectors.json` — `version`, `description`, `renderer` (§33.4), and:
+
+| Array | Case members | Check |
+|---|---|---|
+| `lowering` | `name`; `before`, a node; `ops`, TreeOps; `patches`; `dom` (`before`, `after`, HTML) | Lowering `ops` over `before` (§33.3) under the reference renderer gives `patches`. Applying `patches` to `dom.before` gives `dom.after`. |
+| `apply` | `name`; `patches`; `dom`; optional `focus` (`before` / `after`: `element`, a selector, and optional `selection` `[start, end]`, `scrollTop`, and on `after` `same`); optional `scroll` (`before` / `after`: selector → scrollTop) | Set the `before` state, apply `patches` to `dom.before`; the DOM is `dom.after` and the `after` state holds, `same` meaning the focused element is the same object. |
+
+`frame-vectors.json` — `version`, `description`, and:
+
+| Array | Case members | Check |
+|---|---|---|
+| `frames` | `name`; `frame`; `json`; `sse` | `frame` encodes to `json` and `sse` byte for byte (§33.5); a client reading `sse` receives `frame` and moves its sequence to `frame.seq`. |
+| `inbound` | `name`; `body`; `event`; and, together or not at all, `dom`, `seq`, `gesture` (`type`: `click`, `input` with `value`, `change` with `checked`, or `submit`; `target`, a selector) | A server reads `body` as `event`: `nodeId`, `event`, `lastSeq`, and each payload value as `{"$type":"Str"|"Num"|"Bool","value":…}` or `{"$type":"Null"}`; or `"refused"`. With `gesture`: in `dom`, after a frame of `seq`, the gesture makes the client send exactly `body`. |
+
+Every `TreeOp` case appears in a lowering script, every `DomPatch` kind in a DOM case and in a frame, and every
+`ClientEffect` kind in a frame.
+
+| Host | `server-driven` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — the producer half by `DomPatchCorpusTests` (emits the family), the applier half by its shim in a real headless Chromium (`tests/content-js/browser-leg.mjs`) |
+| `fuaran-ts` | not applicable — neither drives nor applies a server-driven session |
+| `fuaran-py` | not applicable — as above |
+| `fuaran-go` | not applicable — as above |
+| `fuaran-rs` | not applicable — as above |
+
 ---
 
 ## See also

@@ -321,6 +321,16 @@
       "spec": "22",
       "authored": "semantic-invariant payloads, not byte fixtures: each case is a payload and the invariant a rendering host must satisfy, so there are no emitted bytes to produce"
     },
+    "server-driven": {
+      "spec": "33",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.ServerDriven.Tests -- --filter \"DomPatch frame contract\""
+      },
+      "source": {
+        "commit": "952e36e45fc495adc1d19eeb76d4f8f4c8c02426"
+      }
+    },
     "stored-emissions": {
       "spec": "28.6",
       "authored": "a chosen sample of real stored model emissions; the sample is the point, and every host re-measures the verdicts"
