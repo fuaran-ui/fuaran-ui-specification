@@ -566,7 +566,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple?=false`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `affordance?`, `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
+| `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
 | `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
@@ -877,6 +877,8 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
 **`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written (`nodes/select-multiple-false.json`) — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
 
 **The `affordance` member (Phase 2517).** `Select`, `Button` and every `Form` field carry an optional `affordance` object — the set / read phrasings, spoken aliases, description, `clearable` and `neverControllable` an agent-initiated instruction may use over and above what the node already says. Absent at `None`, every member omit-at-default; its slot rule and the derivation it feeds are §31.
+
+**The `groups` member (Phase 2571).** `Select` carries an optional `groups` list — named groups that gather the select's options by `value`, so a long choice list reads as categories without the category being spelled into every label. Omit-at-default (absent and `[]` are one fact), its order, rendering and two decode refusals are §3.6.30.
 
 The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`). A multi-select that still carries a `value` is a **§16 lenient accept**: the `value` is decoded (so a malformed one refuses exactly as any malformed binding does) and then **dropped**, normalising the document to the clean form — whether it is the empty-`Static` placeholder every multi-select carried before Phase 1962 (`{"$type":"Static"}`, or `{"$type":"Static","value":null}`) or a real binding a model wrote beside its `values`. A multi-select never reads `value`, so dropping it changes nothing a reader can observe, and every stored document still reads (`lenient/lenient-1962-multiselect-value-dropped.json`, all three spellings). Refusing a non-placeholder `value` instead was considered and rejected on measurement: of the 16 stored model emissions carrying both keys, 14 carry a real binding (typically a `State` "primary" selection), so a refusal would have stopped 14 documents that decode today from reading. A reference-host pre-emit validator names a constructed multi-select that still carries one (`FUARAN164`, Warning). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
@@ -2081,6 +2083,7 @@ read-compat):
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricComparison`, `MetricSpec` |  |
+| `groups` | `SelectOptionGroup[]` | `[]` | `SelectSpec` |  |
 | `highlightLines` | `int[]` | `[]` | `CodeBlockSpec` |  |
 | `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -4849,6 +4852,58 @@ columns), `derived-mixed-columns` (a text and a boolean column beside two numeri
 recorded per host in §11.0. The page-document family carries `derived-series-page` (accepted) and
 `chart-derived-inline-rows` (refused by §32.6).
 
+### 3.6.30 `Select.groups` — option groups (Phase 2571)
+
+A `Select` may gather its options into named groups, so a long choice list reads as categories rather than as
+one list whose labels carry the category ("Trend: Revenue", "Breakdown: By region"). Structure carried in label
+text is read back by an agent, a screen reader and the operability derivation (§31) as part of each option's
+name; a group is structure the document states.
+
+```json
+{"$type":"Select","groups":[{"label":"Trend","values":["orders-trend","revenue-trend"]},
+                            {"label":"Breakdown","values":["region-breakdown","channel-breakdown"]}],
+ "label":"Chart","source":{"$type":"Static","value":[{"label":"Revenue","value":"revenue-trend"}, …]},
+ "value":{"$type":"Static","value":"revenue-trend"}}
+```
+
+- **Shape.** `groups` is an array of `SelectOptionGroup` objects, `{"label":<string>,"values":[<string>,…]}`,
+  both members required. Each entry of `values` names an option of the SAME `Select` by its `value`. The member
+  sits on the `Select`, never on `SelectOption`: an option's own shape is unchanged, so every document and every
+  host-language construction of an option is unchanged too.
+- **Omit-at-default.** Absent and `[]` are one fact — no grouping — and encode identically: the canonical form
+  omits the member, so a document without groups is byte-unchanged by this section. A decoder accepts an explicit
+  `[]` and normalises it away (§16's declared-default rule).
+- **Order.** Groups render in list order. Within a group, its options render in `source` order — the order of
+  `values` is kept on the wire exactly as written (the round trip is byte-identical), and does not reorder the
+  options. The options no group names — the ungrouped remainder — render after every group, in `source` order,
+  under no heading. A group whose `values` is empty renders as an empty group.
+- **Rendering.** A web host and a server renderer draw each group as an `<optgroup label="…">` holding that
+  group's `<option>`s, the remainder as plain `<option>`s after the last `<optgroup>`. A native surface draws a
+  non-selectable section header carrying the group's label above its options. A group label is never an option:
+  it cannot be chosen, it is not a value, and the operability derivation (§31) resolves a spoken alias against
+  options alone — a group label is not an alias for anything.
+- **Two refusals, both decode-time `WRONG_TYPE` at the offending `values` element.**
+  - **A value named more than once** — by two groups, or twice by one —
+    (`reject/reject-2571-select-group-value-twice.json`, `$.kind.groups[1].values[1]`). An option belongs to at
+    most one group: drawn twice it is two entries a reader cannot tell apart, and drawn once the document does
+    not say which group holds it.
+  - **Over STATIC options, a value naming no option** (`reject/reject-2571-select-group-value-unknown.json`,
+    `$.kind.groups[0].values[1]`). A group gathers the select's own options and adds none, so a value it cannot
+    find is a typo the document would otherwise drop in silence. A `Static` source with no options is static too:
+    every value names no option. Over a BOUND source (`State`, `Query`, …) the options are not in the document, so
+    the decoder cannot judge the value; a host that resolves the binding and finds a group value its rows do not
+    hold draws that group without it and may report the miss at render — never at decode.
+
+  Both are relations across the document that neither the IDL's per-field optionality nor `schema.json` can
+  state, so the decoder enforces them; the schema carries the member's shape only.
+- **Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption): a
+  behind host decodes a grouped document and renders its options flat, which is the pre-2571 rendering of the same
+  options. The profile does not step.
+
+**Vectors.** `nodes/select-option-groups.json` (every option grouped, each group's `values` written in an order
+other than `source`'s), `nodes/select-option-groups-remainder.json` (two grouped options and an ungrouped
+remainder, over a `State`-bound value), and the two reject fixtures above.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -5439,7 +5494,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->225<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6167,10 +6222,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->727<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->269<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->731<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->271<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->33<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->225<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
