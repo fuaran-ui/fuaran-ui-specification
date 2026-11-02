@@ -567,7 +567,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `affordance?`, `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -4807,6 +4807,48 @@ one.
 `lenient-transform-int-whole-float-token` (`2.0` reads as `2`) and
 `lenient-transform-int-inferred-past-int32` (a whole value past the range infers `float`).
 
+### 3.6.29 `Chart` — series read from the rows (Phase 2568)
+
+A chart's `yFields` names its series, one per column. **It may be EMPTY over a `Query` source**, and then the
+series are read from the rows the query resolves to:
+
+- **Which columns.** Every column other than `xField` that at least one row carries as a number — a JSON number,
+  or a decimal cell (§7) — and that no row carries as anything else. An absent cell or a `null` says nothing
+  either way, so a sparse numeric column is still a series. A string, a boolean or a date cell disqualifies the
+  column: a boolean is a flag and a date is an axis, and plotting either would draw a number the table never
+  stated.
+- **In what order.** Ordinal by column name (UTF-16 code units, the order §5's canonical writer gives an
+  object's members). A row has no other order every host holds: a decoded row is a map, and its canonical
+  bytes are already Ordinal. A comparison whose columns are ISO dates therefore reads chronologically.
+- **Named by column.** Each series is named by its column, exactly as an authored series is, so the legend,
+  the accessible summary and every mark id (`<field>|<category>`) carry the
+  names the resolver wrote — the subjects of a trend, the dates of a comparison.
+- **Under the series cap.** A table with more such columns than the lowering's series cap (32 by default) is
+  the same typed refusal an authored list that long is — the refusal drawing, whose description names the
+  count and the limit — never a chart of the first 32 columns. Derived series are counted only once the rows
+  are read, so the point cap is applied first.
+
+**The lowering is substitution and nothing else.** A host derives the list, then lowers exactly as it would the
+chart whose `yFields` is that list: the two produce the same bytes. A chart with a non-empty `yFields` is
+unchanged, byte for byte, whatever its rows hold. The wire is unchanged too: `yFields` was always a list, and an
+empty one always decoded.
+
+**Admission is the validator's.** An empty `yFields` over any other source is refused pre-emit as `FUARAN168`
+(`validator/defect-vocabulary.json`), naming the binding found there: over inline rows, state or a transform the
+columns are the tree's own and the author names them. A page document refuses such a source already (§32.6); a
+derived chart on a page reads its request, and the demanded document (§32.4) records nothing it would not record
+for the same request with its columns named. `FUARAN088`'s one-series rule for a `Pie` does not judge an empty
+list pre-emit, since the count is known only at lowering, where a pie derived to other than one series draws
+nothing.
+
+**Vectors.** `chart-lowering/derived-series/`, a subfamily in the `themed/` shape: the top-level family's input
+contract with `yFields` empty and the table's own cells, written in a non-Ordinal column order so the golden pins
+the order a host reads. `derived-trend-subjects` (three subject columns), `derived-comparison-dates` (two dated
+columns), `derived-mixed-columns` (a text and a boolean column beside two numeric ones, one with a `null`),
+`derived-one-numeric`, `derived-no-numeric` (no series) and `derived-over-series-cap` (the refusal). Adoption is
+recorded per host in §11.0. The page-document family carries `derived-series-page` (accepted) and
+`chart-derived-inline-rows` (refused by §32.6).
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -5728,6 +5770,20 @@ distinction.** A pending host owes the obligation and has not made its answer vi
 declared posture excludes the obligation has answered it. Reading the Go row as pending would suggest
 a gap that closing would VIOLATE its posture — so the row says which it is, and names the test that
 holds it.
+
+**Derived-series adoption (`ChartSpec.yFields` empty, Phase 2568, §3.6.29).** A lowering bar: the wire did not
+move (an empty list always decoded), so only a host that lowers a chart in-host owes it, and its vectors sit in the
+`chart-lowering/derived-series/` subfamily, which the hosts reading the top-level family enumerate past.
+
+| Host | Derived-series adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: `Charts.derivedSeriesFields`, the lowering and the AG adapter, and `FUARAN168`; generates the goldens |
+| `fuaran-ts` | **adopted** — the lowering, byte-identical on every `derived-series` golden, the refusal included |
+| `fuaran-py` | **pending** — lowers charts and does not yet derive series: an empty `yFields` lowers to a chart with no series |
+| `fuaran-rs` | **pending** — as `fuaran-py` |
+| `fuaran-go` | `n/a` — REQUIRE-PRE-LOWERED: a raw `Chart` is a typed passthrough, and the lowered `Drawing` it is handed renders as any other |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
 
 **Upload-ceiling adoption (`FileUploadSpec.maxBytes` / `.maxFiles`, Phase 1548).** A SEVENTH bar, and
 the one where the codec leg is smallest and the ENFORCEMENT leg is owed by the most different kinds of
@@ -10143,7 +10199,9 @@ every position the tree holds a node. Two rules hold over them:
   supplies and the read-set cannot name.
 
 The two rules belong to the page-document mode; an ordinary tree may carry its own rows and is not judged by
-them. Their codes, severities and message shapes are in the validator vocabulary
+them. A `Chart` whose `yFields` is empty (§3.6.29) is a data-bearing slot like any other: over its request it is
+admitted, and over inline rows FUARAN167 refuses it here while the ordinary walk's FUARAN168 names the series nobody
+stated (`chart-derived-inline-rows`). Their codes, severities and message shapes are in the validator vocabulary
 ([`validator/defect-vocabulary.json`](validator/defect-vocabulary.json)).
 
 ### 32.7 The `page-document/` family
