@@ -43,6 +43,11 @@
 //                ../../fuaran-ts/packages/ops/dist exists (FUARAN_TS_ROOT names
 //                another checkout; FUARAN_WIRE_FIXTURES another corpus).
 //
+//    Emitter leg (Phase 2451, this runner):
+//      every emitter-profile vector manifest.json declares, from the TS host's
+//      oldestAccepted revision onward: integer-only when claimed, inside the
+//      declared subset, and accepted (WIRE_FORMAT.md 11.4).
+//
 //  ── The roster mode (Phase 2301) ──────────────────────────────────────────
 //
 //  `node cross-host-conformance.mjs --roster` runs the change-set's leg stage
@@ -219,12 +224,113 @@ for (const f of rejects) {
   }
 }
 
+// ── The constrained-emitter acceptance leg (Phase 2451, WIRE_FORMAT.md §11.4) ─
+//  For every lineage manifest.json declares under `emitterProfiles`, every revision
+//  from `oldestAccepted['fuaran-ts']` onward: each vector names a row of a family
+//  every codec host reads, carries no non-integer number token when the revision
+//  claims `integer-only`, lies inside the revision's declared subset (node kinds
+//  through a §23 policy admitting exactly `subset.kinds`; control and op tags at
+//  their positions), and is accepted by the TS host. `oldestAccepted` must name
+//  exactly the roster's codec hosts.
+const VECTOR_KINDS = new Set(['node-round-trip', 'op-round-trip', 'lenient-accept']);
+let admitting;
+try {
+  ({ admitting } = await import(
+    pathToFileURL(join(tsRoot, 'packages', 'schema', 'dist', 'index.js')).href
+  ));
+} catch (err) {
+  console.error(`\n  FATAL: could not load @fuaran-ui/schema from ${tsRoot}: ${err.message}\n`);
+  process.exit(2);
+}
+
+const carriesNonIntegerNumber = (wire) => {
+  let inString = false;
+  let escaped = false;
+  let inNumber = false;
+  for (const c of wire) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') {
+      inString = true;
+      inNumber = false;
+    } else if (c === '-' || (c >= '0' && c <= '9')) inNumber = true;
+    else if (inNumber && (c === '.' || c === 'e' || c === 'E')) return true;
+    else inNumber = false;
+  }
+  return false;
+};
+const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const controlKindsOf = (v, out = []) => {
+  if (Array.isArray(v)) v.forEach((x) => controlKindsOf(x, out));
+  else if (isObject(v)) {
+    const carrier = v.$type === 'Form' ? 'fields' : v.$type === 'Filters' ? 'items' : undefined;
+    if (carrier !== undefined && Array.isArray(v[carrier]))
+      for (const m of v[carrier]) if (isObject(m) && isObject(m.kind)) out.push(m.kind.$type);
+    Object.values(v).forEach((x) => controlKindsOf(x, out));
+  }
+  return out;
+};
+const opTagsOf = (op) =>
+  isObject(op) && typeof op.$type === 'string'
+    ? [op.$type, ...(op.$type === 'Batch' && Array.isArray(op.ops) ? op.ops.flatMap(opTagsOf) : [])]
+    : [];
+
+const rosterCodecHosts = JSON.parse(readFileSync(join(here, 'roster.json'), 'utf8'))
+  .hosts.filter((h) => h.role === 'codec')
+  .map((h) => h.id)
+  .sort();
+const fixtureById = new Map(fixtures.map((f) => [f.id, f]));
+let emitterVectors = 0;
+for (const [name, lineage] of Object.entries(manifest.emitterProfiles ?? {})) {
+  const recorded = Object.keys(lineage.oldestAccepted ?? {}).sort();
+  if (JSON.stringify(recorded) !== JSON.stringify(rosterCodecHosts))
+    record(name, 'emitter-profile', 'TS', 'oldestAccepted does not name exactly the roster codec hosts', `${recorded} vs ${rosterCodecHosts}`);
+  const from = lineage.revisions.findIndex((r) => r.id === lineage.oldestAccepted?.['fuaran-ts']);
+  if (from < 0) {
+    record(name, 'emitter-profile', 'TS', 'records no oldestAccepted revision of its own for fuaran-ts');
+    continue;
+  }
+  for (const r of lineage.revisions.slice(from)) {
+    for (const id of r.vectors) {
+      emitterVectors++;
+      const f = fixtureById.get(id);
+      const fail = (summary, detail) => record(`${r.id}/${id}`, 'emitter-vector', 'TS', summary, detail);
+      if (f === undefined || !VECTOR_KINDS.has(f.kind) || f.expectedFile === undefined) {
+        fail('names no row of a family every codec host reads');
+        continue;
+      }
+      const input = canon(read(f.inputFile));
+      if (r.axes.includes('integer-only') && carriesNonIntegerNumber(input))
+        fail('carries a number token with a fraction or an exponent under integer-only');
+      const policy = admitting(r.id, r.subset.kinds);
+      const gated = f.decoder === 'op' ? decodeOp(input, policy) : decodeNode(input, policy);
+      if (!gated.ok) fail('a node kind outside the declared subset', `${gated.error.code} at ${gated.error.path}`);
+      const parsed = JSON.parse(input);
+      const stray = [
+        ...controlKindsOf(parsed).filter((k) => !r.subset.formFieldKinds.includes(k)),
+        ...(f.decoder === 'op' ? opTagsOf(parsed).filter((t) => !r.subset.ops.includes(t)) : []),
+      ];
+      if (stray.length > 0) fail('a control or op tag outside the declared subset', stray.join(', '));
+      const decoded = f.decoder === 'op' ? decodeOp(input) : decodeNode(input);
+      if (!decoded.ok) {
+        fail('TS decoder did not ACCEPT an emitter vector', `${decoded.error.code} at ${decoded.error.path}`);
+        continue;
+      }
+      const out = f.decoder === 'op' ? encodeOp(decoded.value) : encodeNode(decoded.value);
+      const want = canon(read(f.expectedFile));
+      if (out !== want) fail('TS re-encode differs from the vector\'s expected bytes', firstDiff(want, out));
+    }
+  }
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 const total = accepts.length + rejects.length;
 if (failures.length === 0) {
   console.log(
     `\n  ✓ cross-implementation conformance: ${total} fixtures ` +
-      `(${accepts.length} round-trip + ${rejects.length} reject)\n` +
+      `(${accepts.length} round-trip + ${rejects.length} reject), ${emitterVectors} emitter-profile vectors\n` +
       `    TS @fuaran-ui/ops output is byte-identical to the F# canonical form and schema-valid.\n` +
       `    (F#↔corpus parity is asserted by the workflow's dotnet-test leg.)\n`,
   );

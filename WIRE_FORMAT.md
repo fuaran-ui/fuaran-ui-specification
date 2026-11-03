@@ -2325,6 +2325,14 @@ Three rules, each pinned by the corpus (`lenient/lenient-1811-*`, `reject/reject
   different families and do NOT move**; neither takes an alias. A host that renames every `"Date"`
   string it can find has read the rule as being about the string rather than about the case.
 
+**Producer-support shims (Phase 2451, §15.6).** A third admission ground, beside §16's own and the
+ruled pre-rename spellings above: an alias kept because a declared emitter-profile revision (§11.4)
+writes the old spelling. Such a shim is admitted under §15.6, lands with a `lenient-accept` vector
+named in that revision's `vectors`, and is kept for the period §15.6 rule 3 states rather than until a
+major version says otherwise. The form-field `Date` alias above is the first: it serves the D8 ruling
+and the `panel@1.0` revision (`lenient/lenient-2451-*`), so a major step that drops it advances that
+lineage's `oldestAccepted` record in the same change-set.
+
 The **enum-value** aliases above apply inside a `TonedPill`'s `map` values and its `default` exactly
 as they do at a `tone` field (`Danger`→`Critical`, `Positive`→`Success`, `Neutral`→`Default`) – the map
 values are an ordinary `ToneVariant` position, and a host that read them through a second, private
@@ -5689,6 +5697,22 @@ the cheap side of the host/surface line precisely because it inherits the certif
 Rust core rather than re-implementing one – the §11 forward-coupling tax lands on `fuaran-rs` once and
 the native surface rides it.
 
+**The third role: a constrained emitter (Phase 2451) — a profile claim, never a row of this table.**
+A producer that writes a few kinds, applies nothing it receives and decodes nothing of this wire (a
+controller driving a panel, say) is neither a codec host nor a render projection. Held to either bar it
+could claim nothing. It claims conformance under a declared **emitter profile** instead (§11.4), and the
+claim is about the bytes it writes, never about a codec it holds:
+
+| Role | Writes this wire | Reads this wire | Bar | Recorded |
+|---|---|---|---|---|
+| codec host | the whole vocabulary | the whole vocabulary | byte identity over the whole corpus (§11.1) | a row of the table above and of `conformance/roster.json` |
+| render projection | nothing | a codec host's decoded tree | render coverage over the node corpus | a row of the table above and of `conformance/roster.json` |
+| constrained emitter | a declared subset, canonical bytes only | nothing it claims | every document and frame it writes is accepted by every codec host (§11.4) | an emitter profile in `manifest.json` (§11.4); never a row of either |
+
+The count of conformant hosts this specification states is a count of codec hosts. A constrained
+emitter never joins it, whoever builds it and however many kinds its profile names, and a claim under
+the role reads *conforms as a constrained emitter under `panel@1.1`*, never *conforms*.
+
 **Render-obligation adoption (§13).** The render obligations are a *second* bar, orthogonal to the
 byte-parity one above: a codec host can be byte-perfect and still fail every render obligation, and a
 render projection that carries no codec leg at all still owes them for the kinds it renders. A host
@@ -6147,6 +6171,126 @@ source at HEAD (every leg of the change-set command), has no tier to be ahead of
 AHEAD. The first adopter is the projection-conformance gate that certifies the corpus against the
 released hosts at a pinned tier.
 
+### 11.4 Constrained-emitter profiles (normative, Phase 2451)
+
+A device that writes eight of the node kinds, applies no op it receives and decodes only the events
+its own placement reads cannot be held to whole-corpus byte identity, and before this section it
+could make no conformance claim at all. This section gives it one. The role is the third row of
+§11.0's role table, and the claim is a **profile claim**: a statement about the bytes an emitter
+writes, checked against vectors every codec host already certifies. It is never a host claim (§11.0).
+
+#### The three axes
+
+An emitter profile fixes three things about what an emitter writes. The first two use the program
+wire specification's profile vocabulary (its §10.8), so the two wires name the same properties the
+same way. There they narrow what a READER accepts; here they bound what a WRITER emits, and a codec
+host reading the output is never put under them.
+
+| Axis | The emitter writes | Declared |
+|---|---|---|
+| `canonical-bytes` | only canonical bytes: every document it writes is the canonical encoding (§2) of the value it denotes, so `encode(decode(x)) = x` on every codec host. An emitter whose tree is compiled in as a constant string holds this by construction | always |
+| `integer-only` | no number token with a fraction or an exponent, at any depth, a structured payload position (§2 rule 12) included. The axis reads the token, not the value: `2.0` is outside it although it is whole | when claimed |
+| the declared subset | only the wire discriminators its profile names, in three families, each a set of `$type` strings in §23.2's form: `kinds` (every `NodeKind` at a node position, nested and op-borne nodes included, exactly the positions a §23 policy gates), `formFieldKinds` (every `FormFieldKind` at a control position: a `Form`'s `fields[]` and a `Filters`' `items[]`) and `ops` (an op document's own `$type` and every `Batch` member's) | always |
+
+The subset enumerates those three families and no other. Every other discriminated value a declared
+kind's fields carry (a binding, an action, a layout, a tone) is a FIELD of a declared kind, and §15.6
+protects it as one. The two node-side families must stay disjoint for a `kind.$type` to name one
+family, and the reference host's leg pins that they do.
+
+**A frame is an op document.** The unit an emitter streams after its first document is a `TreeOp`
+(§3, the `ops/` shapes). Any envelope a transport puts around a run of them (a sequence number, an
+array of ops, a chain hash) belongs to that transport and is outside this wire and this claim.
+
+#### The bar
+
+*Every document and every frame the emitter writes is accepted by every codec host in the roster*:
+each decodes at the host's default (no §23 policy, §23.1), and a document or frame of the profile's
+current revision re-encodes byte-identical. The bar is certified by the emitter's own continuous
+integration: build the same producing code for a target with a standard library, drive it through its
+scenarios, decode every output with the codec hosts (the reference and the TypeScript host at least),
+and assert the bar and the axes on each. An emitter claiming a revision states its id beside the
+claim, and any limits tighter than §21's it declares are deployment policy (§21.2 rule 6), never part
+of the profile.
+
+#### The declaration
+
+The manifest declares emitter profiles in a top-level `emitterProfiles` object, one member per
+**lineage**:
+
+```json
+"emitterProfiles": {
+  "<name>": {
+    "description": "…",
+    "oldestAccepted": { "<codec host>": "<revision id>", … },
+    "revisions": [
+      { "id": "<name>@<major>.<minor>", "wire": "core@1.0",
+        "axes": ["canonical-bytes", "integer-only"],
+        "subset": { "kinds": […], "formFieldKinds": […], "ops": […] },
+        "vectors": ["<fixture id>", …],
+        "description": "…" }
+    ]
+  }
+}
+```
+
+- A **revision id** takes §15.1's grammar in its own namespace. It is never a `$profile` value; `wire`
+  names the §15.1 profile the revision's documents are read under. A lineage's revisions are listed
+  oldest first. A later revision is minted when the spelling the lineage writes moves under a §15.6
+  shim, or when its subset grows.
+- **`vectors`** name rows of the families every codec host already runs: `node-round-trip` and
+  `op-round-trip` rows for what the revision writes that is canonical today, `lenient-accept` rows
+  (§16) for what it writes that a later rename turned into an alias. So the vectors need no family of
+  their own, and every codec host certifies their acceptance through the legs it already runs. Every
+  vector lies inside its revision's subset and, under `integer-only`, carries no non-integer token.
+- **`oldestAccepted`** names every codec host of the roster, and for each the oldest revision of the
+  lineage that host still accepts (§15.6).
+
+#### The emitter-acceptance leg
+
+A codec host adopts the role by running, for every lineage, every revision from its own
+`oldestAccepted` entry to the newest, and asserting of each vector: that it names a row of one of the
+three families; that it carries no non-integer token when the revision claims `integer-only`; that it
+lies inside the revision's subset (decoded under a §23 policy admitting exactly the subset's `kinds`,
+with its control and op tags read at their positions); and that it is accepted: a round-trip row
+re-encodes byte-identical, an alias-shim row re-encodes to its expected file. The leg also asserts
+that `oldestAccepted` names exactly the roster's codec hosts, that the newest revision declares only
+tags the corpus attests (§11.2), and that each check goes red on a perturbed input. The subset and
+integer checks are properties of the bytes, so they need running only once to hold for all; acceptance
+is a property of each host, and that is the part every host's round-trip and lenient legs certify.
+
+| Host | Emitter-acceptance leg |
+|---|---|
+| `fuaran` (F#) | **adopted** (Phase 2451) — the reference emitter writes the declaration and refuses one naming a vector it did not author |
+| `fuaran-ts` | **adopted** (Phase 2451) — the conformance package's own leg, over the bundled snapshot and the workspace corpus |
+| `fuaran-py` | pending — accepts the vectors through its round-trip and lenient legs |
+| `fuaran-go` | pending — as above |
+| `fuaran-rs` | pending — as above |
+
+#### The declared lineage
+
+The corpus declares one lineage, `panel`: a status-and-control panel with a heading, a reading, a
+status badge, a command button, a schedule form and an alarm row that comes and goes. Its subset is
+seven kinds (`Badge`, `Box`, `Button`, `Callout`, `Form`, `Heading`, `Metric`), two controls and five
+ops (`InsertChild`, `RemoveNode`, `ReplaceBinding`, `ReplaceRoot`, `UpdateProp`), integers only.
+
+- **`panel@1.1`** is the current spelling: `nodes/emitter-panel.json` (the first frame's document),
+  `ops/op-emitter-replaceroot.json` (the first frame) and the four frames after it.
+- **`panel@1.0`** is the same panel as written before Phase 1811 renamed the form-field `Date` to
+  `DateTime`. The two documents carrying the old tag are alias-shim vectors
+  (`lenient/lenient-2451-panel-1-0`, `lenient/lenient-2451-panel-schedule-1-0`). The first normalises
+  to exactly the bytes of `nodes/emitter-panel.json`, so the shim maps an old device's first frame
+  onto the current one and changes nothing else. The four frames carrying no renamed tag are canonical
+  under both revisions and are the same rows.
+
+A reading travels as `ReplaceBinding` on the reading's slot. `UpdateState` is not a data update: it
+replaces a node's loading, empty and error presentations (§3).
+
+**Open, and recorded as open.** The lenient family is read by the node decoder only, so a frame of an
+old revision that carries a renamed node inside an op (a `ReplaceRoot` of the old panel) is pinned
+through that node's document vector rather than as a frame of its own. Every node-bearing op decodes
+its node with the node decoder (§23.4), so the shim reaches it. A vector kind for op-borne aliases
+would be a new family, with every host's adoption in its change-set.
+
 ---
 
 ## 12. Regenerating / consuming the corpus
@@ -6222,11 +6366,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->731<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->271<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->33<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=total -->739<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->272<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -6651,9 +6795,9 @@ A behind consumer thus has three honest responses to an unknown kind: **detect**
 |---|---|---|
 | **Additive – a new TAG** in a closed discriminated vocabulary: a `NodeKind`, a `TreeOp`, a `Spec` / `Binding` / `Action` union case, or an enum case in a slot an existing decoder already reads | **minor** (`core@1.N` → `core@1.(N+1)`) | `Behind` → must-ignore-but-preserve (§15.3) absorbs it, but only because the profile TOLD the consumer to tolerate; without the step it meets the tag as `Current` and hard-rejects |
 | **Additive – a new OPTIONAL FIELD** on an existing kind / op / case / record | **no step** – exempt | `Behind` never arises. §2 rule 2 ignores an unknown key on decode, and §15.3's must-ignore-but-preserve keeps its bytes, so the consumer never consults the profile at all |
-| **Additive – a new REQUIRED field**, or an optional field becoming required | **no step** – and that understates it | Old CONSUMERS are unaffected, which is all the counter measures; old EMITTERS now produce invalid documents. Coordinate the emitters; the profile cannot say this and must not pretend to |
+| **Additive – a new REQUIRED field**, or an optional field becoming required | **no step** – and that understates it | Old CONSUMERS are unaffected, which is all the counter measures; old EMITTERS now produce invalid documents. Coordinate the emitters; the profile cannot say this and must not pretend to. For a field of a kind a declared emitter revision writes, §15.6 says it: the field is not made required on the wire |
 | **A narrowing of the CANONICAL form** where the accepted set is unchanged – an omit-at-default arriving on a field that was optional-by-convention | **no step** | Every document that was valid stays valid and decodes to the same value; what changes is which of two spellings a conformant host EMITS. Certified by the `lenient-accept` family, which is where a normalisation belongs |
-| **Removal / rename** – a kind/case/field present before and absent after | **major** (`core@1.x` → `core@2.0`, new `/vN/` + `$id`) | `Foreign` → hard-refuse; a migration shim rewrites old→new |
+| **Removal / rename** – a kind/case/field present before and absent after | **major** (`core@1.x` → `core@2.0`, new `/vN/` + `$id`) | `Foreign` → hard-refuse; a migration shim rewrites old→new. A tag or field a declared emitter revision writes keeps a §16 alias for §15.6's period |
 
 **The optional-field exemption is the PRECEDENT made into the rule (Phase 1670).** Until then this table's first row said an optional field bumped the minor, and nothing had ever bumped it: `pageStateKey` (Phase 862), `editStateKey` (Phase 863) and Phase 934 each added one and each declined the step, deliberately and with the reason recorded, while the profile stood at `core@1.0` throughout. Two readings were available – that the practice was drifting, or that the policy over-specified – and the second is correct on the mechanism: §2 rule 2 already tolerates an unknown key, so a behind consumer absorbs a new optional field with no negotiation, no degradation and nothing to name. A minor step there communicates nothing a consumer can act on, and spending the counter on changes it cannot describe is what makes the counter useless for the changes it can. A rule nobody follows is worse than no rule: it makes a reviewer who enforces it look wrong, and it makes the three declined bumps read as oversights rather than as the correct call they were.
 
@@ -6708,6 +6852,46 @@ The contract is executable in the shared [`wire-format-fixtures/`](./) corpus as
 > disagreement out of a gap. Recorded here per §20.1 rather than left for the next tool to
 > rediscover; a host that DOES expose negotiation publicly should say so, and the family stops being
 > a skip for it.
+
+### 15.6 The producer-support commitment (normative, Phase 2451)
+
+§15.2 to §15.5 are written for a behind consumer meeting an ahead producer. A constrained emitter
+(§11.4) is the opposite case: a producer that writes one revision of one profile for its whole service
+life and meets consumers that keep moving. §15.4 leaves that producer with two weak answers: a new
+required field makes its documents invalid, and a major step makes them `Foreign`. This section is the
+commitment such a producer can rely on. It binds every codec host in the §11.0 roster, for every
+revision of every lineage `manifest.json` declares.
+
+1. **No field of a declared kind is made required, and no tag or field a declared revision writes is
+   renamed or removed, without a shim.** A field a revision's documents may omit keeps decoding when
+   omitted: its absence still decodes to a default (§16's restore-on-absence), whatever a later
+   authoring surface requires. A rename or removal of a declared `kinds` / `formFieldKinds` / `ops` tag,
+   of a field of a declared kind, or of a value such a field carries lands only with a shim that maps
+   the revision's spelling onto the new one.
+2. **The shim is a §16 lenient-ingest alias.** It is decode-only and never emitted: a host accepts the
+   old spelling and re-encodes the new one, so the shim never becomes a second dialect. It lands in the
+   change-set that renames, with a `lenient-accept` vector added to the revision's `vectors` that pins
+   the old spelling to the new canonical bytes. Producer support is the alias's admission ground, beside
+   §16's own (evidence that models write the form) and the ruled pre-rename spellings already listed
+   there.
+3. **The period is the life of the wire major the revision names.** A revision whose `wire` is
+   `core@1.0` is accepted by every codec host for as long as that host reads `core@1`, through every
+   minor step. A major step does not end the obligation silently either: its change-set carries each
+   shim forward or advances, for each host that drops one, that host's `oldestAccepted` entry past the
+   revisions the shim served, in the same change-set and with the reason in that host's decision record.
+4. **The record is `oldestAccepted`.** Per lineage, per codec host, the oldest revision that host still
+   accepts. A host's emitter-acceptance leg (§11.4) reads every revision from its entry onward, so an
+   entry naming a revision the host no longer accepts turns that host's leg red. The record is a claim
+   with a falsifier, and the one a device maker reads.
+
+**What it does not promise.** It promises that a host reads the revision's documents and frames, not
+that a host renders them any particular way, and nothing to a producer outside a declared lineage. A
+kind the language adds later is not admitted to a revision: a later revision names it.
+
+**The first instance.** The `panel@1.0` revision (§11.4) writes the form-field `Date`, which Phase 1811
+renamed to `DateTime`. That rename's alias (§16, the temporal table) is the shim, and the
+`lenient/lenient-2451-*` vectors pin it as one. Every codec host already carried that alias for the
+Phase 1811 ruling, so `oldestAccepted` names `panel@1.0` for all five.
 
 ---
 

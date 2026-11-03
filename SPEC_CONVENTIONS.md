@@ -239,6 +239,21 @@ deliberately; it is a commercial artefact, not a conformance one.
 *Origin: a later specification in this family (2026-08). This specification predates the rule and
 names its reference host, which is a recorded divergence rather than a counter-example.*
 
+### 15. A partial producer claims a profile; it is never a host
+
+A producer that writes part of the vocabulary and reads none of it makes a **profile claim**: it names
+a declared profile, and the claim is that every document it writes is accepted by every host. It is
+never counted among the hosts, never given a row in the host roster, and never described as
+conforming without the profile's name beside the word. A count of conformant hosts counts codec hosts
+and nothing else. The profile's axes are properties of what the producer writes, so they never narrow
+what a host reads, and a profile's vectors ride the families every host already certifies rather than
+a family of their own. A producer that lives longer than the hosts it meets is owed a commitment in
+writing (what may not change under it, the shim that carries what does, how long the shim is kept)
+and a per-host record of the oldest profile revision each host still reads.
+
+*Origin: this specification, Phase 2451 (WIRE_FORMAT.md §11.4 and §15.6). The axis vocabulary is the
+program wire specification's, so the two wires describe a partial producer in the same words.*
+
 ---
 
 ## Licence
