@@ -546,7 +546,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `CodeBlock` | _Display_ | `code`, `copyable?=true`, `highlightLines?=[]`, `language`, `lineNumbers?=false` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
 | `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
 | `Embed` | _Display_ | `aspectRatio?=Natural`, `permissions?=[]`, `src`, `title` |  |
-| `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
+| `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `reference?`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant?=Standard` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
 | `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant?=Default` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
@@ -4912,6 +4912,39 @@ name; a group is structure the document states.
 other than `source`'s), `nodes/select-option-groups-remainder.json` (two grouped options and an ungrouped
 remainder, over a `State`-bound value), and the two reject fixtures above.
 
+### 3.6.31 `Fact.reference` — a figure cites the Fact behind it (Phase 2535)
+
+A `Fact` may name the Fact its figure was drawn from, so the citation is part of the document: it survives the
+canonical wire, an op stream, a stored page document and the embedded renderer. Before this member a citation could
+only ride `extraAttributes`, which the wire omits (§9), so a cited figure lost its citation the moment it left the
+process that built it.
+
+```json
+{"$type":"Fact","label":"Revenue","reference":"9f04f29b27c86926a1c3e5d7b8f0a2c4e6d8f0a1b3c5d7e9f1a3b5c7d9e1f3a5","value":"£412k"}
+```
+
+- **Shape.** `reference` is an optional string. Absent means the figure cites nothing, and a document without it is
+  byte-unchanged by this section. A present value round-trips byte-identically, the empty string included.
+- **The value is opaque to the language.** Its documented form is a **Fact id** as the Fact wire specification states
+  it ([`FACT_WIRE.md`](https://github.com/Fuaran-Data/fuaran-fact-specification/blob/main/FACT_WIRE.md) §4): 64
+  lower-case hex digits, the SHA-256 digest of the Fact's identity frame, with no prefix. A producer holding references
+  of another shape (a narrative's own `fact:…` tokens, say) may carry them: no host parses, validates or resolves the
+  value, so no decoder refuses one over its form. Resolving a reference to the Fact it names is the consuming
+  application's act.
+- **Rendering.** A host that renders HTML stamps the value as the attribute `data-fact` on the element drawing the
+  cited figure — for `Fact`, the tile's root element — through its ordinary attribute encoder, as it does every other
+  string attribute. A figure with no reference carries no such attribute. The attribute is what a page's own script
+  reads to link a figure to its source; the visible text does not change. A native surface exposes the value on the
+  element's semantic properties or ignores it, and never draws it.
+- **Other kinds.** A kind that later gains a citation takes this member's name, value and `data-fact` attribute, and
+  cites this section, so one rule governs every citation.
+- **No as-of member.** A reference names a Fact; when that Fact was asserted is the Fact's own record. A consumer that
+  needs a point-in-time citation can add an optional member beside `reference` then, additively.
+- **Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption): a behind
+  host decodes a cited `Fact` and renders it without the attribute. The profile does not step.
+
+**Vector.** `nodes/fact-cited.json`.
+
 ---
 
 ### The declarative floor (Phase 430)
@@ -6366,8 +6399,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->739<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->272<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->740<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->273<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
