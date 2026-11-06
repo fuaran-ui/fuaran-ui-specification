@@ -553,7 +553,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download?=false`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered?=false` |  |
-| `Markdown` | _Display_ | `text` |  |
+| `Markdown` | _Display_ | `citations?=[]`, `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
 | `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
 | `Metric` | _Display_ | `comparisons?=[]`, `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
@@ -2064,6 +2064,7 @@ read-compat):
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
+| `citations` | `MarkdownCitation[]` | `[]` | `MarkdownSpec` |  |
 | `clearable` | `bool` | `false` | `Affordance` |  |
 | `comparisons` | `MetricComparison[]` | `[]` | `MetricSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
@@ -4947,6 +4948,63 @@ process that built it.
 
 ---
 
+### 3.6.32 `Markdown.citations` — a figure cited inside a sentence (Phase 2591)
+
+A sentence that cites a number stays one text. `Markdown` gains an optional `citations` list, omitted when
+empty, whose entries name figures the text places with an ordinary Markdown link:
+
+```json
+{"$type":"Markdown","citations":[{"label":"Online share of category spend","name":"share","reference":"9f04f29b27c86926a1c3e5d7b8f0a2c4e6d8f0a1b3c5d7e9f1a3b5c7d9e1f3a5"}],"text":"Online.com took [23%](cite:share) of the category."}
+```
+
+| Member | Type | Meaning |
+|---|---|---|
+| `name` | string, required | What the text's `cite:<name>` destination says. Letters, digits, `-` and `_`, at least one, unique in the list. |
+| `reference` | string, required | The reference naming the Fact. The same member as `Fact.reference`, §3.6.31: its value is opaque here too, never parsed and never refused for its content. |
+| `label` | `TextSource`, optional | What the figure is, for a screen reader. Never printed. |
+
+The figure's display text is the link's own text, so it lives in the sentence and can be anything: it need not
+equal any value the Fact holds.
+
+**Decode refuses**, as `WRONG_TYPE`: an empty `citations` array, so that absent is the one spelling of none and a
+document has one byte form; a `name` outside the grammar; a `name` already used in the list, with the path at the
+later occurrence. A missing `name` or `reference` is the ordinary `MISSING_FIELD`.
+
+**Decode does not read the text.** It may be bound or an i18n key, and §14 keeps Markdown out of decode, so an
+undeclared name and an unused citation are facts of the render.
+
+**Rendering (normative; pinned by [`markdown/corpus.json`](./markdown/corpus.json), whose fixtures may declare
+`citations`).** A rendering host resolves each label to a string and hands the list to its Markdown renderer. A link
+or a reference-style link whose resolved destination is exactly `cite:` followed by a declared `name` draws:
+
+```html
+<span class="fuaran-cited" data-fact="REFERENCE"><span class="fuaran-cited-label">LABEL </span>TEXT</span>
+```
+
+The label's span is absent when the label is absent or empty. A `title` on the link stays on the outer span, after
+`data-fact`. The reference and the label go through the same encoders as any other attribute and text. No egress
+policy is asked, because a citation has no destination. The reference stylesheet keeps `.fuaran-cited` in the line of
+text and visually hides `.fuaran-cited-label`.
+
+**Everything else is what it was.** An undeclared name, an uppercase scheme, an image and an autolink are not
+citations and meet the §19 scheme floor as `about:blank`. A code span and a backslash escape stay literal. A
+declared citation the text never places draws nothing. A figure inside a link is a span inside the anchor. So a host
+that ignores this member still reads the number, as a dead link, which is why the display text is not a member of
+the citation.
+
+**A projection with no stylesheet** (an email) renders the figure with its reference and without its label, since
+the label would be printed there and the sentence already says what the number is.
+
+**Byte identity.** A `Markdown` with no citations encodes as it always has, and renders as it always has, even when
+its text holds a `cite:` link.
+
+**Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption). The
+profile does not step.
+
+**Forward coupling.** A later citing kind takes `reference` by this name, value and attribute; `Table.citations`
+(Phase 2592) does so with coordinates in place of `name`. fuaran-kt and fuaran-swift pin an earlier corpus, and these
+fixtures reach them through Phase 2574.
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -5535,7 +5593,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->232<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6399,10 +6457,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->740<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->273<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->748<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->276<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->227<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->232<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
