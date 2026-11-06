@@ -902,7 +902,8 @@ form, so a host implements one decoder and one renderer branch instead of two pr
 
 ```json
 {"$type":"DataGrid","columns":[],"source":{"$type":"Static","value":[]},
- "staticRows":{"defaultSort"?:{"column":<int ≥ 0>,"direction":"asc"|"desc"},
+ "staticRows":{"citations"?:[<TableCitation>,…],
+               "defaultSort"?:{"column":<int ≥ 0>,"direction":"asc"|"desc"},
                "headers":[<TextSource>,…],"rows":[[<TextSource>,…],…],
                "sortable"?:<bool>}}
 ```
@@ -936,7 +937,7 @@ form, so a host implements one decoder and one renderer branch instead of two pr
 
 ##### Declared sort intent — `sortable` / `defaultSort` (Phase 801)
 
-`staticRows` carries two further fields, both **OPTIONAL** and both emitted only when present
+`citations` (Phase 2592) names the cells whose figures cite a Fact; §3.6.33 specifies it. `staticRows` carries two further fields, both **OPTIONAL** and both emitted only when present
 (rule 4). A table declaring neither is byte-identical to the pre-801 form — `nodes/table-1.json`
 is the anchor for that, and `nodes/table-sortable-1.json` is the canonical corner with both present.
 
@@ -2065,6 +2066,7 @@ read-compat):
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
 | `citations` | `MarkdownCitation[]` | `[]` | `MarkdownSpec` |  |
+| `citations` | `TableCitation[]` | `[]` | `StaticRows` |  |
 | `clearable` | `bool` | `false` | `Affordance` |  |
 | `comparisons` | `MetricComparison[]` | `[]` | `MetricSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
@@ -5001,8 +5003,52 @@ its text holds a `cite:` link.
 **Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption). The
 profile does not step.
 
-**Forward coupling.** A later citing kind takes `reference` by this name, value and attribute; `Table.citations`
-(Phase 2592) does so with coordinates in place of `name`. fuaran-kt and fuaran-swift pin an earlier corpus, and these
+**Forward coupling.** A later citing kind takes `reference` by this name, value and attribute; `staticRows.citations`
+(§3.6.33) does so with coordinates in place of `name`. fuaran-kt and fuaran-swift pin an earlier corpus, and these
+fixtures reach them through Phase 2574.
+
+### 3.6.33 `DataGrid.staticRows.citations` — a table cell cites its figure (Phase 2592)
+
+A report table whose numbers are cited stays a table. A static table's payload gains an optional `citations` list,
+omitted when empty, whose entries name cells by their coordinates. Each cell's text stays in `rows`:
+
+```json
+{"citations":[{"column":1,"label":"Online spend","reference":"fact:online-spend","row":0}],"headers":["Channel","Spend"],"rows":[["Online","£412k"],["Retail","£1.2m"]]}
+```
+
+| Member | Type | Meaning |
+|---|---|---|
+| `row` | integer, required | The cited cell's zero-based index in `rows`. |
+| `column` | integer, required | The cited cell's zero-based index in that row. |
+| `reference` | string, required | The reference naming the Fact. The same member as `Fact.reference`, §3.6.31: its value is opaque here too, never parsed and never refused for its content. |
+| `label` | `TextSource`, optional | What the figure is, for a screen reader. Never printed. |
+
+**Decode refuses**, as `WRONG_TYPE`: an empty `citations` array, so that absent is the one spelling of none and a
+document has one byte form; a negative or non-integer `row` or `column`; a `row` the table does not have; a `column`
+the cited row does not have, read against that row, so a table with rows of different lengths is judged cell by cell;
+a second entry for one cell, with the path at the later entry. A missing member is the ordinary `MISSING_FIELD`.
+
+**Rendering (normative).** A rendering host draws the semantic table it always drew, and for a cited cell:
+
+```html
+<td class="fuaran-table-cell" data-fact="REFERENCE"><span class="fuaran-cited-label">LABEL </span>TEXT</td>
+```
+
+The label's span is absent when the label is absent or empty; it is the first child of the cell, and a cell's other
+content, such as a toned column's pill, follows it. The reference and the label go through the same encoders as any
+other attribute and text. No class is added: `.fuaran-table` applies as it does to any cell, and the reference
+stylesheet visually hides `.fuaran-cited-label`.
+
+**Coordinates address `rows` as authored.** A `defaultSort` or a reader's sort moves a citation with its row. A host's
+sort keys on the cell's text without the label, and an export serialises `rows`, so neither a label nor a reference
+reaches an exported file.
+
+**A projection with no stylesheet** (an email) draws the cell with its reference and without its label, as §3.6.32.
+
+**Byte identity.** A table with no citations encodes as it always has, and renders as it always has.
+
+**A host that ignores this member** still reads the table, with every number in its cell and no reference. A cell
+holding a link or an image is not expressible here. fuaran-kt and fuaran-swift pin an earlier corpus, and these
 fixtures reach them through Phase 2574.
 
 ### The declarative floor (Phase 430)
@@ -5593,7 +5639,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->232<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6457,10 +6503,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->748<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->276<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->759<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->279<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->232<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
