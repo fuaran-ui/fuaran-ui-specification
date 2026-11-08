@@ -9593,7 +9593,8 @@ and that no other section specifies.
   atomically.
 - **`merge-conformance`** — the deterministic three-way tree merge: `merge(base, a, b)` encodes
   byte-equal to the expected tree, a refusal fixture is refused, and the totality fixtures are merged
-  without exception.
+  without exception. Its `foldFixtures` key is the merge by fold (§34): two op deltas reconciled from a base,
+  to the derived tree, the refusal envelope or the gate's verdict.
 - **`diff/treeDiff`** (`diff/manifest.json`) — over every authored `(before, after)` pair a host's
   structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
   `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
@@ -10740,6 +10741,100 @@ Every `TreeOp` case appears in a lowering script, every `DomPatch` kind in a DOM
 | `fuaran-py` | not applicable — as above |
 | `fuaran-go` | not applicable — as above |
 | `fuaran-rs` | not applicable — as above |
+
+## 34. Merge by fold (normative, Phase 2293)
+
+A merge of two branches of an op DAG is a **derivation**: the two branches' op deltas are folded from their
+common base, and what the merge records is only what the fold cannot decide on its own. This section states the
+derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
+envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
+
+**§11 status: one certified host, the others porting.** `fuaran-dotnet` is the reference
+(`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`). The three-way TREE merge the other `merge-conformance/` keys
+certify (§27.8.2) stays normative until the fold replaces it as the DAG's only merge; until then a host reads
+`foldFixtures` when it ports this section and ignores the key before that, which is why the family sits under a
+key of its own.
+
+### 34.1 Inputs
+
+A reconcile takes a base tree `B` and two **deltas**, `A` and `C`: each an ordered list of `TreeOp`s (§4) as the
+branch recorded them, applying from `B` op by op. A delta whose op `i` does not apply from the tree the ops before
+it reach is refused before anything else is judged, naming the side and `i` (`DeltaDoesNotApply`).
+
+### 34.2 The conflict report
+
+The pairs that interfere are those Fuaran Core's `Dag.conflictsIn` reports over the base-aware footprint
+(`TreeOpFootprint.ofOpIn`, the projection the tier ships): every pair `(a ∈ A, c ∈ C)` whose footprints, each
+computed at the tree its own delta has reached, are not independent, tagged with the **address** they collide on
+and a **shape** — `ConcurrentUpdate`, `InsertPositionClash`, `MoveVsRemove`, or `SlotClash` with the slot. A host
+reproduces that report exactly; the projection is part of this contract, and a host whose footprint is coarser
+refuses pairs the reference admits and fails the derive fixtures, while one that is finer admits pairs the
+reference refuses and fails the refusal fixtures.
+
+### 34.3 The policy
+
+Each reported pair is exactly one of:
+
+1. **Agreement** — the two ops have byte-identical canonical encodings (§3). Admitted: the fold already holds the
+   effect when it reaches the second.
+2. **Interleave** — the shape is `InsertPositionClash` at parent `p`, each op appends a node to `p` (an
+   `InsertChild` under `p`, or a `MoveNode` to `p`), and the two appended ids differ. Admitted, and ordered by
+   §34.4.
+3. **Refusal** — anything else. Classed `DeleteModify` when exactly one of the two ops removes (`RemoveNode`, or a
+   `Batch` containing one) and `Conflict` otherwise. A removal against a concurrent **move** of the same node is
+   therefore a `DeleteModify` refusal, as a removal against an edit is.
+
+Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
+
+### 34.4 The fold and the child-order rule
+
+The derived tree is `A` then `C` applied from `B`, where an op whose application fails **only because its effect
+is already held** is applied as no change. Exactly two cases are held: a `RemoveNode` of a node the tree no longer
+holds, and an `InsertChild` of a node the parent already holds as a child with byte-identical canonical encoding.
+A `Batch` is applied member by member under the same rule, atomically.
+
+Then, for each interleaved parent `p` in ordinal order of its id, the **child-order rule**: the children of `p`
+that neither delta appended keep their order, and the appended ones follow — each delta's appends into `p` in that
+delta's own order, the two runs merged by comparing their heads ordinally by NodeId, the smaller first. Where that
+order differs from the fold's, the merge records `ReorderChildren(p, order)`; the list of such ops is the merge's
+**script**. The rule is symmetric: two runs of distinct ids merge to one order whichever delta is named first.
+
+A reconcile runs the fold in both orders — `A` then `C`, and `C` then `A` — each followed by the script. If the
+two trees differ in canonical encoding, the merge is refused (`OrderSensitive`). The admitted classes lie outside
+Core's independence theorem, so this is checked, not assumed. A merge that would carry an introduced validator
+defect (§27.8.2's `merge-validator-gated`) is refused by the gate run over the two branch heads and the derived
+tree (`IntroducedDefects`), with the verdict §27.8.2 defines.
+
+### 34.5 The refusal envelope
+
+A JSON array of the refused pairs. Each entry is an object with ordinal-sorted keys:
+
+```
+{"address":<string>,"class":"Conflict"|"DeleteModify","left":<op from A>,"right":<op from C>,"shape":<string>[,"slot":<string>]}
+```
+
+`left` and `right` are the ops' canonical encodings embedded verbatim, `shape` is one of the four names in §34.2,
+and `slot` is present exactly when `shape` is `SlotClash`. Entries are ordered by `address`, then `shape`, then
+`slot` (empty when absent), then `left`'s bytes, then `right`'s bytes, each ordinal, with exact duplicates
+removed. `sha256` over the envelope's bytes is the cross-host refusal hash. Swapping `A` and `C` swaps every
+entry's `left` and `right` and re-sorts; nothing else changes.
+
+### 34.6 The `foldFixtures` family
+
+Each entry names `baseFile`, `aOpsFile` and `bOpsFile` (canonical `TreeOp` arrays) and one of three kinds:
+`merge-fold-derive` (`expectedFile` + `outcomeHash`: the derived tree), `merge-fold-refusal` (`envelopeFile` +
+`envelopeHash`), and `merge-fold-gated` (`verdictFile` + `verdictHash`, under the sample validator of
+§27.8.2's `merge-validator-gated` family). The family pins the two cases the tree merge resolves differently: a
+removal against a concurrent move refuses (`fold-refusal-remove-vs-move`), and two concurrent appends under one
+parent are ordered by the rule above rather than by the tree merge's per-position comparison.
+
+| Host | `foldFixtures` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap |
+| `fuaran-ts` | not yet ported |
+| `fuaran-py` | not yet ported |
+| `fuaran-go` | not yet ported |
+| `fuaran-rs` | not yet ported |
 
 ---
 

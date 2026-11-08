@@ -1,0 +1,1 @@
+[{"address":"left","class":"Conflict","left":{"$type":"PatchStyle","style":{"tone":"Brand"},"target":"left"},"right":{"$type":"PatchStyle","style":{"tone":"Critical"},"target":"left"},"shape":"SlotClash","slot":"style.tone"}]

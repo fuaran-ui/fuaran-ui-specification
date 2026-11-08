@@ -144,5 +144,158 @@
       "refusal": "merge-totality-tooltip",
       "description": "One side sets a tooltip while the other restyles a different pane — auto-merges, and the merged tree CARRIES the hint. This is where a host whose merge constructs its nodes with the trait hardcoded empty fails: it produces a different tree, not a different envelope"
     }
+  ],
+  "foldDescription": "merge-fold (Phase 2293, additive, SEPARATE key): decode base and the two branches' op deltas (aOpsFile, bOpsFile: canonical TreeOp arrays, each applying from base op by op), reconcile them by fold under the policy of WIRE_FORMAT.md section 34 (Core's conflict report over the base-aware footprint; agreements applied as no change; two appends of distinct nodes under one parent admitted and ordered by the declared child-order rule; every other reported pair refused, a removal against a concurrent touch of the removed node as DeleteModify). merge-fold-derive: the derived tree is byte-equal to expectedFile and sha256(expected) == outcomeHash. merge-fold-refusal: the policy refuses and the envelope is byte-equal to envelopeFile with sha256 == envelopeHash; swapping a and b swaps every entry's left and right and re-sorts. merge-fold-gated: the fold derives and the sample validator over the derived tree introduces defects neither branch head carries; the verdict is byte-equal to verdictFile with sha256 == verdictHash.",
+  "foldFixtures": [
+    {
+      "id": "fold-disjoint",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-disjoint.base.json",
+      "aOpsFile": "fold-disjoint.a.ops.json",
+      "bOpsFile": "fold-disjoint.b.ops.json",
+      "expectedFile": "fold-disjoint.expected.json",
+      "outcomeHash": "8657f07ed7d2ff6428b95c64913153a3d129ce7e38648096d6c65d629b60d35d",
+      "description": "Retones of two different panes — independent under Core's footprint, so the fold composes them"
+    },
+    {
+      "id": "fold-style-fields",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-style-fields.base.json",
+      "aOpsFile": "fold-style-fields.a.ops.json",
+      "bOpsFile": "fold-style-fields.b.ops.json",
+      "expectedFile": "fold-style-fields.expected.json",
+      "outcomeHash": "1624e337745adbe95b61e686b89c385f3c2fd6556db8c5ed4ab1f86edb943383",
+      "description": "Two style edits of one pane that change DIFFERENT fields (tone, voice): two slots, no conflict"
+    },
+    {
+      "id": "fold-insert-interleave",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-insert-interleave.base.json",
+      "aOpsFile": "fold-insert-interleave.a.ops.json",
+      "bOpsFile": "fold-insert-interleave.b.ops.json",
+      "expectedFile": "fold-insert-interleave.expected.json",
+      "outcomeHash": "a80ded2fd16628751a7a5d3de2b65575c33fb8e460be775b03e423ffabc41937",
+      "description": "Both branches append a different node to one parent — an admitted InsertPositionClash, ordered by the declared child-order rule (NodeId ordinal)"
+    },
+    {
+      "id": "fold-insert-interleave-runs",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-insert-interleave-runs.base.json",
+      "aOpsFile": "fold-insert-interleave-runs.a.ops.json",
+      "bOpsFile": "fold-insert-interleave-runs.b.ops.json",
+      "expectedFile": "fold-insert-interleave-runs.expected.json",
+      "outcomeHash": "e97f570d5722127c445064795470f1370c6389070f7c57b5578e9bcebc2bc4e5",
+      "description": "Each branch appends a run of two nodes under one parent — the runs keep their own order and merge by comparing heads ordinally"
+    },
+    {
+      "id": "fold-agreement-remove",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-agreement-remove.base.json",
+      "aOpsFile": "fold-agreement-remove.a.ops.json",
+      "bOpsFile": "fold-agreement-remove.b.ops.json",
+      "expectedFile": "fold-agreement-remove.expected.json",
+      "outcomeHash": "4b7c3fdb572d3bbe80c72813b0a0622718b17e6d5a09130c1888e25f0df6d021",
+      "description": "Both branches remove the same pane — an agreement: the fold already holds the effect when it reaches the second removal"
+    },
+    {
+      "id": "fold-agreement-tone",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-agreement-tone.base.json",
+      "aOpsFile": "fold-agreement-tone.a.ops.json",
+      "bOpsFile": "fold-agreement-tone.b.ops.json",
+      "expectedFile": "fold-agreement-tone.expected.json",
+      "outcomeHash": "fa7286cd3e800a2a0208acbb730e2f215102586a67c3e2f79cf7f3b18e7fd9b1",
+      "description": "Both branches set the same tone on the same pane — byte-identical ops, an agreement"
+    },
+    {
+      "id": "fold-refusal-move-and-source-edit",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-move-and-source-edit.base.json",
+      "aOpsFile": "fold-refusal-move-and-source-edit.a.ops.json",
+      "bOpsFile": "fold-refusal-move-and-source-edit.b.ops.json",
+      "envelopeFile": "fold-refusal-move-and-source-edit.envelope.json",
+      "envelopeHash": "686d61a445c779185db63548c236f8aac4b8ab6d87d732520298a033e045bbb1",
+      "description": "One branch moves a node out of a container while the other retones the container itself. The tree merge auto-merges this pair; the shipped base-aware footprint content-writes a move's source parent, so Core reports a ConcurrentUpdate at the container and the policy refuses it. Pinned as the reference refuses today, so a host matches the projection rather than the tree merge"
+    },
+    {
+      "id": "fold-refusal-concurrent-tone",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-concurrent-tone.base.json",
+      "aOpsFile": "fold-refusal-concurrent-tone.a.ops.json",
+      "bOpsFile": "fold-refusal-concurrent-tone.b.ops.json",
+      "envelopeFile": "fold-refusal-concurrent-tone.envelope.json",
+      "envelopeHash": "360c3912d79d91e98d4ef056f811286ce54d41f1d0f5401775eb9d9c00567637",
+      "description": "Both branches set a different tone on the same pane — a SlotClash on style.tone, refused as a Conflict"
+    },
+    {
+      "id": "fold-refusal-concurrent-direction",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-concurrent-direction.base.json",
+      "aOpsFile": "fold-refusal-concurrent-direction.a.ops.json",
+      "bOpsFile": "fold-refusal-concurrent-direction.b.ops.json",
+      "envelopeFile": "fold-refusal-concurrent-direction.envelope.json",
+      "envelopeHash": "4fe845c90187e48334158fa17a253a1d5bbef1c1e01fd0a2b1a670c9d8d5fbbe",
+      "description": "Both branches set a different text direction on the same pane — the SlotClash names style.direction"
+    },
+    {
+      "id": "fold-refusal-same-id-insert",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-same-id-insert.base.json",
+      "aOpsFile": "fold-refusal-same-id-insert.a.ops.json",
+      "bOpsFile": "fold-refusal-same-id-insert.b.ops.json",
+      "envelopeFile": "fold-refusal-same-id-insert.envelope.json",
+      "envelopeHash": "5fbb5f6576e9c49bef25766bda6ed4da84f9fa84e0280a2e3058a96a55dc1821",
+      "description": "Both branches insert a node under one id with different content — not an agreement and not an interleave"
+    },
+    {
+      "id": "fold-refusal-delete-modify",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-delete-modify.base.json",
+      "aOpsFile": "fold-refusal-delete-modify.a.ops.json",
+      "bOpsFile": "fold-refusal-delete-modify.b.ops.json",
+      "envelopeFile": "fold-refusal-delete-modify.envelope.json",
+      "envelopeHash": "08e278568ee1f334a178ec32badf34a2276642aef1a40f42dc22753f01482698",
+      "description": "One branch retones a pane the other removes — a DeleteModify refusal"
+    },
+    {
+      "id": "fold-refusal-remove-vs-move",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-remove-vs-move.base.json",
+      "aOpsFile": "fold-refusal-remove-vs-move.a.ops.json",
+      "bOpsFile": "fold-refusal-remove-vs-move.b.ops.json",
+      "envelopeFile": "fold-refusal-remove-vs-move.envelope.json",
+      "envelopeHash": "8dd909e4f22206355af57ca921732cdfb07a4f53f638faa8bfeacfe729da13e8",
+      "description": "One branch removes a node the other moves to another parent — a DeleteModify refusal, as against an edit. The tree-level merge let the move win; the fold refuses it"
+    },
+    {
+      "id": "fold-refusal-concurrent-move",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-concurrent-move.base.json",
+      "aOpsFile": "fold-refusal-concurrent-move.a.ops.json",
+      "bOpsFile": "fold-refusal-concurrent-move.b.ops.json",
+      "envelopeFile": "fold-refusal-concurrent-move.envelope.json",
+      "envelopeHash": "bcd206cb8f4b4490ce473d26114ba8c7205f2d7e349579952fd4b4190c7292f6",
+      "description": "One branch moves a node while the other retones it in place — a Conflict on the moved node"
+    },
+    {
+      "id": "fold-refusal-tooltip",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-tooltip.base.json",
+      "aOpsFile": "fold-refusal-tooltip.a.ops.json",
+      "bOpsFile": "fold-refusal-tooltip.b.ops.json",
+      "envelopeFile": "fold-refusal-tooltip.envelope.json",
+      "envelopeHash": "b7aad65b15ad60a3b0779230f953028cb29680c9bb89b4eb2eb158498aa2f1ec",
+      "description": "Both branches set a different tooltip on the same pane"
+    },
+    {
+      "id": "fold-validator-gated-brand",
+      "kind": "merge-fold-gated",
+      "baseFile": "fold-validator-gated-brand.base.json",
+      "aOpsFile": "fold-validator-gated-brand.a.ops.json",
+      "bOpsFile": "fold-validator-gated-brand.b.ops.json",
+      "verdictFile": "fold-validator-gated-brand.verdict.json",
+      "verdictHash": "81f5fd4c1ed6868855d57c92ed094b7079fdcbcf18db57986154ecb275b06216",
+      "description": "Brand tone on two sibling panes, one per branch — the fold derives, and the derived tree carries a duplicate-Brand defect neither branch had"
+    }
   ]
 }
