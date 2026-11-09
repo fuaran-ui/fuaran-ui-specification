@@ -10832,7 +10832,7 @@ parent are ordered by the rule above rather than by the tree merge's per-positio
 |---|---|
 | `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap |
 | `fuaran-ts` | covered — `packages/ops/test/fold.test.ts` reproduces every artefact and checks the swap |
-| `fuaran-py` | not yet ported |
+| `fuaran-py` | covered — `tests/test_merge_fold_conformance.py` reproduces every artefact and checks the swap |
 | `fuaran-go` | covered — `conformance/fold_test.go` reproduces every artefact and checks the swap |
 | `fuaran-rs` | not yet ported |
 
