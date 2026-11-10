@@ -10749,7 +10749,7 @@ common base, and what the merge records is only what the fold cannot decide on i
 derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
 envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
 
-**§11 status: one certified host, the others porting.** `fuaran-dotnet` is the reference
+**§11 status: the reference and four ported hosts certified (§34.6).** `fuaran-dotnet` is the reference
 (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`). The three-way TREE merge the other `merge-conformance/` keys
 certify (§27.8.2) stays normative until the fold replaces it as the DAG's only merge; until then a host reads
 `foldFixtures` when it ports this section and ignores the key before that, which is why the family sits under a
@@ -10834,7 +10834,7 @@ parent are ordered by the rule above rather than by the tree merge's per-positio
 | `fuaran-ts` | covered — `packages/ops/test/fold.test.ts` reproduces every artefact and checks the swap |
 | `fuaran-py` | covered — `tests/test_merge_fold_conformance.py` reproduces every artefact and checks the swap |
 | `fuaran-go` | covered — `conformance/fold_test.go` reproduces every artefact and checks the swap |
-| `fuaran-rs` | not yet ported |
+| `fuaran-rs` | covered — `tests/dag.rs` reproduces every artefact and checks the swap |
 
 ---
 
