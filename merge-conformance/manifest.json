@@ -218,6 +218,26 @@
       "description": "One branch moves a node out of a container while the other retones the container itself. The move writes only the container's child list, which the base-aware footprint declares as the container's kind slot (Phase 2651), and the retone writes its style: two slots, no conflict, so the fold composes them"
     },
     {
+      "id": "fold-move-and-target-edit",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-move-and-target-edit.base.json",
+      "aOpsFile": "fold-move-and-target-edit.a.ops.json",
+      "bOpsFile": "fold-move-and-target-edit.b.ops.json",
+      "expectedFile": "fold-move-and-target-edit.expected.json",
+      "outcomeHash": "d8642a978c78c8fc6f26ff910a175074763c50b67022bf7989ee5096da94f736",
+      "description": "One branch moves a node while the other retones it in place. The move writes the moved node's position, which the base-aware footprint declares as its parent slot (Phase 2670), and the retone writes its style: two slots, no conflict, so the fold composes them"
+    },
+    {
+      "id": "fold-reorder-and-child-edit",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-reorder-and-child-edit.base.json",
+      "aOpsFile": "fold-reorder-and-child-edit.a.ops.json",
+      "bOpsFile": "fold-reorder-and-child-edit.b.ops.json",
+      "expectedFile": "fold-reorder-and-child-edit.expected.json",
+      "outcomeHash": "288050629ca86cda3de462bc4e203c5feea3e6106edf42ad4b3b9c587882b5bb",
+      "description": "One branch reorders a parent's children while the other retones one of them. The reorder writes the parent's child list (its kind slot) and reads each listed child only at its parent slot (Phase 2670), so the retone commutes with it and the fold composes them"
+    },
+    {
       "id": "fold-refusal-concurrent-tone",
       "kind": "merge-fold-refusal",
       "baseFile": "fold-refusal-concurrent-tone.base.json",
@@ -268,14 +288,14 @@
       "description": "One branch removes a node the other moves to another parent — a DeleteModify refusal, as against an edit. The tree-level merge let the move win; the fold refuses it"
     },
     {
-      "id": "fold-refusal-concurrent-move",
+      "id": "fold-refusal-reorder-and-insert",
       "kind": "merge-fold-refusal",
-      "baseFile": "fold-refusal-concurrent-move.base.json",
-      "aOpsFile": "fold-refusal-concurrent-move.a.ops.json",
-      "bOpsFile": "fold-refusal-concurrent-move.b.ops.json",
-      "envelopeFile": "fold-refusal-concurrent-move.envelope.json",
-      "envelopeHash": "bcd206cb8f4b4490ce473d26114ba8c7205f2d7e349579952fd4b4190c7292f6",
-      "description": "One branch moves a node while the other retones it in place — a Conflict on the moved node"
+      "baseFile": "fold-refusal-reorder-and-insert.base.json",
+      "aOpsFile": "fold-refusal-reorder-and-insert.a.ops.json",
+      "bOpsFile": "fold-refusal-reorder-and-insert.b.ops.json",
+      "envelopeFile": "fold-refusal-reorder-and-insert.envelope.json",
+      "envelopeHash": "218409717b440412a45a1d2849f640ea669dfa0e1cbb7cbe0b1054e192382e84",
+      "description": "One branch reorders a parent's children while the other appends a child to it — the reorder's list is stale in one order. The reorder writes the parent's kind slot and the insert touches the parent whole, so Core reports a ConcurrentUpdate at the parent, refused as a Conflict"
     },
     {
       "id": "fold-refusal-tooltip",

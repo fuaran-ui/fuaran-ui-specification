@@ -1,1 +1,0 @@
-[{"address":"m","class":"Conflict","left":{"$type":"MoveNode","newParentId":"boxb","target":"m"},"right":{"$type":"PatchStyle","style":{"tone":"Brand"},"target":"m"},"shape":"ConcurrentUpdate"}]
