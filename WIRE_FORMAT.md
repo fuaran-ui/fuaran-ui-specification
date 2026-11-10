@@ -10780,9 +10780,14 @@ Each reported pair is exactly one of:
 2. **Interleave** — the shape is `InsertPositionClash` at parent `p`, each op appends a node to `p` (an
    `InsertChild` under `p`, or a `MoveNode` to `p`), and the two appended ids differ. Admitted, and ordered by
    §34.4.
-3. **Refusal** — anything else. Classed `DeleteModify` when exactly one of the two ops removes (`RemoveNode`, or a
+3. **Rebase** (Phase 2671) — one op is a `ReorderChildren(p, order)` and the other changes `p`'s child list: an
+   `InsertChild` under `p`, a `MoveNode` to `p`, or a `RemoveNode` or `MoveNode` of a child `order` lists. Neither
+   op may be a `Batch`. Admitted, and folded as §34.4 states: the reorder is applied rebased, and the appends are
+   ordered by the child-order rule.
+4. **Refusal** — anything else. Classed `DeleteModify` when exactly one of the two ops removes (`RemoveNode`, or a
    `Batch` containing one) and `Conflict` otherwise. A removal against a concurrent **move** of the same node is
-   therefore a `DeleteModify` refusal, as a removal against an edit is.
+   therefore a `DeleteModify` refusal, as a removal against an edit is; two reorders of one parent that differ are
+   a `Conflict`.
 
 Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
 
@@ -10791,13 +10796,28 @@ Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
 The derived tree is `A` then `C` applied from `B`, where an op whose application fails **only because its effect
 is already held** is applied as no change. Exactly two cases are held: a `RemoveNode` of a node the tree no longer
 holds, and an `InsertChild` of a node the parent already holds as a child with byte-identical canonical encoding.
-A `Batch` is applied member by member under the same rule, atomically.
+A `Batch` is applied member by member under the same rule, atomically. A `ReorderChildren(p, order)` whose `p` is
+a **rebased** parent (§34.3, case 3) is applied **rebased** to the children `p` holds when the fold reaches it: the
+children `order` lists that `p` still holds, in `order`'s order, then the children it does not list, in the order
+`p` holds them. A child the other delta removed or moved out is thereby dropped from the reordered run, and a child
+it appended or moved in follows it, in both fold orders.
 
-Then, for each interleaved parent `p` in ordinal order of its id, the **child-order rule**: the children of `p`
-that neither delta appended keep their order, and the appended ones follow — each delta's appends into `p` in that
-delta's own order, the two runs merged by comparing their heads ordinally by NodeId, the smaller first. Where that
-order differs from the fold's, the merge records `ReorderChildren(p, order)`; the list of such ops is the merge's
-**script**. The rule is symmetric: two runs of distinct ids merge to one order whichever delta is named first.
+Then, for each interleaved or rebased parent `p` in ordinal order of its id, the **child-order rule**: the
+children of `p` that neither delta appended keep their order (the rebased reorder's, where a delta reordered `p`),
+and the appended ones follow — each delta's **run** of appends into `p` in that delta's own order, the two runs
+merged by comparing their heads ordinally by NodeId, the smaller first, and an id both runs hold (two agreeing
+moves of one node) listed **once**, at its first occurrence in the merged sequence. A delta's run is its appends
+into `p` (an `InsertChild` under `p`, a `MoveNode` to `p`; an id already in the run is not added again), less any
+id a LATER `ReorderChildren` of `p` in the same delta lists — that reorder placed it. Where the rule's order
+differs from the fold's, the merge records `ReorderChildren(p, order)`, listing every child once; the list of such
+ops is the merge's **script**. The rule is symmetric: two runs merge to the same sequence whichever delta is named
+first, so its first occurrences are the same too.
+
+Two consequences of the rule are **pinned** (operator ruling 2026-11-10) where the three-way tree merge of
+§27.8.2 answers differently: a `MoveNode` to the parent a node already sits under is an append, so the node goes
+last, as applying the op does (the tree merge keeps the node where the other side's list has it); and appended ids
+keep each delta's order, merged by heads (the tree merge sorts every appended id by NodeId). A host reproduces the
+policy's answer; `fold-pinned-own-parent-move` and `fold-pinned-append-order` certify it.
 
 A reconcile runs the fold in both orders — `A` then `C`, and `C` then `A` — each followed by the script. If the
 two trees differ in canonical encoding, the merge is refused (`OrderSensitive`). The admitted classes lie outside
@@ -10826,15 +10846,24 @@ Each entry names `baseFile`, `aOpsFile` and `bOpsFile` (canonical `TreeOp` array
 `envelopeHash`), and `merge-fold-gated` (`verdictFile` + `verdictHash`, under the sample validator of
 §27.8.2's `merge-validator-gated` family). The family pins the two cases the tree merge resolves differently: a
 removal against a concurrent move refuses (`fold-refusal-remove-vs-move`), and two concurrent appends under one
-parent are ordered by the rule above rather than by the tree merge's per-position comparison.
+parent are ordered by the rule above rather than by the tree merge's per-position comparison. Since Phase 2671
+it also pins the rebase (`fold-reorder-and-insert`, `-remove`, `-move-in`, `-move-out`), the agreed node listed
+once (`fold-double-move-and-appends`), the two pinned child orders above, two reorders that still refuse
+(`fold-refusal-two-reorders`), and one fixture per class the fold DERIVES where the tree merge refuses, accepted as
+the policy's answer by the same ruling: a move beside an edit of the moved node (`fold-move-and-target-edit`; the
+tree merge's `ConcurrentMove`, the pair `merge-totality-concurrent-move` refuses), the same move on both sides
+beside an edit of the moved node (`fold-agreed-move-and-edit`; `ConcurrentEdit`), and three `ReorderVsStructural`
+shapes — a reorder beside a change of the child list (`fold-reorder-and-insert`), a move to a node's own parent
+beside an append (`fold-own-parent-move-and-insert`), and an agreed append beside other appends
+(`fold-double-move-and-appends`).
 
 | Host | `foldFixtures` |
 |---|---|
 | `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap |
-| `fuaran-ts` | covered — `packages/ops/test/fold.test.ts` reproduces every artefact and checks the swap |
-| `fuaran-py` | covered — `tests/test_merge_fold_conformance.py` reproduces every artefact and checks the swap |
-| `fuaran-go` | covered — `conformance/fold_test.go` reproduces every artefact and checks the swap |
-| `fuaran-rs` | covered — `tests/dag.rs` reproduces every artefact and checks the swap |
+| `fuaran-ts` | covered to Phase 2670 — `packages/ops/test/fold.test.ts`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
+| `fuaran-py` | covered to Phase 2670 — `tests/test_merge_fold_conformance.py`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
+| `fuaran-go` | covered to Phase 2670 — `conformance/fold_test.go`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
+| `fuaran-rs` | covered to Phase 2670 — `tests/dag.rs`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
 
 ---
 

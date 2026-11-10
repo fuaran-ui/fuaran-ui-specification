@@ -262,7 +262,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.OpStream.Dag.Tests -- --emit-merge-corpus <corpus dir>"
       },
       "source": {
-        "commit": "40ade98bec2020e1398c57e91ec92ed0403861d6"
+        "commit": "396528a37140fcd4fdade9d4bb03318a09408ead"
       }
     },
     "node-round-trip": {

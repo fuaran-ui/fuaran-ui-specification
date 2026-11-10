@@ -1,0 +1,1 @@
+[{"$type":"InsertChild","child":{"id":"aa","kind":{"$type":"Markdown","text":"A"}},"parentId":"dash"},{"$type":"MoveNode","newParentId":"dash","target":"m"}]
