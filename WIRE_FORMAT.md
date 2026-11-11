@@ -5623,8 +5623,8 @@ The first row's DAG pre-image is
   host that certifies against `dag/` only as a record codec — decode, re-encode, byte-equal — does not
   claim the profile, and it MUST NOT mint an address of its own: a guessed address fails verification
   wherever a claiming host reads it. Today the reference host is the only host that claims the profile;
-  every other host certifying against `dag/` does so as a codec, and re-certifies the re-minted records
-  (fuaran#2646).
+  every other host certifies against `dag/` as a codec, and re-certified the re-minted records at
+  fuaran#2646, each refusing a record that carries a retired member by name.
 
 ## 6. `DecodeError` envelope + the eight codes
 
@@ -10760,7 +10760,7 @@ common base, and what the merge records is only what the fold cannot decide on i
 derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
 envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
 
-**§11 status: the reference certified; the four ported hosts re-certify at fuaran#2646 (§34.6).**
+**§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646.**
 `fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
 `DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
 `merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
@@ -10888,10 +10888,10 @@ beside an append (`fold-own-parent-move-and-insert`), and an agreed append besid
 | Host | `foldFixtures` |
 |---|---|
 | `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap; `DagMergeTests` mints and replays the merge node |
-| `fuaran-ts` | covered to Phase 2670 — `packages/ops/test/fold.test.ts`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
-| `fuaran-py` | covered to Phase 2670 — `tests/test_merge_fold_conformance.py`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
-| `fuaran-go` | covered to Phase 2670 — `conformance/fold_test.go`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
-| `fuaran-rs` | covered to Phase 2670 — `tests/dag.rs`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
+| `fuaran-ts` | covered (fuaran#2646) — `packages/ops/test/fold.test.ts` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `packages/ops/test/dag.test.ts` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-py` | covered (fuaran#2646) — `tests/test_merge_fold_conformance.py` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/test_dag_roundtrip.py` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-go` | covered (fuaran#2646) — `conformance/fold_test.go` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `conformance/dag_test.go` and `dag/dag_test.go` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-rs` | covered (fuaran#2646) — `tests/dag.rs` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/dag.rs` round-trips the re-minted `dag/` records as a codec |
 
 ---
 
