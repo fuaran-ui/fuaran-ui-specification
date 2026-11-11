@@ -10760,7 +10760,8 @@ common base, and what the merge records is only what the fold cannot decide on i
 derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
 envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
 
-**§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646.**
+**§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646; the
+Phase 2701 `Mount`-input fixtures certified on `fuaran-dotnet` and `fuaran-go` only (§34.6).**
 `fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
 `DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
 `merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
@@ -10780,7 +10781,10 @@ computed at the tree its own delta has reached, are not independent, tagged with
 and a **shape** — `ConcurrentUpdate`, `InsertPositionClash`, `MoveVsRemove`, or `SlotClash` with the slot. A host
 reproduces that report exactly; the projection is part of this contract, and a host whose footprint is coarser
 refuses pairs the reference admits and fails the derive fixtures, while one that is finer admits pairs the
-reference refuses and fails the refusal fixtures.
+reference refuses and fails the refusal fixtures. A footprint's node walk, and the lookup an op's target and parent are
+found by, include slot arguments (a `FragmentRef`'s `args`, a `Mount`'s `inputs`) as every other position the tree
+holds a node in (Phase 2701); a node held only there is located by no ordered child list, so an in-place op on it
+takes the pure arm, an unknown-parent write.
 
 ### 34.3 The policy
 
@@ -10883,7 +10887,11 @@ tree merge's `ConcurrentMove`, the pair the retired `merge-totality-concurrent-m
 beside an edit of the moved node (`fold-agreed-move-and-edit`; `ConcurrentEdit`), and three `ReorderVsStructural`
 shapes — a reorder beside a change of the child list (`fold-reorder-and-insert`), a move to a node's own parent
 beside an append (`fold-own-parent-move-and-insert`), and an agreed append beside other appends
-(`fold-double-move-and-appends`).
+(`fold-double-move-and-appends`). Since Phase 2701 it pins nodes held only in a `Mount`'s
+`inputs`: an append to a container there beside an edit outside the `Mount` derives (`fold-mount-input-insert`),
+two tones of one such node refuse (`fold-refusal-mount-input-tone`), its removal beside its edit is a
+`DeleteModify` refusal (`fold-refusal-mount-input-delete-modify`), and edits of two different such nodes refuse
+`MoveVsRemove`, each op an unknown-parent write (`fold-refusal-mount-input-disjoint`).
 
 | Host | `foldFixtures` |
 |---|---|
@@ -10892,6 +10900,11 @@ beside an append (`fold-own-parent-move-and-insert`), and an agreed append besid
 | `fuaran-py` | covered (fuaran#2646) — `tests/test_merge_fold_conformance.py` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/test_dag_roundtrip.py` round-trips the re-minted `dag/` records as a codec |
 | `fuaran-go` | covered (fuaran#2646) — `conformance/fold_test.go` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `conformance/dag_test.go` and `dag/dag_test.go` round-trips the re-minted `dag/` records as a codec |
 | `fuaran-rs` | covered (fuaran#2646) — `tests/dag.rs` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/dag.rs` round-trips the re-minted `dag/` records as a codec |
+
+The four `Mount`-input fixtures (Phase 2701) are certified by `fuaran-dotnet` and `fuaran-go`, whose decoder
+reads a `Mount`'s `inputs` as `FragmentArg`s and whose apply lookup and footprint walk reach the nodes they hold.
+`fuaran-ts`, `fuaran-py` and `fuaran-rs` do not yet pass them: each apply engine stops at a node held only in a slot
+argument (`DeltaDoesNotApply`), and each is that host's successor phase.
 
 ---
 

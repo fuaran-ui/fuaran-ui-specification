@@ -1,0 +1,1 @@
+[{"address":"hdr","class":"Conflict","left":{"$type":"PatchStyle","style":{"tone":"Brand"},"target":"hdr"},"right":{"$type":"PatchStyle","style":{"tone":"Critical"},"target":"hdr"},"shape":"ConcurrentUpdate"}]

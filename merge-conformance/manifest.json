@@ -174,6 +174,16 @@
       "description": "One branch moves a node to the parent it already sits under while the other appends a child there. Both are appends, interleaved by the child-order rule. The tree merge refuses this (ReorderVsStructural: the mover's list is not a pure addition); the fold's answer is accepted by the 2026-11-10 ruling"
     },
     {
+      "id": "fold-mount-input-insert",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-mount-input-insert.base.json",
+      "aOpsFile": "fold-mount-input-insert.a.ops.json",
+      "bOpsFile": "fold-mount-input-insert.b.ops.json",
+      "expectedFile": "fold-mount-input-insert.expected.json",
+      "outcomeHash": "9b0af199c704b8d3771d2652504192a0de742b49bebf7e1555406914d172868c",
+      "description": "One branch appends a child to a container held only in a Mount's slot input while the other retones a pane outside the Mount. The structural ops locate their parent through every position the tree holds a node in, slot arguments included (Phase 2701), so the insert is a structure write of that container and the retone a style write elsewhere: independent, and the fold composes them"
+    },
+    {
       "id": "fold-pinned-own-parent-move",
       "kind": "merge-fold-derive",
       "baseFile": "fold-pinned-own-parent-move.base.json",
@@ -232,6 +242,36 @@
       "envelopeFile": "fold-refusal-delete-modify.envelope.json",
       "envelopeHash": "08e278568ee1f334a178ec32badf34a2276642aef1a40f42dc22753f01482698",
       "description": "One branch retones a pane the other removes — a DeleteModify refusal"
+    },
+    {
+      "id": "fold-refusal-mount-input-tone",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-mount-input-tone.base.json",
+      "aOpsFile": "fold-refusal-mount-input-tone.a.ops.json",
+      "bOpsFile": "fold-refusal-mount-input-tone.b.ops.json",
+      "envelopeFile": "fold-refusal-mount-input-tone.envelope.json",
+      "envelopeHash": "a0152c48decc267c1e06e3573c6c994ff7fc4750b1c2477a435de85a26b54ad7",
+      "description": "Both branches set a different tone on the node held at a Mount's slot input, which no ordered child list reaches. A footprint's node walk includes slot arguments (Phase 2701), so the pair collides on that node and is refused as a Conflict; a host that does not walk them sees no collision and derives"
+    },
+    {
+      "id": "fold-refusal-mount-input-disjoint",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-mount-input-disjoint.base.json",
+      "aOpsFile": "fold-refusal-mount-input-disjoint.a.ops.json",
+      "bOpsFile": "fold-refusal-mount-input-disjoint.b.ops.json",
+      "envelopeFile": "fold-refusal-mount-input-disjoint.envelope.json",
+      "envelopeHash": "c52d5a24821beb991838f37fcb41bc53dce9afab93766bcb9f8d87043b196f0e",
+      "description": "Each branch retones a DIFFERENT node held only in one Mount's slot inputs (the node at its header input, and a node inside the container at its body input). A node no ordered child list reaches takes the footprint's pure arm, an in-place write under a parent the op cannot name, so the pair is reported MoveVsRemove on both nodes and refused as a Conflict: the policy's answer since Phase 2327, pinned by Phase 2701"
+    },
+    {
+      "id": "fold-refusal-mount-input-delete-modify",
+      "kind": "merge-fold-refusal",
+      "baseFile": "fold-refusal-mount-input-delete-modify.base.json",
+      "aOpsFile": "fold-refusal-mount-input-delete-modify.a.ops.json",
+      "bOpsFile": "fold-refusal-mount-input-delete-modify.b.ops.json",
+      "envelopeFile": "fold-refusal-mount-input-delete-modify.envelope.json",
+      "envelopeHash": "d841b4decae73e3ce71c7c94388a1c58779d12efc45648a8c1ee77ed88985d19",
+      "description": "One branch removes a node inside a Mount's slot input while the other retones it — a DeleteModify refusal, as for a node any ordered child list reaches (Phase 2701)"
     },
     {
       "id": "fold-refusal-remove-vs-move",
