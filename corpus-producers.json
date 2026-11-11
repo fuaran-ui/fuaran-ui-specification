@@ -82,7 +82,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.OpStream.Dag.Tests -- --emit-dag-corpus <corpus dir>"
       },
       "source": {
-        "commit": "b4151832f399311fa9c95969884c07a67ef623aa"
+        "commit": "adc8635c645006907a1e648e714e40f2c8945706"
       }
     },
     "decode-policy": {
@@ -262,7 +262,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.OpStream.Dag.Tests -- --emit-merge-corpus <corpus dir>"
       },
       "source": {
-        "commit": "1d678941d737da5a5b91bf3ff3b0ccc587c94f1e"
+        "commit": "adc8635c645006907a1e648e714e40f2c8945706"
       }
     },
     "node-round-trip": {

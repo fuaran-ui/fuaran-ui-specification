@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178, additive; re-addressed by Phase 1144). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. The op field nests the canonical TreeOp wire form and the actor field nests the canonical typed-actor form (Human | Agent) — both embedded verbatim in their own pinned encodings. Phase 1144 replaced the pre-1144 bare userId member with the typed actor, in the wire record AND in the content-address pre-image, so every hash in this family was re-minted and pre-1144 DAG addresses do not carry forward. See fuaran-dotnet/docs/WIRE_FORMAT.md.",
+  "description": "Fuaran DAG-record wire-format conformance corpus (Phase 178; re-addressed by Phase 1144; re-minted by Phase 2645, the cut). dag-record-round-trip: decode inputFile, re-encode, assert byte-equal to expectedFile. Since Phase 2645 a record is a Fuaran.Core DAG node over the linear chain's provenance envelope, and its hash is Core's Dag.nodeId: the chain's SHA-256 hash function over (the sorted parents joined by a comma, Actor.encode(actor) + '|' + StreamEntry.encode({op, ts, promptId, result})), so every host also recomputes each fixture's hash from its own fields. A merge node is an ordinary node whose op is its reconciliation script as a Batch. outcomeHash and tombstoned were retired (a pruned node leaves the live set for a sink's skeleton); a record carrying either is a pre-2645 record whose address does not recompute. The op field nests the canonical TreeOp wire form and the actor field the canonical typed-actor form, both verbatim. See WIRE_FORMAT.md.",
   "fixtures": [
     {
       "id": "dag-genesis",
@@ -21,14 +21,14 @@
       "kind": "dag-record-round-trip",
       "inputFile": "dag-merge.json",
       "expectedFile": "dag-merge.json",
-      "description": "Two-parent merge node (outcome hash; author-order parents)"
+      "description": "Two-parent merge node whose script is empty (an empty Batch); parents in author order"
     },
     {
-      "id": "dag-tombstone",
+      "id": "dag-merge-script",
       "kind": "dag-record-round-trip",
-      "inputFile": "dag-tombstone.json",
-      "expectedFile": "dag-tombstone.json",
-      "description": "Tombstoned record (payload pruned, hash + parents preserved)"
+      "inputFile": "dag-merge-script.json",
+      "expectedFile": "dag-merge-script.json",
+      "description": "Two-parent merge node whose script is the child-order rule's reorder (a one-op Batch); attributed to an agent with a prompt"
     }
   ]
 }

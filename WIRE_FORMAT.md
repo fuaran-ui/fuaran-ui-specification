@@ -5478,13 +5478,13 @@ replay that does not verify). No host is out of conformance with this section as
 changes is that a fourth host now has the rule in front of it, and that a host moving to
 verify-by-default inherits obligation 3 with it.
 
-## 5.3 Op-stream chain and DAG content address (normative, Phase 2115)
+## 5.3 Op-stream chain and DAG content address (normative, Phase 2115; the DAG address re-stated by Phase 2645)
 
 An op-stream records `TreeOp`s (§3.4) together with their provenance: who applied the op, when, under
 which prompt, and with what outcome. Two record shapes carry that history, and each has its own hash.
 In the **linear chain** every record names its predecessor's hash and its own position in the stream.
 In the **DAG** every record names zero or more parent addresses and no position at all, so a stream can
-branch and merge. The two hashes are different functions on purpose (§5.3.3). This section defines both
+branch and merge. The two hashes are different functions (§5.3.4). This section defines both
 byte for byte: a reader holding this document and nothing else can recompute every stored hash in
 `chain/chain-corpus.json` and in the `dag/` family.
 
@@ -5551,57 +5551,67 @@ and its hash is `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0
 
 ### 5.3.3 The DAG content address
 
-A DAG record's address is the digest of a pre-image with **no** previous-hash prefix: the links to
-earlier history are the parent addresses inside it. Which of two pre-images applies is decided by
-whether the record carries an `outcomeHash`, not by how many parents it has.
+Since Phase 2645 (the cut) the op DAG is Fuaran.Core's DAG over the linear chain's provenance entry: a node's
+address is Core's `Dag.nodeId` under the SHA-256 hash function of §5.3.2, over the node's parents, its actor and
+its **entry** — the very `entry` §5.3.2 defines, so a node's op is byte-identical to the linear record's.
 
 ```text
-ordinary node (no outcomeHash):
-  hash = SHA-256( {"parents":[<parents>],"op":<op>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
-
-merge node (outcomeHash present):
-  hash = SHA-256( {"parents":[<parents>],"merge":<outcomeHash>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
+hash  = SHA-256( <parents> + "|" + <actor> + "|" + <entry> )
+entry = {"v":2,"op":<op>,"ts":<ts>,"promptId":<promptId>,"result":<result>}
 ```
 
-- **Parents are sorted inside the hash.** `<parents>` is the record's parent addresses, each a JSON
-  string, comma-separated and sorted in Ordinal order whatever order the record lists them in. (Each is
-  64 lower-case hex characters, so Ordinal, code-point and byte order coincide.) The wire record keeps
-  its parents in **author order**, the primary parent first; only the pre-image sorts. A merge of `{A,B}`
-  and a merge of `{B,A}` therefore have one address. A node with no parents — a genesis node — hashes
-  `"parents":[]`.
-- **The merge node folds its outcome, not its op.** `<outcomeHash>` is the record's `outcomeHash`
-  string: the SHA-256 of the canonical encoding (§2) of the merged tree. A merge record's `op` is the
-  replay delta from its primary parent's tree to that merged tree, and it is **outside** the address, so
-  two hosts that reach the same merged tree by different deltas mint the same address.
-- **What is outside the address.** `streamId`, `tombstoned`, and (on a merge node) `op`. The record's
-  `hash` member is, of course, the output.
-- **Tombstoned records.** A tombstoned record's payload has been pruned, so its stored `hash` cannot be
-  recomputed and is accepted as stored; its `parents` still link. `dag/dag-tombstone.json` carries the
-  address of `dag/dag-linear-step.json` over a pruned `op`, which is exactly this case.
-- **No format tag — a property, not an omission to fill in.** The DAG pre-image carries no
-  format-version member, and nothing in a DAG record identifies the pre-image rule that produced its
-  address. A change to this pre-image therefore **re-addresses every node**, and a stored address made
-  under an earlier rule is simply one that does not recompute: it is not upgraded in place and does not
-  carry forward. The typed actor's arrival in the pre-image (Phase 1144) was such a change, and the
-  `dag/` manifest records the re-minting. Introducing a DAG format tag would itself be a change to this
-  section.
+- **Parents are sorted inside the hash.** `<parents>` is the record's parent addresses, **unquoted**, sorted in
+  Ordinal order and joined by a single `,` (U+002C) — whatever order the record lists them in. (Each is 64
+  lower-case hex characters, so Ordinal, code-point and byte order coincide.) A node with no parents — a genesis
+  node — contributes the empty string, so its pre-image begins with `|`. The wire record keeps its parents in
+  **author order**; only the pre-image sorts. A merge of `{A,B}` and a merge of `{B,A}` therefore have one address.
+- **The separators.** One `|` (U+007C) between `<parents>` and `<actor>` (the §5.3.2 hash function's separator),
+  and one between `<actor>` and `<entry>` (Core's node payload). Nothing else is inserted.
+- **A merge node is an ordinary node.** It has two parents, and its `op` is its reconciliation **script** (§34.4)
+  as a `Batch` — `{"$type":"Batch","ops":[]}` where the fold needs no script. Its address folds that op like any
+  other; there is no outcome-tree identity. Replaying a merge node is Core's closure fold of its ancestors (both
+  branches, in Core's deterministic drain order) and then the script, and a host mints a merge node only when that
+  replay reaches the tree §34.4 derives.
+- **What is outside the address.** `streamId` (the store's partition key). The record's `hash` member is the
+  output.
+- **Retired at the cut.** The `outcomeHash` member, the `"merge"` pre-image and the `tombstoned` member. A pruned
+  node leaves a store's live set for its skeleton (its address and parents, no payload) and is never a wire
+  record. A `dag/` record that carries `outcomeHash` or `tombstoned` is a pre-2645 record: its address does not
+  recompute, and a reader refuses it by name rather than lifting it.
+- **No format tag — a property, not an omission to fill in.** Nothing in a DAG record identifies the pre-image
+  rule that produced its address. A change to this pre-image therefore **re-addresses every node**, and a stored
+  address made under an earlier rule is simply one that does not recompute: it is not upgraded in place and does
+  not carry forward. The typed actor's arrival (Phase 1144) and the cut (Phase 2645) were such changes, and the
+  `dag/` manifest records each re-minting; a store written before the cut is re-addressed by the one-release
+  re-mint tool.
+
+Worked example — `dag/dag-genesis.json` (actor human `u1`, no parents, no prompt, timestamp `1700000000`). Its
+pre-image is
+
+```text
+|{"kind":"human","id":"u1"}|{"v":2,"op":{"$type":"RemoveNode","target":"n1"},"ts":1700000000,"promptId":null,"result":{"kind":"success"}}
+```
+
+and its hash is `4624bd23859bd2de3ccdfebaa9f460cc4a8a962e8630a2ce2baa6f543f646192`, the stored value.
 
 ### 5.3.4 The two hashes are different (normative)
 
 **A single-parent DAG node's address is not the linear hash of the same record, and a host MUST NOT
-treat either as the other or derive one from the other.** The DAG pre-image has no sequence, no
-previous-hash prefix and no format tag, and its members sit in a different envelope. Lifting a linear
+treat either as the other or derive one from the other.** The two share the `entry` byte for byte, but the
+DAG pre-image has no sequence and no previous hash: its prefix is the sorted parents and the actor sits
+beside the entry rather than in a `seq`/`actor`/`op` payload. Lifting a linear
 stream into the DAG — each record becomes a node whose single parent is the previous node's address,
 the first record a node with no parents — preserves the tree that replay produces and re-addresses every
 record. The worked pair, recomputed from `chain/chain-corpus.json` at authoring time:
 
 | `chain-corpus.json` record | linear hash (stored) | DAG address of the same record |
 |---|---|---|
-| sequence 1 (no parents in the DAG) | `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c` | `d67c35e006e9f2beee6edf58abcc5e95ba6904f94b336931bc4c84212c146355` |
-| sequence 2 (single parent `d67c35e0…`) | `5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05` | `c51ad58b87f8cb47359a6e1e701febf68e40d2fb0e2841fc7a9305dc722c3a63` |
+| sequence 1 (no parents in the DAG) | `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c` | `6b60513e1c8153d9818a11190c4c37b92a011de257735515f9a3acda61f96935` |
+| sequence 2 (single parent `6b60513e…`) | `5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05` | `9a2c8df625020265e51b7c751e283ba7ad583c4bb049b567000f2c4ec71b4335` |
 
 The first row's DAG pre-image is
-`{"parents":[],"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"actor":{"kind":"human","id":"u"},"promptId":null,"result":{"kind":"success"}}`.
+`|{"kind":"human","id":"u"}|{"v":2,"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"promptId":null,"result":{"kind":"success"}}`
+(re-minted by Phase 2645; the Phase 2115 addresses were the pre-cut pre-image's).
 
 ### 5.3.5 Conformance
 
@@ -5609,11 +5619,12 @@ The first row's DAG pre-image is
   and verifies the §5.3.2 hash and reproduces every `hash` and `previousHash` in
   `chain/chain-corpus.json`.
 - **The DAG content address is a declared profile.** A host that claims it mints and verifies
-  addresses under §5.3.3 and recomputes the stored `hash` of every non-tombstoned record in `dag/`. A
+  addresses under §5.3.3 and recomputes the stored `hash` of every record in `dag/`. A
   host that certifies against `dag/` only as a record codec — decode, re-encode, byte-equal — does not
   claim the profile, and it MUST NOT mint an address of its own: a guessed address fails verification
   wherever a claiming host reads it. Today the reference host is the only host that claims the profile;
-  every other host certifying against `dag/` does so as a codec.
+  every other host certifying against `dag/` does so as a codec, and re-certifies the re-minted records
+  (fuaran#2646).
 
 ## 6. `DecodeError` envelope + the eight codes
 
@@ -9591,10 +9602,10 @@ and that no other section specifies.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
   result's canonical bytes and hash, or is refused with the class the vector names; a `Batch` applies
   atomically.
-- **`merge-conformance`** — the deterministic three-way tree merge: `merge(base, a, b)` encodes
-  byte-equal to the expected tree, a refusal fixture is refused, and the totality fixtures are merged
-  without exception. Its `foldFixtures` key is the merge by fold (§34): two op deltas reconciled from a base,
-  to the derived tree, the refusal envelope or the gate's verdict.
+- **`merge-conformance`** — the merge by fold (§34), the DAG's only merge since Phase 2645: under the
+  `foldFixtures` key (manifest version 2), two op deltas reconciled from a base, to the derived tree, the
+  refusal envelope or the gate's verdict. The three-way tree merge's keys (`fixtures`, `refusalFixtures`,
+  `totalityFixtures`) were retired with it at the cut.
 - **`diff/treeDiff`** (`diff/manifest.json`) — over every authored `(before, after)` pair a host's
   structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
   `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
@@ -10742,18 +10753,18 @@ Every `TreeOp` case appears in a lowering script, every `DomPatch` kind in a DOM
 | `fuaran-go` | not applicable — as above |
 | `fuaran-rs` | not applicable — as above |
 
-## 34. Merge by fold (normative, Phase 2293)
+## 34. Merge by fold (normative, Phase 2293; the DAG's only merge since Phase 2645)
 
 A merge of two branches of an op DAG is a **derivation**: the two branches' op deltas are folded from their
 common base, and what the merge records is only what the fold cannot decide on its own. This section states the
 derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
 envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
 
-**§11 status: the reference and four ported hosts certified (§34.6).** `fuaran-dotnet` is the reference
-(`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`). The three-way TREE merge the other `merge-conformance/` keys
-certify (§27.8.2) stays normative until the fold replaces it as the DAG's only merge; until then a host reads
-`foldFixtures` when it ports this section and ignores the key before that, which is why the family sits under a
-key of its own.
+**§11 status: the reference certified; the four ported hosts re-certify at fuaran#2646 (§34.6).**
+`fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
+`DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
+`merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
+A merge node records the script below as its op (§5.3.3).
 
 ### 34.1 Inputs
 
@@ -10810,11 +10821,14 @@ moves of one node) listed **once**, at its first occurrence in the merged sequen
 into `p` (an `InsertChild` under `p`, a `MoveNode` to `p`; an id already in the run is not added again), less any
 id a LATER `ReorderChildren` of `p` in the same delta lists — that reorder placed it. Where the rule's order
 differs from the fold's, the merge records `ReorderChildren(p, order)`, listing every child once; the list of such
-ops is the merge's **script**. The rule is symmetric: two runs merge to the same sequence whichever delta is named
+ops is the merge's **script**. Since Phase 2645 the script carries that reorder for EVERY interleaved or rebased
+parent, whether or not it differs from the sequential fold's order: a merge node is replayed by Core's closure
+fold, which applies the two branches in its own drain order, so the script — not the order a reconcile checked —
+fixes the order, and `merge(A, C)` and `merge(C, A)` record one script and mint one node (§5.3.3). The rule is symmetric: two runs merge to the same sequence whichever delta is named
 first, so its first occurrences are the same too.
 
-Two consequences of the rule are **pinned** (operator ruling 2026-11-10) where the three-way tree merge of
-§27.8.2 answers differently: a `MoveNode` to the parent a node already sits under is an append, so the node goes
+Two consequences of the rule are **pinned** (operator ruling 2026-11-10) where the retired three-way tree merge
+answered differently: a `MoveNode` to the parent a node already sits under is an append, so the node goes
 last, as applying the op does (the tree merge keeps the node where the other side's list has it); and appended ids
 keep each delta's order, merged by heads (the tree merge sorts every appended id by NodeId). A host reproduces the
 policy's answer; `fold-pinned-own-parent-move` and `fold-pinned-append-order` certify it.
@@ -10822,8 +10836,21 @@ policy's answer; `fold-pinned-own-parent-move` and `fold-pinned-append-order` ce
 A reconcile runs the fold in both orders — `A` then `C`, and `C` then `A` — each followed by the script. If the
 two trees differ in canonical encoding, the merge is refused (`OrderSensitive`). The admitted classes lie outside
 Core's independence theorem, so this is checked, not assumed. A merge that would carry an introduced validator
-defect (§27.8.2's `merge-validator-gated`) is refused by the gate run over the two branch heads and the derived
-tree (`IntroducedDefects`), with the verdict §27.8.2 defines.
+defect is refused by the gate run over the two branch heads and the derived tree (`IntroducedDefects`): its
+verdict is the introduced-defect set, a JSON array of `{code,facet,message,nodeId}` objects (keys in that order,
+entries ordered by `nodeId`, then `facet`, then `code`), and `sha256` over it is the verdict hash.
+
+**Replay.** Core's closure fold applies each op through the fold's rule above: an op whose effect is already held
+applies as no change, and a `ReorderChildren` that does not apply as written (its list is stale because the other
+branch appended to the parent or took a child from it) applies rebased. On a linear history every op applies as
+written.
+
+**Precedence (optional, host-local).** A host MAY offer a merge that names one delta as taking precedence: the
+pairs the policy would refuse are admitted, and that delta's refused ops are re-asserted, in its own order, at
+the end of the script; both fold orders must still reach one tree with it. It settles a pair whose two ops both
+apply in either order (two writes of one slot) and nothing else — an edit beside a removal of its node still
+refuses. It is not certified by the corpus: a precedence merge's node is the host's to mint, and two hosts merging
+the same pair agree on it only when they name the same side.
 
 ### 34.5 The refusal envelope
 
@@ -10843,15 +10870,16 @@ entry's `left` and `right` and re-sorts; nothing else changes.
 
 Each entry names `baseFile`, `aOpsFile` and `bOpsFile` (canonical `TreeOp` arrays) and one of three kinds:
 `merge-fold-derive` (`expectedFile` + `outcomeHash`: the derived tree), `merge-fold-refusal` (`envelopeFile` +
-`envelopeHash`), and `merge-fold-gated` (`verdictFile` + `verdictHash`, under the sample validator of
-§27.8.2's `merge-validator-gated` family). The family pins the two cases the tree merge resolves differently: a
+`envelopeHash`), and `merge-fold-gated` (`verdictFile` + `verdictHash`, under the sample validator — at most one
+`Brand`-toned child per box, each offending child a `TESTBRAND001` defect on its `style.tone` cell). Since Phase 2645
+it is the corpus's only family. The family pins the two cases the retired tree merge resolved differently: a
 removal against a concurrent move refuses (`fold-refusal-remove-vs-move`), and two concurrent appends under one
 parent are ordered by the rule above rather than by the tree merge's per-position comparison. Since Phase 2671
 it also pins the rebase (`fold-reorder-and-insert`, `-remove`, `-move-in`, `-move-out`), the agreed node listed
 once (`fold-double-move-and-appends`), the two pinned child orders above, two reorders that still refuse
 (`fold-refusal-two-reorders`), and one fixture per class the fold DERIVES where the tree merge refuses, accepted as
 the policy's answer by the same ruling: a move beside an edit of the moved node (`fold-move-and-target-edit`; the
-tree merge's `ConcurrentMove`, the pair `merge-totality-concurrent-move` refuses), the same move on both sides
+tree merge's `ConcurrentMove`, the pair the retired `merge-totality-concurrent-move` refused), the same move on both sides
 beside an edit of the moved node (`fold-agreed-move-and-edit`; `ConcurrentEdit`), and three `ReorderVsStructural`
 shapes — a reorder beside a change of the child list (`fold-reorder-and-insert`), a move to a node's own parent
 beside an append (`fold-own-parent-move-and-insert`), and an agreed append beside other appends
@@ -10859,11 +10887,11 @@ beside an append (`fold-own-parent-move-and-insert`), and an agreed append besid
 
 | Host | `foldFixtures` |
 |---|---|
-| `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap |
-| `fuaran-ts` | covered to Phase 2670 — `packages/ops/test/fold.test.ts`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
-| `fuaran-py` | covered to Phase 2670 — `tests/test_merge_fold_conformance.py`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
-| `fuaran-go` | covered to Phase 2670 — `conformance/fold_test.go`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
-| `fuaran-rs` | covered to Phase 2670 — `tests/dag.rs`; the Phase 2671 rebase, the once-listed agreed node and the new fixtures are owed (fuaran#2646) |
+| `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap; `DagMergeTests` mints and replays the merge node |
+| `fuaran-ts` | covered to Phase 2670 — `packages/ops/test/fold.test.ts`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
+| `fuaran-py` | covered to Phase 2670 — `tests/test_merge_fold_conformance.py`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
+| `fuaran-go` | covered to Phase 2670 — `conformance/fold_test.go`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
+| `fuaran-rs` | covered to Phase 2670 — `tests/dag.rs`; the Phase 2671 rebase, the once-listed agreed node, the new fixtures, the always-recorded script and the manifest's version 2 are owed (fuaran#2646) |
 
 ---
 

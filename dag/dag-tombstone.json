@@ -1,1 +1,0 @@
-{"actor":{"kind":"agent","model":"claude","version":"4.8","id":"planner"},"hash":"ff879c22e3d5fddd33327f0625e6d4ff2889e5271e330135ddf5f3575ab22345","op":{"$type":"Batch","ops":[]},"parents":["b740ddb03e3215459ca1c0c1eb6330e8bea9903c6c7d64a0ae05c38f09d86f5e"],"promptId":"prompt-1","resultEnvelope":{"$type":"Success"},"streamId":"s1","timestamp":1700000060,"tombstoned":true}
