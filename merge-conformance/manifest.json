@@ -215,7 +215,17 @@
       "bOpsFile": "fold-move-and-source-edit.b.ops.json",
       "expectedFile": "fold-move-and-source-edit.expected.json",
       "outcomeHash": "abb167ac866a53de747c8f71f7e19300d6308c4e7f923e16e8a93dbe3224fee0",
-      "description": "One branch moves a node out of a container while the other retones the container itself. The move writes only the container's child list, which the base-aware footprint declares as the container's kind slot (Phase 2651), and the retone writes its style: two slots, no conflict, so the fold composes them"
+      "description": "One branch moves a node out of a container while the other retones the container itself. The move writes only the container's child list, which the base-aware footprint declares as the container's kind slot (Phase 2651) and Core's child-list slot (Phase 2691), and the retone writes its style: different slots, no conflict, so the fold composes them"
+    },
+    {
+      "id": "fold-insert-and-container-restyle",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-insert-and-container-restyle.base.json",
+      "aOpsFile": "fold-insert-and-container-restyle.a.ops.json",
+      "bOpsFile": "fold-insert-and-container-restyle.b.ops.json",
+      "expectedFile": "fold-insert-and-container-restyle.expected.json",
+      "outcomeHash": "45e63c185e8c6b89a14e8b4bce8279d9f189e5b169d27232a1c2de2b0d811651",
+      "description": "One branch appends a child to a container while the other retones the container itself. Under Core D246 (the 0.42.0 pin, Phase 2691) the insert writes the container's child-list slot and the retone its style: different slots, no conflict, so the fold composes them. Before the pin a structure write collided with every slot write of its node and the pair was refused"
     },
     {
       "id": "fold-move-and-target-edit",
@@ -235,7 +245,7 @@
       "bOpsFile": "fold-reorder-and-child-edit.b.ops.json",
       "expectedFile": "fold-reorder-and-child-edit.expected.json",
       "outcomeHash": "288050629ca86cda3de462bc4e203c5feea3e6106edf42ad4b3b9c587882b5bb",
-      "description": "One branch reorders a parent's children while the other retones one of them. The reorder writes the parent's child list (its kind slot) and reads each listed child only at its parent slot (Phase 2670), so the retone commutes with it and the fold composes them"
+      "description": "One branch reorders a parent's children while the other retones one of them. The reorder writes the parent's child list (its kind slot and Core's child-list slot) and reads each listed child only at its parent slot (Phase 2670), so the retone commutes with it and the fold composes them"
     },
     {
       "id": "fold-reorder-and-insert",
@@ -245,7 +255,7 @@
       "bOpsFile": "fold-reorder-and-insert.b.ops.json",
       "expectedFile": "fold-reorder-and-insert.expected.json",
       "outcomeHash": "c74f9dffbf34bffed47225c42da11570e6eb2d89fcd905582665416a31717ce0",
-      "description": "One branch reorders a parent's children while the other appends a child to it. Core reports the pair (the reorder writes the parent's kind slot, the insert touches the parent whole), and the policy admits it as a rebase (Phase 2671): the reorder is applied to the children the parent holds when the fold reaches it, so the reordered run keeps its declared order and the append follows it. The tree merge refuses this pair (ReorderVsStructural); the fold's answer is accepted by the 2026-11-10 ruling"
+      "description": "One branch reorders a parent's children while the other appends a child to it. Core reports the pair (the reorder writes the parent's child-list slot, which the insert writes too: a SlotClash, Core D246), and the policy admits it as a rebase (Phase 2671): the reorder is applied to the children the parent holds when the fold reaches it, so the reordered run keeps its declared order and the append follows it. The tree merge refuses this pair (ReorderVsStructural); the fold's answer is accepted by the 2026-11-10 ruling"
     },
     {
       "id": "fold-reorder-and-remove",
@@ -374,7 +384,7 @@
       "aOpsFile": "fold-refusal-remove-vs-move.a.ops.json",
       "bOpsFile": "fold-refusal-remove-vs-move.b.ops.json",
       "envelopeFile": "fold-refusal-remove-vs-move.envelope.json",
-      "envelopeHash": "1affb3e1854ace3033b526a9c95cf7277efd67adca0a7c3d2d2fdf85b55f71d3",
+      "envelopeHash": "d8439fa658aabd48e8b41b74bf79f54c92177c1065b37bb58774fc230f02a98a",
       "description": "One branch removes a node the other moves to another parent — a DeleteModify refusal, as against an edit. The tree-level merge let the move win; the fold refuses it"
     },
     {
@@ -384,8 +394,8 @@
       "aOpsFile": "fold-refusal-two-reorders.a.ops.json",
       "bOpsFile": "fold-refusal-two-reorders.b.ops.json",
       "envelopeFile": "fold-refusal-two-reorders.envelope.json",
-      "envelopeHash": "e0c1ab87766e0ee3f75e5b0c4ab32670c0da1cc1cdba1316989192a0863ec233",
-      "description": "Both branches reorder one parent's children to different orders — each writes the parent's kind slot, a SlotClash no rule decides, refused as a Conflict"
+      "envelopeHash": "6ed1c777bf7a4cb7d326463dd01911dd9f1c0373f709156d052503f0d93607e3",
+      "description": "Both branches reorder one parent's children to different orders — each writes the parent's child-list and kind slots, SlotClashes no rule decides, refused as a Conflict"
     },
     {
       "id": "fold-refusal-tooltip",
