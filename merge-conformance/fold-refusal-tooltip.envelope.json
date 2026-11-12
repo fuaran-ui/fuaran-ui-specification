@@ -1,0 +1,1 @@
+[{"address":"left","class":"Conflict","left":{"$type":"UpdateTooltip","target":"left","tooltip":"A hint"},"right":{"$type":"UpdateTooltip","target":"left","tooltip":"B hint"},"shape":"SlotClash","slot":"tooltip"}]

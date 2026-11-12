@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"subject","yFields":[],"title":"Sales, day on day","stacked":false,"data":[{"subject":"North","2026-10-31":410,"2026-10-30":380},{"subject":"South","2026-10-31":290,"2026-10-30":315},{"subject":"West","2026-10-31":150,"2026-10-30":140}]}

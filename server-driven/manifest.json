@@ -1,0 +1,8 @@
+{
+  "description": "The DomPatch frame contract (WIRE_FORMAT.md 33, Phase 2528). SELF-ENUMERATED, so the directory is one corpus family (27.7): `server-driven`. dom-patch-vectors.json carries the TreeOp to DomPatch lowering (a tree, an op script, the patches) and the patch application (the DOM before and after, with focus, caret and scroll survival); frame-vectors.json carries the frame envelope (JSON body and SSE form) and the client event bodies. One producer (fuaran-dotnet's lowering) and one applier (fuaran-dotnet's fuaran-live-patch.js) certify on it today (33.6). Emitted by the reference host (fuaran-dotnet, FUARAN_REGEN=1 over Fuaran.UI.ServerDriven.Tests).",
+  "files": [
+    "dom-patch-vectors.json",
+    "frame-vectors.json"
+  ],
+  "version": 1
+}

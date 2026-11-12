@@ -1,0 +1,1 @@
+[{"address":"boxa","class":"DeleteModify","left":{"$type":"RemoveNode","target":"m"},"right":{"$type":"MoveNode","newParentId":"boxb","target":"m"},"shape":"SlotClash","slot":"#children"},{"address":"m","class":"DeleteModify","left":{"$type":"RemoveNode","target":"m"},"right":{"$type":"MoveNode","newParentId":"boxb","target":"m"},"shape":"ConcurrentUpdate"}]

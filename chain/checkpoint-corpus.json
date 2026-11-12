@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "description": "Fuaran op-stream linear CHECKPOINT conformance (WIRE_FORMAT.md 5.3.2 for the record rule; the seal and the vectors are specified here), over the records of chain-corpus.json. The checkpoint stands at `sequence` (the number of records folded into its state): its `previousChainHead` is the hash of that record, and its `snapshotHash` is the strict snapshot seal SHA-256(previousChainHead + \"|\" + {\"snapshot\":true,\"seq\":<sequence>,\"state\":<canonical encoding of state>}). A host decodes `state`, re-encodes it canonically (section 2), and reproduces `snapshotHash` byte for byte. Each vector then takes the tail - the chain-corpus records above `sequence`, in order - applies its one `mutation`, and verifies the checkpoint and the WHOLE tail: the seal first (a seal that does not recompute is `seal`, and the tail is not walked), then every tail record from the anchor (sequence, previousChainHead) with the section 5.3.2 rule. `expect` names the first break: none, the seal, or the tail record by its 0-based index in the tail with the reason (sequenceMismatch, prevHashLinkBroken, hashMismatch, checked in that order per record). The `state` is the seal's subject only; it is not claimed to be the replay of the records below the boundary.",
+  "streamRecords": "chain-corpus.json",
+  "checkpoint": {
+    "sequence": 2,
+    "previousChainHead": "5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05",
+    "stateFixture": "nodes/markdown-1.json",
+    "state": {
+      "id": "markdown-1",
+      "kind": {
+        "$type": "Markdown",
+        "text": "Updated hourly."
+      }
+    },
+    "snapshotHash": "464d861fb8f8a17a06ebbd2439df01fc5eb923c803bc0db90b608ec98ec06087"
+  },
+  "vectors": [
+    {
+      "id": "intact",
+      "mutation": {
+        "kind": "none"
+      },
+      "expect": {
+        "break": "none"
+      }
+    },
+    {
+      "id": "seal-replaced",
+      "mutation": {
+        "kind": "snapshotHash",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expect": {
+        "break": "seal"
+      }
+    },
+    {
+      "id": "first-link-broken",
+      "mutation": {
+        "kind": "recordMember",
+        "index": 0,
+        "member": "previousHash",
+        "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expect": {
+        "break": "tail",
+        "index": 0,
+        "reason": "prevHashLinkBroken"
+      }
+    },
+    {
+      "id": "middle-record-edited",
+      "mutation": {
+        "kind": "recordMember",
+        "index": 1,
+        "member": "timestampUnixSeconds",
+        "value": 1700000004
+      },
+      "expect": {
+        "break": "tail",
+        "index": 1,
+        "reason": "hashMismatch"
+      }
+    },
+    {
+      "id": "middle-record-dropped",
+      "mutation": {
+        "kind": "dropRecord",
+        "index": 1
+      },
+      "expect": {
+        "break": "tail",
+        "index": 1,
+        "reason": "sequenceMismatch"
+      }
+    },
+    {
+      "id": "last-link-broken",
+      "mutation": {
+        "kind": "recordMember",
+        "index": 2,
+        "member": "previousHash",
+        "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expect": {
+        "break": "tail",
+        "index": 2,
+        "reason": "prevHashLinkBroken"
+      }
+    }
+  ]
+}

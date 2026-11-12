@@ -546,14 +546,14 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `CodeBlock` | _Display_ | `code`, `copyable?=true`, `highlightLines?=[]`, `language`, `lineNumbers?=false` | The parity-checked render is a deterministic `<pre><code>`; for an F* or F# `language` the reference renderers also emit a deterministic highlighting tier (class-only `tok-*` spans, optional for other hosts — see `render-fidelity.json`); any richer highlighting is a client-only post-hydration enhancement, outside the cross-host byte-diff. |
 | `Drawing` | _Display_ | `description?`, `shapes`, `style`, `title?`, `viewBox` |  |
 | `Embed` | _Display_ | `aspectRatio?=Natural`, `permissions?=[]`, `src`, `title` |  |
-| `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `tone?=Default`, `value` |  |
+| `Fact` | _Display_ | `emphasis?=false`, `help?`, `icon?`, `label`, `reference?`, `tone?=Default`, `value` |  |
 | `Heading` | _Display_ | `level`, `text`, `variant?=Standard` |  |
 | `Icon` | _Display_ | `icon`, `label?`, `size?=Medium`, `tone?=Default` |  |
 | `Image` | _Display_ | `alt`, `aspectRatio?=Natural`, `caption?`, `expandable?=false`, `fit?=Natural`, `loading?=Eager`, `src`, `srcSet?=[]`, `variant?=Default` | `src` is a `Binding<string>` the renderer routes through the §19 URL-scheme floor: sanitisation is a render-time obligation, so a URL that fails the floor is still a valid wire document. `alt` is mandatory. |
 | `LabelValueRow` | _Display_ | `emphasis?=false`, `format?=None`, `help?`, `label`, `value` |  |
 | `Link` | _Display_ | `download?=false`, `href`, `label`, `protection?`, `rel?`, `target?` | `protection` names an anti-scraper render STRATEGY, never a content constraint — the wire carries the real `mailto:` href and a decoder MUST NOT alter it. See "Link protection" below. |
 | `List` | _Display_ | `items`, `ordered?=false` |  |
-| `Markdown` | _Display_ | `text` |  |
+| `Markdown` | _Display_ | `citations?=[]`, `text` |  |
 | `Math` | _Display_ | `display`, `source` | The parity-checked render is a deterministic escaped-source fallback; KaTeX is a client-only post-hydration enhancement, outside the byte-diff. |
 | `Media` | _Display_ | `controls?=true`, `kind`, `label`, `loop?=false`, `src`, `tracks?=[]`, `transcript?` | One kind, two variants: `kind` selects `Video` (carrying `autoplay` and an optional `poster`) or `Audio` (carrying neither). `src` and `poster` are both routed through the §19 URL-scheme floor at render time, and `label` is mandatory — a transport is never decorative. `autoplay` is a wire DECLARATION whose rendering is constrained: see §3.6.6 for the obligations, none of which the bytes can carry. `tracks` carries the timed-text tracks and `transcript` the text alternative (Phase 1110); a track's `src` is routed through the same §19 floor, and both slots are render-obligation-bearing in the way `autoplay` is — authored track order preserved, at most one `default` per kind, and the transcript rendered as a disclosure BESIDE the transport, none of which the bytes can carry. |
 | `Metric` | _Display_ | `comparisons?=[]`, `emphasis?=Normal`, `format?=None`, `icon?`, `label`, `subtext?`, `tone?=Default`, `trend?`, `trendFormat?`, `trendPolarity?=HigherIsBetter`, `value`, `weight?=Standard` |  |
@@ -562,12 +562,12 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Sparkline` | _Display_ | `source` |  |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
-| `Button` | _Input_ | `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
+| `Button` | _Input_ | `affordance?`, `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
 | `FileUpload` | _Input_ | `accept`, `acceptPaste?=false`, `capture?`, `destination?`, `disabled?`, `dropTarget?=false`, `label`, `maxBytes?`, `maxFiles?`, `multiple?=false`, `onSelect?` |  |
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
-| `Select` | _Input_ | `disabled?`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` |  |
+| `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -876,6 +876,10 @@ never to validity). See `nodes/link-1.json` (unprotected) and `nodes/link-protec
 
 **`Select` multi-select (Phase 291; the `value` rule, Phase 1962).** `SelectSpec` carries two OPTIONAL multi-select fields: `"multiple":true` and `"values":<Binding>` (the multi-select value binding, a `Binding<string list>`). **Single-select carries `value`; multi-select carries `values` instead** — literally: a `Select` with `"multiple":true` carries `values` and **no `value`**, and one without `multiple` carries `value` (a `Binding<string>`; "no selection" is the empty `{"$type":"Static"}`) and no `values`. `multiple` is an ordinary optional field, emitted as authored: a single-select omits it (every single-select fixture is byte-identical to the pre-multi-select wire) and a `"multiple":false` decodes as single-select and re-encodes as written (`nodes/select-multiple-false.json`) — it is **not** an omit-at-default field, which is why the §3.6 identity-default table does not list it. The two change handlers are separate wire keys, both optional closure sentinels (§4, Phase 426): `"onChange":"<closure>"` is the single-select handler and `"onChangeMulti":"<closure>"` the multi-select one; an omitted handler arms the write-back default against `value` / `values` respectively.
 
+**The `affordance` member (Phase 2517).** `Select`, `Button` and every `Form` field carry an optional `affordance` object — the set / read phrasings, spoken aliases, description, `clearable` and `neverControllable` an agent-initiated instruction may use over and above what the node already says. Absent at `None`, every member omit-at-default; its slot rule and the derivation it feeds are §31.
+
+**The `groups` member (Phase 2571).** `Select` carries an optional `groups` list — named groups that gather the select's options by `value`, so a long choice list reads as categories without the category being spelled into every label. Omit-at-default (absent and `[]` are one fact), its order, rendering and two decode refusals are §3.6.30.
+
 The decoder enforces the `value` rule, because it is a relation between two sibling keys that the per-field optionality of [`idl.json`](idl.json) cannot state (the IDL marks `value` optional; [`schema.json`](schema.json) states the relation as `if`/`else`): a single-select without `value` is `MISSING_FIELD` at `value` (`reject/reject-1962-select-missing-value.json`). A multi-select that still carries a `value` is a **§16 lenient accept**: the `value` is decoded (so a malformed one refuses exactly as any malformed binding does) and then **dropped**, normalising the document to the clean form — whether it is the empty-`Static` placeholder every multi-select carried before Phase 1962 (`{"$type":"Static"}`, or `{"$type":"Static","value":null}`) or a real binding a model wrote beside its `values`. A multi-select never reads `value`, so dropping it changes nothing a reader can observe, and every stored document still reads (`lenient/lenient-1962-multiselect-value-dropped.json`, all three spellings). Refusing a non-placeholder `value` instead was considered and rejected on measurement: of the 16 stored model emissions carrying both keys, 14 carry a real binding (typically a `State` "primary" selection), so a refusal would have stopped 14 documents that decode today from reading. A reference-host pre-emit validator names a constructed multi-select that still carries one (`FUARAN164`, Warning). Until Phase 1962 the type model required `value` on every `Select`, so the canonical multi-select fixtures carried the meaningless placeholder beside the real `values` binding and every decoder refused the `values`-only shape models emit when they follow this paragraph. The change is one coordinated revision across every host in the §11.0 roster (operator ruling, 2026-10-01), on the Phase 1811 vehicle (§15.4): the profile does not step. A **behind** reader that still requires `value` refuses a new multi-select with `MISSING_FIELD`; nothing it wrote stops reading. See `nodes/multiselect-1.json` (multi) vs the byte-unchanged `nodes/select-1.json` (single). A searchable `Combobox`/autocomplete is noted as a future `Select` variant, deferred.
 
 **Filter chips are `FormFieldKind` controls (0.2.0 filters-unification; superseding the Phase 423 `FilterKind` DU).** A `Filters` item is `{"kind":<FormFieldKind>,"label":<TextSource>,"name":<string>}` – one control vocabulary for forms and filter strips; the retired `FilterKind` discriminators (`TextFilter` / `ChoiceFilter` / `RangeFilter` / `SegmentedFilter`) are a hard `UNKNOWN_DU_CASE`. Two chip-specific rules: (a) **auto-binding** – a chip control with **no `value` key** decodes to `{"$type":"Filter","name":<the chip's own name>}` (the item's declared name IS the store key), and the encoder symmetrically **omits** a `value` that is exactly that auto binding, so the canonical minimal chip is `{"kind":{"$type":"Choice","options":…},"label":…,"name":"status"}`; (b) the Phase 423 handler mechanics carry over unchanged – an omitted `onChange` writes `$filters.<name>` through the host's filter seam, a present `"<closure>"` wins. Since **0.2.1** the synthesis is symmetric: in a **Form**, an absent `value` auto-binds `State(<field id>, <typed placeholder>)` (see the §1.1 addendum) – the context decides the store, never whether omission is legal. See `nodes/filters-1.json` / `nodes/filters-declarative.json` / `nodes/filters-segmented.json`.
@@ -898,7 +902,8 @@ form, so a host implements one decoder and one renderer branch instead of two pr
 
 ```json
 {"$type":"DataGrid","columns":[],"source":{"$type":"Static","value":[]},
- "staticRows":{"defaultSort"?:{"column":<int ≥ 0>,"direction":"asc"|"desc"},
+ "staticRows":{"citations"?:[<TableCitation>,…],
+               "defaultSort"?:{"column":<int ≥ 0>,"direction":"asc"|"desc"},
                "headers":[<TextSource>,…],"rows":[[<TextSource>,…],…],
                "sortable"?:<bool>}}
 ```
@@ -932,7 +937,7 @@ form, so a host implements one decoder and one renderer branch instead of two pr
 
 ##### Declared sort intent — `sortable` / `defaultSort` (Phase 801)
 
-`staticRows` carries two further fields, both **OPTIONAL** and both emitted only when present
+`citations` (Phase 2592) names the cells whose figures cite a Fact; §3.6.33 specifies it. `staticRows` carries two further fields, both **OPTIONAL** and both emitted only when present
 (rule 4). A table declaring neither is byte-identical to the pre-801 form — `nodes/table-1.json`
 is the anchor for that, and `nodes/table-sortable-1.json` is the canonical corner with both present.
 
@@ -1755,7 +1760,7 @@ the two refusals.
 
 ### 3.4 `TreeOp` discriminators (top-level `$type`)
 
-For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
+For `decodeOp`, the document's own `$type` is the op kind: `EditNode`, `UpdateProp`, `ReplaceBinding`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `UpdateAccessibility`, `UpdateTooltip`, `InsertChild`, `RemoveNode`, `MoveNode`, `ReorderChildren`, `ReplaceRoot`, `Batch`. See `ops/*.json` for each shape. `ReplaceRoot` carries `"node": <Node>` – the whole new tree; it is the only op that legally changes the root node id (a whole-app swap, vs. a `Batch` of remove/insert). `Batch` carries `"ops": [ <TreeOp>, … ]` (recursive).
 
 
 **Membership and order are separate ops (0.4.0).** `InsertChild` and `MoveNode` change which children
@@ -1862,6 +1867,33 @@ fields that moved, and the whole-record `UpdateStyle` only when every field move
 different claims about the edit, and the difference is what a concurrency footprint reads: two
 `PatchStyle`s naming different fields of one node are independent edits, where two `UpdateStyle`s on
 one node always overlap. `UpdateStyle` remains the op for an author who means to REPLACE a style.
+
+#### `UpdateAccessibility` and `UpdateTooltip` – the trait edits (Phase 2527)
+
+A node's envelope carries two traits beside `state` and `style` (§3.1). Each has an op, with the shape of
+`UpdateStyle`: the op addresses a node and replaces the slot.
+
+```jsonc
+{"$type":"UpdateAccessibility","accessibility":{"describedBy":"help-1","role":"status"},"target":"metric-1"}
+{"$type":"UpdateTooltip","target":"metric-1","tooltip":"Updated nightly."}
+{"$type":"UpdateTooltip","target":"metric-1"}                     // clears the tooltip
+```
+
+**Members, in the pinned order:** `$type`, `accessibility`, `target`, and `$type`, `target`, `tooltip`. Each
+payload is the node envelope's own slot and decodes through that slot's decoder, near-miss refusals included:
+`accessibility` is an `Accessibility` record (§3.1) and `tooltip` a `TextSource`, whose literal form is the bare
+string. `accessibility` is REQUIRED; `tooltip` is OPTIONAL, and it is the one optional member of any op. See
+`ops/op-updateaccessibility*.json`, `ops/op-updatetooltip*.json` and `reject/reject-op-update{accessibility,tooltip}-*.json`.
+
+**Apply semantics.** `UpdateAccessibility` writes the WHOLE record: a member the payload leaves absent is cleared.
+A record setting no member (`"accessibility":{}`) is stored as the ABSENT slot, so the target encodes with no
+`accessibility` member; that is how the trait is removed, and it mirrors `UpdateStyle` over a default record.
+`UpdateTooltip` sets the slot to its payload, and an absent `tooltip` member clears it. An unknown `target` is
+`NodeNotFound` on both. Neither op writes any other slot.
+
+**Which op a producer emits.** A tree diff that observes a trait change on a matched node emits the trait's op, the
+accessibility op first, after any `EditNode`, field edit, state or style edit of that node. An absent accessibility
+and an empty record are the same trait, so a diff between them emits nothing. See `diff/goldens.json`.
 
 #### `UpdateProp.path` grammar – nested addressing (Phase 364)
 
@@ -2046,6 +2078,7 @@ read-compat):
 | `acceptPaste` | `bool` | `false` | `FileUploadSpec` |  |
 | `activeIndex` | `Binding<int>` | `Static{value=0}` | `TabsSpec` |  |
 | `activeStep` | `Binding<int>` | `Static{value=0}` | `StepperSpec` |  |
+| `aliases` | `AffordanceAlias[]` | `[]` | `Affordance` |  |
 | `allowFreeText` | `bool` | `false` | `FormFieldKind.Combobox` |  |
 | `allowFreeText` | `bool` | `true` | `FormFieldKind.Tokens` |  |
 | `allowHalf` | `bool` | `false` | `FormFieldKind.Rating` |  |
@@ -2053,6 +2086,9 @@ read-compat):
 | `autoplay` | `bool` | `false` | `MediaKind.Video` |  |
 | `breakBefore` | `bool` | `false` | `BoxSpec` |  |
 | `children` | `TreeItem[]` | `[]` | `TreeItem` |  |
+| `citations` | `MarkdownCitation[]` | `[]` | `MarkdownSpec` |  |
+| `citations` | `TableCitation[]` | `[]` | `StaticRows` |  |
+| `clearable` | `bool` | `false` | `Affordance` |  |
 | `comparisons` | `MetricComparison[]` | `[]` | `MetricSpec` |  |
 | `controls` | `bool` | `true` | `MediaSpec` | Omit-when-TRUE. A media element without a transport cannot be paused, seeked or muted, so the accessible setting is what a document gets for free and taking it away is what costs a key. |
 | `copyable` | `bool` | `true` | `CodeBlockSpec` | Omit-when-TRUE: a code block is copyable unless said otherwise (the authoring default, `Defaults.codeBlock`); §3.6 rule 1 declares the default as the authoring default, which is what gives this field its polarity. |
@@ -2071,6 +2107,7 @@ read-compat):
 | `exportable` | `bool` | `false` | `DataGridSpec` |  |
 | `fit` | `ImageFit` | `Natural` | `ImageSpec` |  |
 | `format` | `CellFormat` | `None` | `ColumnErased`, `LabelValueRowSpec`, `MetricComparison`, `MetricSpec` |  |
+| `groups` | `SelectOptionGroup[]` | `[]` | `SelectSpec` |  |
 | `highlightLines` | `int[]` | `[]` | `CodeBlockSpec` |  |
 | `holes` | `HoleDecl[]` | `[]` | `FragmentDeclSpec` |  |
 | `indeterminate` | `bool` | `false` | `ProgressSpec` |  |
@@ -2081,10 +2118,13 @@ read-compat):
 | `loop` | `bool` | `false` | `MediaSpec` |  |
 | `modality` | `ModalityKind` | `Modal` | `ModalSpec` |  |
 | `multiple` | `bool` | `false` | `FileUploadSpec` |  |
+| `neverControllable` | `bool` | `false` | `Affordance` |  |
 | `ordered` | `bool` | `false` | `ListSpec` |  |
 | `orientation` | `Orientation` | `Horizontal` | `FormFieldKind.SegmentedChoice`, `TabsSpec` | `TabsSpec` and, since Phase 2300, `FormFieldKind.SegmentedChoice` — whose decoder restored `Horizontal` on absence since Phase 460 while the encoder still emitted it; rule 1 declares the default, so the encoder now omits it too. `Flex.direction` is NOT in this table: a flex axis has no identity (a corpus prior is not a default). |
+| `patterns` | `string[]` | `[]` | `Affordance` |  |
 | `permissions` | `EmbedPermission[]` | `[]` | `EmbedSpec` |  |
 | `polarity` | `TrendPolarity` | `HigherIsBetter` | `MetricComparison` |  |
+| `readPatterns` | `string[]` | `[]` | `Affordance` |  |
 | `reorderable` | `bool` | `false` | `DataGridSpec` |  |
 | `repeatHeader` | `bool` | `false` | `DataGridSpec` |  |
 | `required` | `bool` | `false` | `FormField` |  |
@@ -2308,6 +2348,14 @@ Three rules, each pinned by the corpus (`lenient/lenient-1811-*`, `reject/reject
 - **`CellKind`'s `Date` (a data-cell kind) and `ChartAnnotationX`'s `Date` (an ISO address) are
   different families and do NOT move**; neither takes an alias. A host that renames every `"Date"`
   string it can find has read the rule as being about the string rather than about the case.
+
+**Producer-support shims (Phase 2451, §15.6).** A third admission ground, beside §16's own and the
+ruled pre-rename spellings above: an alias kept because a declared emitter-profile revision (§11.4)
+writes the old spelling. Such a shim is admitted under §15.6, lands with a `lenient-accept` vector
+named in that revision's `vectors`, and is kept for the period §15.6 rule 3 states rather than until a
+major version says otherwise. The form-field `Date` alias above is the first: it serves the D8 ruling
+and the `panel@1.0` revision (`lenient/lenient-2451-*`), so a major step that drops it advances that
+lineage's `oldestAccepted` record in the same change-set.
 
 The **enum-value** aliases above apply inside a `TonedPill`'s `map` values and its `default` exactly
 as they do at a `tone` field (`Danger`→`Critical`, `Positive`→`Success`, `Neutral`→`Default`) – the map
@@ -4794,7 +4842,235 @@ one.
 `lenient-transform-int-whole-float-token` (`2.0` reads as `2`) and
 `lenient-transform-int-inferred-past-int32` (a whole value past the range infers `float`).
 
+### 3.6.29 `Chart` — series read from the rows (Phase 2568)
+
+A chart's `yFields` names its series, one per column. **It may be EMPTY over a `Query` source**, and then the
+series are read from the rows the query resolves to:
+
+- **Which columns.** Every column other than `xField` that at least one row carries as a number — a JSON number,
+  or a decimal cell (§7) — and that no row carries as anything else. An absent cell or a `null` says nothing
+  either way, so a sparse numeric column is still a series. A string, a boolean or a date cell disqualifies the
+  column: a boolean is a flag and a date is an axis, and plotting either would draw a number the table never
+  stated.
+- **In what order.** Ordinal by column name (UTF-16 code units, the order §5's canonical writer gives an
+  object's members). A row has no other order every host holds: a decoded row is a map, and its canonical
+  bytes are already Ordinal. A comparison whose columns are ISO dates therefore reads chronologically.
+- **Named by column.** Each series is named by its column, exactly as an authored series is, so the legend,
+  the accessible summary and every mark id (`<field>|<category>`) carry the
+  names the resolver wrote — the subjects of a trend, the dates of a comparison.
+- **Under the series cap.** A table with more such columns than the lowering's series cap (32 by default) is
+  the same typed refusal an authored list that long is — the refusal drawing, whose description names the
+  count and the limit — never a chart of the first 32 columns. Derived series are counted only once the rows
+  are read, so the point cap is applied first.
+
+**The lowering is substitution and nothing else.** A host derives the list, then lowers exactly as it would the
+chart whose `yFields` is that list: the two produce the same bytes. A chart with a non-empty `yFields` is
+unchanged, byte for byte, whatever its rows hold. The wire is unchanged too: `yFields` was always a list, and an
+empty one always decoded.
+
+**Admission is the validator's.** An empty `yFields` over any other source is refused pre-emit as `FUARAN168`
+(`validator/defect-vocabulary.json`), naming the binding found there: over inline rows, state or a transform the
+columns are the tree's own and the author names them. A page document refuses such a source already (§32.6); a
+derived chart on a page reads its request, and the demanded document (§32.4) records nothing it would not record
+for the same request with its columns named. `FUARAN088`'s one-series rule for a `Pie` does not judge an empty
+list pre-emit, since the count is known only at lowering, where a pie derived to other than one series draws
+nothing.
+
+**Vectors.** `chart-lowering/derived-series/`, a subfamily in the `themed/` shape: the top-level family's input
+contract with `yFields` empty and the table's own cells, written in a non-Ordinal column order so the golden pins
+the order a host reads. `derived-trend-subjects` (three subject columns), `derived-comparison-dates` (two dated
+columns), `derived-mixed-columns` (a text and a boolean column beside two numeric ones, one with a `null`),
+`derived-one-numeric`, `derived-no-numeric` (no series) and `derived-over-series-cap` (the refusal). Adoption is
+recorded per host in §11.0. The page-document family carries `derived-series-page` (accepted) and
+`chart-derived-inline-rows` (refused by §32.6).
+
+### 3.6.30 `Select.groups` — option groups (Phase 2571)
+
+A `Select` may gather its options into named groups, so a long choice list reads as categories rather than as
+one list whose labels carry the category ("Trend: Revenue", "Breakdown: By region"). Structure carried in label
+text is read back by an agent, a screen reader and the operability derivation (§31) as part of each option's
+name; a group is structure the document states.
+
+```json
+{"$type":"Select","groups":[{"label":"Trend","values":["orders-trend","revenue-trend"]},
+                            {"label":"Breakdown","values":["region-breakdown","channel-breakdown"]}],
+ "label":"Chart","source":{"$type":"Static","value":[{"label":"Revenue","value":"revenue-trend"}, …]},
+ "value":{"$type":"Static","value":"revenue-trend"}}
+```
+
+- **Shape.** `groups` is an array of `SelectOptionGroup` objects, `{"label":<string>,"values":[<string>,…]}`,
+  both members required. Each entry of `values` names an option of the SAME `Select` by its `value`. The member
+  sits on the `Select`, never on `SelectOption`: an option's own shape is unchanged, so every document and every
+  host-language construction of an option is unchanged too.
+- **Omit-at-default.** Absent and `[]` are one fact — no grouping — and encode identically: the canonical form
+  omits the member, so a document without groups is byte-unchanged by this section. A decoder accepts an explicit
+  `[]` and normalises it away (§16's declared-default rule).
+- **Order.** Groups render in list order. Within a group, its options render in `source` order — the order of
+  `values` is kept on the wire exactly as written (the round trip is byte-identical), and does not reorder the
+  options. The options no group names — the ungrouped remainder — render after every group, in `source` order,
+  under no heading. A group whose `values` is empty renders as an empty group.
+- **Rendering.** A web host and a server renderer draw each group as an `<optgroup label="…">` holding that
+  group's `<option>`s, the remainder as plain `<option>`s after the last `<optgroup>`. A native surface draws a
+  non-selectable section header carrying the group's label above its options. A group label is never an option:
+  it cannot be chosen, it is not a value, and the operability derivation (§31) resolves a spoken alias against
+  options alone — a group label is not an alias for anything.
+- **Two refusals, both decode-time `WRONG_TYPE` at the offending `values` element.**
+  - **A value named more than once** — by two groups, or twice by one —
+    (`reject/reject-2571-select-group-value-twice.json`, `$.kind.groups[1].values[1]`). An option belongs to at
+    most one group: drawn twice it is two entries a reader cannot tell apart, and drawn once the document does
+    not say which group holds it.
+  - **Over STATIC options, a value naming no option** (`reject/reject-2571-select-group-value-unknown.json`,
+    `$.kind.groups[0].values[1]`). A group gathers the select's own options and adds none, so a value it cannot
+    find is a typo the document would otherwise drop in silence. A `Static` source with no options is static too:
+    every value names no option. Over a BOUND source (`State`, `Query`, …) the options are not in the document, so
+    the decoder cannot judge the value; a host that resolves the binding and finds a group value its rows do not
+    hold draws that group without it and may report the miss at render — never at decode.
+
+  Both are relations across the document that neither the IDL's per-field optionality nor `schema.json` can
+  state, so the decoder enforces them; the schema carries the member's shape only.
+- **Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption): a
+  behind host decodes a grouped document and renders its options flat, which is the pre-2571 rendering of the same
+  options. The profile does not step.
+
+**Vectors.** `nodes/select-option-groups.json` (every option grouped, each group's `values` written in an order
+other than `source`'s), `nodes/select-option-groups-remainder.json` (two grouped options and an ungrouped
+remainder, over a `State`-bound value), and the two reject fixtures above.
+
+### 3.6.31 `Fact.reference` — a figure cites the Fact behind it (Phase 2535)
+
+A `Fact` may name the Fact its figure was drawn from, so the citation is part of the document: it survives the
+canonical wire, an op stream, a stored page document and the embedded renderer. Before this member a citation could
+only ride `extraAttributes`, which the wire omits (§9), so a cited figure lost its citation the moment it left the
+process that built it.
+
+```json
+{"$type":"Fact","label":"Revenue","reference":"9f04f29b27c86926a1c3e5d7b8f0a2c4e6d8f0a1b3c5d7e9f1a3b5c7d9e1f3a5","value":"£412k"}
+```
+
+- **Shape.** `reference` is an optional string. Absent means the figure cites nothing, and a document without it is
+  byte-unchanged by this section. A present value round-trips byte-identically, the empty string included.
+- **The value is opaque to the language.** Its documented form is a **Fact id** as the Fact wire specification states
+  it ([`FACT_WIRE.md`](https://github.com/Fuaran-Data/fuaran-fact-specification/blob/main/FACT_WIRE.md) §4): 64
+  lower-case hex digits, the SHA-256 digest of the Fact's identity frame, with no prefix. A producer holding references
+  of another shape (a narrative's own `fact:…` tokens, say) may carry them: no host parses, validates or resolves the
+  value, so no decoder refuses one over its form. Resolving a reference to the Fact it names is the consuming
+  application's act.
+- **Rendering.** A host that renders HTML stamps the value as the attribute `data-fact` on the element drawing the
+  cited figure — for `Fact`, the tile's root element — through its ordinary attribute encoder, as it does every other
+  string attribute. A figure with no reference carries no such attribute. The attribute is what a page's own script
+  reads to link a figure to its source; the visible text does not change. A native surface exposes the value on the
+  element's semantic properties or ignores it, and never draws it.
+- **Other kinds.** A kind that later gains a citation takes this member's name, value and `data-fact` attribute, and
+  cites this section, so one rule governs every citation.
+- **No as-of member.** A reference names a Fact; when that Fact was asserted is the Fact's own record. A consumer that
+  needs a point-in-time citation can add an optional member beside `reference` then, additively.
+- **Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption): a behind
+  host decodes a cited `Fact` and renders it without the attribute. The profile does not step.
+
+**Vector.** `nodes/fact-cited.json`.
+
 ---
+
+### 3.6.32 `Markdown.citations` — a figure cited inside a sentence (Phase 2591)
+
+A sentence that cites a number stays one text. `Markdown` gains an optional `citations` list, omitted when
+empty, whose entries name figures the text places with an ordinary Markdown link:
+
+```json
+{"$type":"Markdown","citations":[{"label":"Online share of category spend","name":"share","reference":"9f04f29b27c86926a1c3e5d7b8f0a2c4e6d8f0a1b3c5d7e9f1a3b5c7d9e1f3a5"}],"text":"Online.com took [23%](cite:share) of the category."}
+```
+
+| Member | Type | Meaning |
+|---|---|---|
+| `name` | string, required | What the text's `cite:<name>` destination says. Letters, digits, `-` and `_`, at least one, unique in the list. |
+| `reference` | string, required | The reference naming the Fact. The same member as `Fact.reference`, §3.6.31: its value is opaque here too, never parsed and never refused for its content. |
+| `label` | `TextSource`, optional | What the figure is, for a screen reader. Never printed. |
+
+The figure's display text is the link's own text, so it lives in the sentence and can be anything: it need not
+equal any value the Fact holds.
+
+**Decode refuses**, as `WRONG_TYPE`: an empty `citations` array, so that absent is the one spelling of none and a
+document has one byte form; a `name` outside the grammar; a `name` already used in the list, with the path at the
+later occurrence. A missing `name` or `reference` is the ordinary `MISSING_FIELD`.
+
+**Decode does not read the text.** It may be bound or an i18n key, and §14 keeps Markdown out of decode, so an
+undeclared name and an unused citation are facts of the render.
+
+**Rendering (normative; pinned by [`markdown/corpus.json`](./markdown/corpus.json), whose fixtures may declare
+`citations`).** A rendering host resolves each label to a string and hands the list to its Markdown renderer. A link
+or a reference-style link whose resolved destination is exactly `cite:` followed by a declared `name` draws:
+
+```html
+<span class="fuaran-cited" data-fact="REFERENCE"><span class="fuaran-cited-label">LABEL </span>TEXT</span>
+```
+
+The label's span is absent when the label is absent or empty. A `title` on the link stays on the outer span, after
+`data-fact`. The reference and the label go through the same encoders as any other attribute and text. No egress
+policy is asked, because a citation has no destination. The reference stylesheet keeps `.fuaran-cited` in the line of
+text and visually hides `.fuaran-cited-label`.
+
+**Everything else is what it was.** An undeclared name, an uppercase scheme, an image and an autolink are not
+citations and meet the §19 scheme floor as `about:blank`. A code span and a backslash escape stay literal. A
+declared citation the text never places draws nothing. A figure inside a link is a span inside the anchor. So a host
+that ignores this member still reads the number, as a dead link, which is why the display text is not a member of
+the citation.
+
+**A projection with no stylesheet** (an email) renders the figure with its reference and without its label, since
+the label would be printed there and the sentence already says what the number is.
+
+**Byte identity.** A `Markdown` with no citations encodes as it always has, and renders as it always has, even when
+its text holds a `cite:` link.
+
+**Versioning.** An optional member §2 rule 2 lets a behind reader ignore (§15.4's optional-field exemption). The
+profile does not step.
+
+**Forward coupling.** A later citing kind takes `reference` by this name, value and attribute; `staticRows.citations`
+(§3.6.33) does so with coordinates in place of `name`. fuaran-kt and fuaran-swift pin an earlier corpus, and these
+fixtures reach them through Phase 2574.
+
+### 3.6.33 `DataGrid.staticRows.citations` — a table cell cites its figure (Phase 2592)
+
+A report table whose numbers are cited stays a table. A static table's payload gains an optional `citations` list,
+omitted when empty, whose entries name cells by their coordinates. Each cell's text stays in `rows`:
+
+```json
+{"citations":[{"column":1,"label":"Online spend","reference":"fact:online-spend","row":0}],"headers":["Channel","Spend"],"rows":[["Online","£412k"],["Retail","£1.2m"]]}
+```
+
+| Member | Type | Meaning |
+|---|---|---|
+| `row` | integer, required | The cited cell's zero-based index in `rows`. |
+| `column` | integer, required | The cited cell's zero-based index in that row. |
+| `reference` | string, required | The reference naming the Fact. The same member as `Fact.reference`, §3.6.31: its value is opaque here too, never parsed and never refused for its content. |
+| `label` | `TextSource`, optional | What the figure is, for a screen reader. Never printed. |
+
+**Decode refuses**, as `WRONG_TYPE`: an empty `citations` array, so that absent is the one spelling of none and a
+document has one byte form; a negative or non-integer `row` or `column`; a `row` the table does not have; a `column`
+the cited row does not have, read against that row, so a table with rows of different lengths is judged cell by cell;
+a second entry for one cell, with the path at the later entry. A missing member is the ordinary `MISSING_FIELD`.
+
+**Rendering (normative).** A rendering host draws the semantic table it always drew, and for a cited cell:
+
+```html
+<td class="fuaran-table-cell" data-fact="REFERENCE"><span class="fuaran-cited-label">LABEL </span>TEXT</td>
+```
+
+The label's span is absent when the label is absent or empty; it is the first child of the cell, and a cell's other
+content, such as a toned column's pill, follows it. The reference and the label go through the same encoders as any
+other attribute and text. No class is added: `.fuaran-table` applies as it does to any cell, and the reference
+stylesheet visually hides `.fuaran-cited-label`.
+
+**Coordinates address `rows` as authored.** A `defaultSort` or a reader's sort moves a citation with its row. A host's
+sort keys on the cell's text without the label, and an export serialises `rows`, so neither a label nor a reference
+reaches an exported file.
+
+**A projection with no stylesheet** (an email) draws the cell with its reference and without its label, as §3.6.32.
+
+**Byte identity.** A table with no citations encodes as it always has, and renders as it always has.
+
+**A host that ignores this member** still reads the table, with every number in its cell and no reference. A cell
+holding a link or an image is not expressible here. fuaran-kt and fuaran-swift pin an earlier corpus, and these
+fixtures reach them through Phase 2574.
 
 ### The declarative floor (Phase 430)
 
@@ -5223,13 +5499,13 @@ replay that does not verify). No host is out of conformance with this section as
 changes is that a fourth host now has the rule in front of it, and that a host moving to
 verify-by-default inherits obligation 3 with it.
 
-## 5.3 Op-stream chain and DAG content address (normative, Phase 2115)
+## 5.3 Op-stream chain and DAG content address (normative, Phase 2115; the DAG address re-stated by Phase 2645)
 
 An op-stream records `TreeOp`s (§3.4) together with their provenance: who applied the op, when, under
 which prompt, and with what outcome. Two record shapes carry that history, and each has its own hash.
 In the **linear chain** every record names its predecessor's hash and its own position in the stream.
 In the **DAG** every record names zero or more parent addresses and no position at all, so a stream can
-branch and merge. The two hashes are different functions on purpose (§5.3.3). This section defines both
+branch and merge. The two hashes are different functions (§5.3.4). This section defines both
 byte for byte: a reader holding this document and nothing else can recompute every stored hash in
 `chain/chain-corpus.json` and in the `dag/` family.
 
@@ -5296,57 +5572,67 @@ and its hash is `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0
 
 ### 5.3.3 The DAG content address
 
-A DAG record's address is the digest of a pre-image with **no** previous-hash prefix: the links to
-earlier history are the parent addresses inside it. Which of two pre-images applies is decided by
-whether the record carries an `outcomeHash`, not by how many parents it has.
+Since Phase 2645 (the cut) the op DAG is Fuaran.Core's DAG over the linear chain's provenance entry: a node's
+address is Core's `Dag.nodeId` under the SHA-256 hash function of §5.3.2, over the node's parents, its actor and
+its **entry** — the very `entry` §5.3.2 defines, so a node's op is byte-identical to the linear record's.
 
 ```text
-ordinary node (no outcomeHash):
-  hash = SHA-256( {"parents":[<parents>],"op":<op>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
-
-merge node (outcomeHash present):
-  hash = SHA-256( {"parents":[<parents>],"merge":<outcomeHash>,"ts":<ts>,"actor":<actor>,"promptId":<promptId>,"result":<result>} )
+hash  = SHA-256( <parents> + "|" + <actor> + "|" + <entry> )
+entry = {"v":2,"op":<op>,"ts":<ts>,"promptId":<promptId>,"result":<result>}
 ```
 
-- **Parents are sorted inside the hash.** `<parents>` is the record's parent addresses, each a JSON
-  string, comma-separated and sorted in Ordinal order whatever order the record lists them in. (Each is
-  64 lower-case hex characters, so Ordinal, code-point and byte order coincide.) The wire record keeps
-  its parents in **author order**, the primary parent first; only the pre-image sorts. A merge of `{A,B}`
-  and a merge of `{B,A}` therefore have one address. A node with no parents — a genesis node — hashes
-  `"parents":[]`.
-- **The merge node folds its outcome, not its op.** `<outcomeHash>` is the record's `outcomeHash`
-  string: the SHA-256 of the canonical encoding (§2) of the merged tree. A merge record's `op` is the
-  replay delta from its primary parent's tree to that merged tree, and it is **outside** the address, so
-  two hosts that reach the same merged tree by different deltas mint the same address.
-- **What is outside the address.** `streamId`, `tombstoned`, and (on a merge node) `op`. The record's
-  `hash` member is, of course, the output.
-- **Tombstoned records.** A tombstoned record's payload has been pruned, so its stored `hash` cannot be
-  recomputed and is accepted as stored; its `parents` still link. `dag/dag-tombstone.json` carries the
-  address of `dag/dag-linear-step.json` over a pruned `op`, which is exactly this case.
-- **No format tag — a property, not an omission to fill in.** The DAG pre-image carries no
-  format-version member, and nothing in a DAG record identifies the pre-image rule that produced its
-  address. A change to this pre-image therefore **re-addresses every node**, and a stored address made
-  under an earlier rule is simply one that does not recompute: it is not upgraded in place and does not
-  carry forward. The typed actor's arrival in the pre-image (Phase 1144) was such a change, and the
-  `dag/` manifest records the re-minting. Introducing a DAG format tag would itself be a change to this
-  section.
+- **Parents are sorted inside the hash.** `<parents>` is the record's parent addresses, **unquoted**, sorted in
+  Ordinal order and joined by a single `,` (U+002C) — whatever order the record lists them in. (Each is 64
+  lower-case hex characters, so Ordinal, code-point and byte order coincide.) A node with no parents — a genesis
+  node — contributes the empty string, so its pre-image begins with `|`. The wire record keeps its parents in
+  **author order**; only the pre-image sorts. A merge of `{A,B}` and a merge of `{B,A}` therefore have one address.
+- **The separators.** One `|` (U+007C) between `<parents>` and `<actor>` (the §5.3.2 hash function's separator),
+  and one between `<actor>` and `<entry>` (Core's node payload). Nothing else is inserted.
+- **A merge node is an ordinary node.** It has two parents, and its `op` is its reconciliation **script** (§34.4)
+  as a `Batch` — `{"$type":"Batch","ops":[]}` where the fold needs no script. Its address folds that op like any
+  other; there is no outcome-tree identity. Replaying a merge node is Core's closure fold of its ancestors (both
+  branches, in Core's deterministic drain order) and then the script, and a host mints a merge node only when that
+  replay reaches the tree §34.4 derives.
+- **What is outside the address.** `streamId` (the store's partition key). The record's `hash` member is the
+  output.
+- **Retired at the cut.** The `outcomeHash` member, the `"merge"` pre-image and the `tombstoned` member. A pruned
+  node leaves a store's live set for its skeleton (its address and parents, no payload) and is never a wire
+  record. A `dag/` record that carries `outcomeHash` or `tombstoned` is a pre-2645 record: its address does not
+  recompute, and a reader refuses it by name rather than lifting it.
+- **No format tag — a property, not an omission to fill in.** Nothing in a DAG record identifies the pre-image
+  rule that produced its address. A change to this pre-image therefore **re-addresses every node**, and a stored
+  address made under an earlier rule is simply one that does not recompute: it is not upgraded in place and does
+  not carry forward. The typed actor's arrival (Phase 1144) and the cut (Phase 2645) were such changes, and the
+  `dag/` manifest records each re-minting; a store written before the cut is re-addressed by the one-release
+  re-mint tool.
+
+Worked example — `dag/dag-genesis.json` (actor human `u1`, no parents, no prompt, timestamp `1700000000`). Its
+pre-image is
+
+```text
+|{"kind":"human","id":"u1"}|{"v":2,"op":{"$type":"RemoveNode","target":"n1"},"ts":1700000000,"promptId":null,"result":{"kind":"success"}}
+```
+
+and its hash is `4624bd23859bd2de3ccdfebaa9f460cc4a8a962e8630a2ce2baa6f543f646192`, the stored value.
 
 ### 5.3.4 The two hashes are different (normative)
 
 **A single-parent DAG node's address is not the linear hash of the same record, and a host MUST NOT
-treat either as the other or derive one from the other.** The DAG pre-image has no sequence, no
-previous-hash prefix and no format tag, and its members sit in a different envelope. Lifting a linear
+treat either as the other or derive one from the other.** The two share the `entry` byte for byte, but the
+DAG pre-image has no sequence and no previous hash: its prefix is the sorted parents and the actor sits
+beside the entry rather than in a `seq`/`actor`/`op` payload. Lifting a linear
 stream into the DAG — each record becomes a node whose single parent is the previous node's address,
 the first record a node with no parents — preserves the tree that replay produces and re-addresses every
 record. The worked pair, recomputed from `chain/chain-corpus.json` at authoring time:
 
 | `chain-corpus.json` record | linear hash (stored) | DAG address of the same record |
 |---|---|---|
-| sequence 1 (no parents in the DAG) | `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c` | `d67c35e006e9f2beee6edf58abcc5e95ba6904f94b336931bc4c84212c146355` |
-| sequence 2 (single parent `d67c35e0…`) | `5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05` | `c51ad58b87f8cb47359a6e1e701febf68e40d2fb0e2841fc7a9305dc722c3a63` |
+| sequence 1 (no parents in the DAG) | `914d7631416d77f24aeea88a63d5e0fa376073366f390ae718f0910ae45dee0c` | `6b60513e1c8153d9818a11190c4c37b92a011de257735515f9a3acda61f96935` |
+| sequence 2 (single parent `6b60513e…`) | `5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05` | `9a2c8df625020265e51b7c751e283ba7ad583c4bb049b567000f2c4ec71b4335` |
 
 The first row's DAG pre-image is
-`{"parents":[],"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"actor":{"kind":"human","id":"u"},"promptId":null,"result":{"kind":"success"}}`.
+`|{"kind":"human","id":"u"}|{"v":2,"op":{"$type":"RemoveNode","target":"metric-1"},"ts":1700000000,"promptId":null,"result":{"kind":"success"}}`
+(re-minted by Phase 2645; the Phase 2115 addresses were the pre-cut pre-image's).
 
 ### 5.3.5 Conformance
 
@@ -5354,11 +5640,12 @@ The first row's DAG pre-image is
   and verifies the §5.3.2 hash and reproduces every `hash` and `previousHash` in
   `chain/chain-corpus.json`.
 - **The DAG content address is a declared profile.** A host that claims it mints and verifies
-  addresses under §5.3.3 and recomputes the stored `hash` of every non-tombstoned record in `dag/`. A
+  addresses under §5.3.3 and recomputes the stored `hash` of every record in `dag/`. A
   host that certifies against `dag/` only as a record codec — decode, re-encode, byte-equal — does not
   claim the profile, and it MUST NOT mint an address of its own: a guessed address fails verification
   wherever a claiming host reads it. Today the reference host is the only host that claims the profile;
-  every other host certifying against `dag/` does so as a codec.
+  every other host certifies against `dag/` as a codec, and re-certified the re-minted records at
+  fuaran#2646, each refusing a record that carries a retired member by name.
 
 ## 6. `DecodeError` envelope + the eight codes
 
@@ -5384,7 +5671,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -5579,6 +5866,22 @@ the cheap side of the host/surface line precisely because it inherits the certif
 Rust core rather than re-implementing one – the §11 forward-coupling tax lands on `fuaran-rs` once and
 the native surface rides it.
 
+**The third role: a constrained emitter (Phase 2451) — a profile claim, never a row of this table.**
+A producer that writes a few kinds, applies nothing it receives and decodes nothing of this wire (a
+controller driving a panel, say) is neither a codec host nor a render projection. Held to either bar it
+could claim nothing. It claims conformance under a declared **emitter profile** instead (§11.4), and the
+claim is about the bytes it writes, never about a codec it holds:
+
+| Role | Writes this wire | Reads this wire | Bar | Recorded |
+|---|---|---|---|---|
+| codec host | the whole vocabulary | the whole vocabulary | byte identity over the whole corpus (§11.1) | a row of the table above and of `conformance/roster.json` |
+| render projection | nothing | a codec host's decoded tree | render coverage over the node corpus | a row of the table above and of `conformance/roster.json` |
+| constrained emitter | a declared subset, canonical bytes only | nothing it claims | every document and frame it writes is accepted by every codec host (§11.4) | an emitter profile in `manifest.json` (§11.4); never a row of either |
+
+The count of conformant hosts this specification states is a count of codec hosts. A constrained
+emitter never joins it, whoever builds it and however many kinds its profile names, and a claim under
+the role reads *conforms as a constrained emitter under `panel@1.1`*, never *conforms*.
+
 **Render-obligation adoption (§13).** The render obligations are a *second* bar, orthogonal to the
 byte-parity one above: a codec host can be byte-perfect and still fail every render obligation, and a
 render projection that carries no codec leg at all still owes them for the kinds it renders. A host
@@ -5715,6 +6018,20 @@ distinction.** A pending host owes the obligation and has not made its answer vi
 declared posture excludes the obligation has answered it. Reading the Go row as pending would suggest
 a gap that closing would VIOLATE its posture — so the row says which it is, and names the test that
 holds it.
+
+**Derived-series adoption (`ChartSpec.yFields` empty, Phase 2568, §3.6.29).** A lowering bar: the wire did not
+move (an empty list always decoded), so only a host that lowers a chart in-host owes it, and its vectors sit in the
+`chart-lowering/derived-series/` subfamily, which the hosts reading the top-level family enumerate past.
+
+| Host | Derived-series adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: `Charts.derivedSeriesFields`, the lowering and the AG adapter, and `FUARAN168`; generates the goldens |
+| `fuaran-ts` | **adopted** — the lowering, byte-identical on every `derived-series` golden, the refusal included |
+| `fuaran-py` | **pending** — lowers charts and does not yet derive series: an empty `yFields` lowers to a chart with no series |
+| `fuaran-rs` | **pending** — as `fuaran-py` |
+| `fuaran-go` | `n/a` — REQUIRE-PRE-LOWERED: a raw `Chart` is a typed passthrough, and the lowered `Drawing` it is handed renders as any other |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
 
 **Upload-ceiling adoption (`FileUploadSpec.maxBytes` / `.maxFiles`, Phase 1548).** A SEVENTH bar, and
 the one where the codec leg is smallest and the ENFORCEMENT leg is owed by the most different kinds of
@@ -6023,6 +6340,126 @@ source at HEAD (every leg of the change-set command), has no tier to be ahead of
 AHEAD. The first adopter is the projection-conformance gate that certifies the corpus against the
 released hosts at a pinned tier.
 
+### 11.4 Constrained-emitter profiles (normative, Phase 2451)
+
+A device that writes eight of the node kinds, applies no op it receives and decodes only the events
+its own placement reads cannot be held to whole-corpus byte identity, and before this section it
+could make no conformance claim at all. This section gives it one. The role is the third row of
+§11.0's role table, and the claim is a **profile claim**: a statement about the bytes an emitter
+writes, checked against vectors every codec host already certifies. It is never a host claim (§11.0).
+
+#### The three axes
+
+An emitter profile fixes three things about what an emitter writes. The first two use the program
+wire specification's profile vocabulary (its §10.8), so the two wires name the same properties the
+same way. There they narrow what a READER accepts; here they bound what a WRITER emits, and a codec
+host reading the output is never put under them.
+
+| Axis | The emitter writes | Declared |
+|---|---|---|
+| `canonical-bytes` | only canonical bytes: every document it writes is the canonical encoding (§2) of the value it denotes, so `encode(decode(x)) = x` on every codec host. An emitter whose tree is compiled in as a constant string holds this by construction | always |
+| `integer-only` | no number token with a fraction or an exponent, at any depth, a structured payload position (§2 rule 12) included. The axis reads the token, not the value: `2.0` is outside it although it is whole | when claimed |
+| the declared subset | only the wire discriminators its profile names, in three families, each a set of `$type` strings in §23.2's form: `kinds` (every `NodeKind` at a node position, nested and op-borne nodes included, exactly the positions a §23 policy gates), `formFieldKinds` (every `FormFieldKind` at a control position: a `Form`'s `fields[]` and a `Filters`' `items[]`) and `ops` (an op document's own `$type` and every `Batch` member's) | always |
+
+The subset enumerates those three families and no other. Every other discriminated value a declared
+kind's fields carry (a binding, an action, a layout, a tone) is a FIELD of a declared kind, and §15.6
+protects it as one. The two node-side families must stay disjoint for a `kind.$type` to name one
+family, and the reference host's leg pins that they do.
+
+**A frame is an op document.** The unit an emitter streams after its first document is a `TreeOp`
+(§3, the `ops/` shapes). Any envelope a transport puts around a run of them (a sequence number, an
+array of ops, a chain hash) belongs to that transport and is outside this wire and this claim.
+
+#### The bar
+
+*Every document and every frame the emitter writes is accepted by every codec host in the roster*:
+each decodes at the host's default (no §23 policy, §23.1), and a document or frame of the profile's
+current revision re-encodes byte-identical. The bar is certified by the emitter's own continuous
+integration: build the same producing code for a target with a standard library, drive it through its
+scenarios, decode every output with the codec hosts (the reference and the TypeScript host at least),
+and assert the bar and the axes on each. An emitter claiming a revision states its id beside the
+claim, and any limits tighter than §21's it declares are deployment policy (§21.2 rule 6), never part
+of the profile.
+
+#### The declaration
+
+The manifest declares emitter profiles in a top-level `emitterProfiles` object, one member per
+**lineage**:
+
+```json
+"emitterProfiles": {
+  "<name>": {
+    "description": "…",
+    "oldestAccepted": { "<codec host>": "<revision id>", … },
+    "revisions": [
+      { "id": "<name>@<major>.<minor>", "wire": "core@1.0",
+        "axes": ["canonical-bytes", "integer-only"],
+        "subset": { "kinds": […], "formFieldKinds": […], "ops": […] },
+        "vectors": ["<fixture id>", …],
+        "description": "…" }
+    ]
+  }
+}
+```
+
+- A **revision id** takes §15.1's grammar in its own namespace. It is never a `$profile` value; `wire`
+  names the §15.1 profile the revision's documents are read under. A lineage's revisions are listed
+  oldest first. A later revision is minted when the spelling the lineage writes moves under a §15.6
+  shim, or when its subset grows.
+- **`vectors`** name rows of the families every codec host already runs: `node-round-trip` and
+  `op-round-trip` rows for what the revision writes that is canonical today, `lenient-accept` rows
+  (§16) for what it writes that a later rename turned into an alias. So the vectors need no family of
+  their own, and every codec host certifies their acceptance through the legs it already runs. Every
+  vector lies inside its revision's subset and, under `integer-only`, carries no non-integer token.
+- **`oldestAccepted`** names every codec host of the roster, and for each the oldest revision of the
+  lineage that host still accepts (§15.6).
+
+#### The emitter-acceptance leg
+
+A codec host adopts the role by running, for every lineage, every revision from its own
+`oldestAccepted` entry to the newest, and asserting of each vector: that it names a row of one of the
+three families; that it carries no non-integer token when the revision claims `integer-only`; that it
+lies inside the revision's subset (decoded under a §23 policy admitting exactly the subset's `kinds`,
+with its control and op tags read at their positions); and that it is accepted: a round-trip row
+re-encodes byte-identical, an alias-shim row re-encodes to its expected file. The leg also asserts
+that `oldestAccepted` names exactly the roster's codec hosts, that the newest revision declares only
+tags the corpus attests (§11.2), and that each check goes red on a perturbed input. The subset and
+integer checks are properties of the bytes, so they need running only once to hold for all; acceptance
+is a property of each host, and that is the part every host's round-trip and lenient legs certify.
+
+| Host | Emitter-acceptance leg |
+|---|---|
+| `fuaran` (F#) | **adopted** (Phase 2451) — the reference emitter writes the declaration and refuses one naming a vector it did not author |
+| `fuaran-ts` | **adopted** (Phase 2451) — the conformance package's own leg, over the bundled snapshot and the workspace corpus |
+| `fuaran-py` | pending — accepts the vectors through its round-trip and lenient legs |
+| `fuaran-go` | pending — as above |
+| `fuaran-rs` | pending — as above |
+
+#### The declared lineage
+
+The corpus declares one lineage, `panel`: a status-and-control panel with a heading, a reading, a
+status badge, a command button, a schedule form and an alarm row that comes and goes. Its subset is
+seven kinds (`Badge`, `Box`, `Button`, `Callout`, `Form`, `Heading`, `Metric`), two controls and five
+ops (`InsertChild`, `RemoveNode`, `ReplaceBinding`, `ReplaceRoot`, `UpdateProp`), integers only.
+
+- **`panel@1.1`** is the current spelling: `nodes/emitter-panel.json` (the first frame's document),
+  `ops/op-emitter-replaceroot.json` (the first frame) and the four frames after it.
+- **`panel@1.0`** is the same panel as written before Phase 1811 renamed the form-field `Date` to
+  `DateTime`. The two documents carrying the old tag are alias-shim vectors
+  (`lenient/lenient-2451-panel-1-0`, `lenient/lenient-2451-panel-schedule-1-0`). The first normalises
+  to exactly the bytes of `nodes/emitter-panel.json`, so the shim maps an old device's first frame
+  onto the current one and changes nothing else. The four frames carrying no renamed tag are canonical
+  under both revisions and are the same rows.
+
+A reading travels as `ReplaceBinding` on the reading's slot. `UpdateState` is not a data update: it
+replaces a node's loading, empty and error presentations (§3).
+
+**Open, and recorded as open.** The lenient family is read by the node decoder only, so a frame of an
+old revision that carries a renamed node inside an op (a `ReplaceRoot` of the old panel) is pinned
+through that node's document vector rather than as a frame of its own. Every node-bearing op decodes
+its node with the node decoder (§23.4), so the shim reaches it. A vector kind for op-borne aliases
+would be a new family, with every host's adoption in its change-set.
+
 ---
 
 ## 12. Regenerating / consuming the corpus
@@ -6098,11 +6535,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->717<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->269<!-- /fuaran:count --> `node-round-trip`,
-<!-- fuaran:count kind=op-round-trip -->28<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->220<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->89<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=total -->766<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->279<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
+<!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
@@ -6380,6 +6817,7 @@ The manifest's `style-observer` fixture rows name the vectors under [`style-obse
   | `observation` | `options` (the three thresholds), `nodeId`, `input` (`foreground`, `backgroundLayers` element-first, `fontFamily`, `emittedTone`) | `expectedFlags` — the encoded manifest-free flag list, in derivation order; `expectedObservation` — the whole encoded snapshot |
   | `per-node-manifest` | `manifest` (see below), `observation` (a snapshot's fields, flags excluded) | `expectedManifestFlags` — the encoded manifest-aware per-node flag list |
   | `usage-budget` | `manifest`, `nodeAreas` (each an `observation` paired with its rendered `area` in px²) | `expectedBudgetFlags` — the encoded tree-level budget flag list |
+  | `manifest-validation` | `manifest` | `expectedManifestDefects` — the encoded validation defects, in order (Phase 2133, below) |
 
 - **The manifest is a STRING, deliberately.** A manifest-aware vector needs a theme manifest, and every host reaches one through its own `decode(json)`. Carrying it as a nested JSON object would oblige each host to re-serialise before decoding, and re-serialisation is exactly where hosts differ — key order, number rendering, escape choices. Fed verbatim to each decoder, the field also pins that the manifest wire form is decodable by all of them, which no other vector in this corpus asserts.
 - **Generated, and the generator PROVES it.** The cases are authored in `fuaran-dotnet` (`src/Fuaran.UI.StyleObserver.Tests/StyleObserverCorpus.fs`), beside the reference implementation of the derivation. Each case declares the flag KINDS it exists to exhibit, and the writer refuses — before a single file is touched — when the reference derivation disagrees, so the family cannot publish a regression as an expectation. The bytes are the implementation's; the claim is the case author's. The first run of that gate earned its keep immediately: it refuted an authored case that four hosts' own suites had left unasserted.
@@ -6392,6 +6830,22 @@ The manifest's `style-observer` fixture rows name the vectors under [`style-obse
   It is deliberately NOT part of the wholesale corpus emit, and `style-observer/` is deliberately not a directory that emitter owns — the `teleport/` and `laws/` arrangement — so a regeneration can neither rewrite nor delete the family. Its manifest rows carry a `kind` the wholesale emitter does not author, which is what carries them across a regeneration.
 - **Conformance.** A conformant host reads the rows from `manifest.json`, loads each named document, reconstructs the evidence its tier names, runs its OWN derivation, and asserts byte-equality against the expectations. A tier or a flag kind outside its vocabulary is REPORTED by name with the vector id, never skipped silently: not checked is not passed. A host's own inline literals are kept only as go-red partners — a checker that cannot fail certifies nothing, and a byte comparison falls silently into that state whenever the corpus is absent, the enumeration is empty, or the list was skipped.
 - **Growth.** Vectors are additive and land under the [§11](#11-forward-coupling-rule-load-bearing) forward-coupling rule: a flag case added to the vocabulary, a field added to the snapshot, or a change to any encoded rendering moves the derivation, this family, and every adopting host's checker in the same change-set.
+
+#### The theme-manifest byte law and its validation pass — Phase 2133
+
+The theme manifest the `manifest` member carries is decoded **tolerantly and totally** on every host: an absent member decodes to its default, because the canonical manifest every host writes OMITS a member at its default — keys Ordinal-sorted (rule 2), no whitespace, numbers under rule 5, and an empty `$type`, `meta` name or version, an anonymous role binding (`{"named":""}`), a zero number, a weight of `1`, and an empty `meta`, `roles` or `invariants` block all left out. `tokens` is never omitted: a top-level `tokens` key is what selects the manifest wrapper over a bare DTCG tree. So `{"kind":"ContrastFloor","role":"x"}` IS the canonical encoding of a floor of `0`, and a decoder that refused it would refuse every host's output.
+
+A floor of `0` passes every contrast pair, though, and so does an explicit `0.5`; an empty or unbound role floors nothing; a budget on an undeclared token can never be measured; and an invariant kind a host does not know would, if dropped, leave a newer constraint unenforced in silence. Each of those fails OPEN, and none is a syntax error. They are caught by a **validation pass run after decode**, on every host that consumes manifests, with this one code table:
+
+| Code | Raised when | `subject` |
+|---|---|---|
+| `CONTRAST_FLOOR_OUT_OF_RANGE` | A `ContrastFloor`'s `minRatio` lies outside [1, 21], the range WCAG's contrast formula produces (an omitted `minRatio` is `0`). | the role |
+| `CONTRAST_FLOOR_ROLE_EMPTY` | A `ContrastFloor`'s `role` is empty (or omitted). | `""` |
+| `CONTRAST_FLOOR_ROLE_UNBOUND` | No role binding binds the floor's non-empty `role` — a tone binding binds its tone's wire name, a named binding its name. | the role |
+| `USAGE_BUDGET_TOKEN_UNDECLARED` | A `UsageBudget`'s `token` names no token the manifest declares. | the token |
+| `INVARIANT_KIND_UNKNOWN` | The invariant's `kind` is outside the host's vocabulary. The decoder KEEPS such an invariant — its kind, its members and its weight round-trip through decode and encode — and this code reports it as enforced by nothing. | the kind |
+
+A defect encodes as `{"code":…,"index":…,"subject":…}`, keys in that (Ordinal) order, where `index` is the invariant's position in the decoded invariant list. Defects are listed invariant by invariant, in list order, and within one invariant in the table's order; a floor that is both out of range and unbound reports both. `UsageBudget`'s `targetPct` / `tolerancePct` and `MotionVoice`'s `maxDurationMs` have no rule: each defaults to `0`, and "never use this token" and "no motion" are strict, not vacuous. The pass never refuses and never repairs; a host decides what a defect costs it. `INVARIANT_KIND_UNKNOWN` is relative to a host's vocabulary, so the vectors use a kind no host knows. The manifest schema (`theme-manifest.schema.json`, beside the reference host's manifest package) keeps `kind` an enum for AUTHORING, documents `minRatio`'s range, and marks every defaulted member optional with its `default`.
 
 ---
 
@@ -6527,9 +6981,9 @@ A behind consumer thus has three honest responses to an unknown kind: **detect**
 |---|---|---|
 | **Additive – a new TAG** in a closed discriminated vocabulary: a `NodeKind`, a `TreeOp`, a `Spec` / `Binding` / `Action` union case, or an enum case in a slot an existing decoder already reads | **minor** (`core@1.N` → `core@1.(N+1)`) | `Behind` → must-ignore-but-preserve (§15.3) absorbs it, but only because the profile TOLD the consumer to tolerate; without the step it meets the tag as `Current` and hard-rejects |
 | **Additive – a new OPTIONAL FIELD** on an existing kind / op / case / record | **no step** – exempt | `Behind` never arises. §2 rule 2 ignores an unknown key on decode, and §15.3's must-ignore-but-preserve keeps its bytes, so the consumer never consults the profile at all |
-| **Additive – a new REQUIRED field**, or an optional field becoming required | **no step** – and that understates it | Old CONSUMERS are unaffected, which is all the counter measures; old EMITTERS now produce invalid documents. Coordinate the emitters; the profile cannot say this and must not pretend to |
+| **Additive – a new REQUIRED field**, or an optional field becoming required | **no step** – and that understates it | Old CONSUMERS are unaffected, which is all the counter measures; old EMITTERS now produce invalid documents. Coordinate the emitters; the profile cannot say this and must not pretend to. For a field of a kind a declared emitter revision writes, §15.6 says it: the field is not made required on the wire |
 | **A narrowing of the CANONICAL form** where the accepted set is unchanged – an omit-at-default arriving on a field that was optional-by-convention | **no step** | Every document that was valid stays valid and decodes to the same value; what changes is which of two spellings a conformant host EMITS. Certified by the `lenient-accept` family, which is where a normalisation belongs |
-| **Removal / rename** – a kind/case/field present before and absent after | **major** (`core@1.x` → `core@2.0`, new `/vN/` + `$id`) | `Foreign` → hard-refuse; a migration shim rewrites old→new |
+| **Removal / rename** – a kind/case/field present before and absent after | **major** (`core@1.x` → `core@2.0`, new `/vN/` + `$id`) | `Foreign` → hard-refuse; a migration shim rewrites old→new. A tag or field a declared emitter revision writes keeps a §16 alias for §15.6's period |
 
 **The optional-field exemption is the PRECEDENT made into the rule (Phase 1670).** Until then this table's first row said an optional field bumped the minor, and nothing had ever bumped it: `pageStateKey` (Phase 862), `editStateKey` (Phase 863) and Phase 934 each added one and each declined the step, deliberately and with the reason recorded, while the profile stood at `core@1.0` throughout. Two readings were available – that the practice was drifting, or that the policy over-specified – and the second is correct on the mechanism: §2 rule 2 already tolerates an unknown key, so a behind consumer absorbs a new optional field with no negotiation, no degradation and nothing to name. A minor step there communicates nothing a consumer can act on, and spending the counter on changes it cannot describe is what makes the counter useless for the changes it can. A rule nobody follows is worse than no rule: it makes a reviewer who enforces it look wrong, and it makes the three declined bumps read as oversights rather than as the correct call they were.
 
@@ -6584,6 +7038,46 @@ The contract is executable in the shared [`wire-format-fixtures/`](./) corpus as
 > disagreement out of a gap. Recorded here per §20.1 rather than left for the next tool to
 > rediscover; a host that DOES expose negotiation publicly should say so, and the family stops being
 > a skip for it.
+
+### 15.6 The producer-support commitment (normative, Phase 2451)
+
+§15.2 to §15.5 are written for a behind consumer meeting an ahead producer. A constrained emitter
+(§11.4) is the opposite case: a producer that writes one revision of one profile for its whole service
+life and meets consumers that keep moving. §15.4 leaves that producer with two weak answers: a new
+required field makes its documents invalid, and a major step makes them `Foreign`. This section is the
+commitment such a producer can rely on. It binds every codec host in the §11.0 roster, for every
+revision of every lineage `manifest.json` declares.
+
+1. **No field of a declared kind is made required, and no tag or field a declared revision writes is
+   renamed or removed, without a shim.** A field a revision's documents may omit keeps decoding when
+   omitted: its absence still decodes to a default (§16's restore-on-absence), whatever a later
+   authoring surface requires. A rename or removal of a declared `kinds` / `formFieldKinds` / `ops` tag,
+   of a field of a declared kind, or of a value such a field carries lands only with a shim that maps
+   the revision's spelling onto the new one.
+2. **The shim is a §16 lenient-ingest alias.** It is decode-only and never emitted: a host accepts the
+   old spelling and re-encodes the new one, so the shim never becomes a second dialect. It lands in the
+   change-set that renames, with a `lenient-accept` vector added to the revision's `vectors` that pins
+   the old spelling to the new canonical bytes. Producer support is the alias's admission ground, beside
+   §16's own (evidence that models write the form) and the ruled pre-rename spellings already listed
+   there.
+3. **The period is the life of the wire major the revision names.** A revision whose `wire` is
+   `core@1.0` is accepted by every codec host for as long as that host reads `core@1`, through every
+   minor step. A major step does not end the obligation silently either: its change-set carries each
+   shim forward or advances, for each host that drops one, that host's `oldestAccepted` entry past the
+   revisions the shim served, in the same change-set and with the reason in that host's decision record.
+4. **The record is `oldestAccepted`.** Per lineage, per codec host, the oldest revision that host still
+   accepts. A host's emitter-acceptance leg (§11.4) reads every revision from its entry onward, so an
+   entry naming a revision the host no longer accepts turns that host's leg red. The record is a claim
+   with a falsifier, and the one a device maker reads.
+
+**What it does not promise.** It promises that a host reads the revision's documents and frames, not
+that a host renders them any particular way, and nothing to a producer outside a declared lineage. A
+kind the language adds later is not admitted to a revision: a later revision names it.
+
+**The first instance.** The `panel@1.0` revision (§11.4) writes the form-field `Date`, which Phase 1811
+renamed to `DateTime`. That rename's alias (§16, the temporal table) is the shim, and the
+`lenient/lenient-2451-*` vectors pin it as one. Every codec host already carried that alias for the
+Phase 1811 ruling, so `oldestAccepted` names `panel@1.0` for all five.
 
 ---
 
@@ -9132,9 +9626,10 @@ and that no other section specifies.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
   result's canonical bytes and hash, or is refused with the class the vector names; a `Batch` applies
   atomically.
-- **`merge-conformance`** — the deterministic three-way tree merge: `merge(base, a, b)` encodes
-  byte-equal to the expected tree, a refusal fixture is refused, and the totality fixtures are merged
-  without exception.
+- **`merge-conformance`** — the merge by fold (§34), the DAG's only merge since Phase 2645: under the
+  `foldFixtures` key (manifest version 2), two op deltas reconciled from a base, to the derived tree, the
+  refusal envelope or the gate's verdict. The three-way tree merge's keys (`fixtures`, `refusalFixtures`,
+  `totalityFixtures`) were retired with it at the cut.
 - **`diff/treeDiff`** (`diff/manifest.json`) — over every authored `(before, after)` pair a host's
   structural diff produces the pinned op-script (the per-host script for a `divergent` pair), and
   `Apply(Diff(before, after), before)` encodes byte-equal to `after`. The round-trip law binds every
@@ -9773,6 +10268,667 @@ reasons, and the conditions that would reopen it are recorded in the language ti
 that does not know this vocabulary nothing it can act on — a leaf it cannot perform is still a leaf
 it cannot perform — and costs every document bytes and every host a migration, while two hosts
 already agree on this table under the vectors above.
+
+---
+
+## 31. The operable surface (normative, Phase 2517)
+
+A tree already says what a reader can do with it: a `Select` names a closed option set and a label, a
+form field a typed value, a button an action. This section makes that a **specified projection** — the
+tree's *operable surface* — so an instruction an agent supplies on a reader's behalf can be resolved
+against the tree itself rather than against declarations kept beside it, and so every host reads the
+same surface. Four parts: an optional `affordance` member on the wire (§31.1–31.2), the derivation
+(§31.3), the resolution contract (§31.4–31.6), and the `operability/` family that certifies them
+(§31.7). §31.8 is the renderer's annotation obligation for a node that declares an affordance.
+
+### 31.1 The `affordance` member
+
+`Select`, `Button` and every `Form` field (`FormField`) carry an OPTIONAL `affordance` object. It is
+absent at `None` — every document written before it encodes to the bytes it always did — and every
+member inside it is omit-at-default, so `{}` is the affordance that declares nothing beyond the node.
+
+| Member | Type | Default (omitted) | Meaning |
+|---|---|---|---|
+| `patterns` | `string[]` | `[]` | Further SET forms (a `Select` / field) or CLICK forms (a `Button`). |
+| `readPatterns` | `string[]` | `[]` | Further question forms; they resolve only to a `read` (§31.4). |
+| `aliases` | `{alias, value}[]` | `[]` | A spoken `alias` resolving to the canonical option `value`. |
+| `description` | `string` | absent | Free text a reader may render and MUST NOT parse. |
+| `clearable` | `bool` | `false` | The node may be cleared (`clear <label>`). |
+| `neverControllable` | `bool` | `false` | The node is withdrawn from the operable surface entirely. |
+
+### 31.2 The slot rule (decode)
+
+A pattern is literal text with at most one slot, spelled exactly `{value}`; any other `{` or `}` is
+refused, so the pattern grammar stays closed. Which patterns must name the slot is the CARRYING kind's:
+
+- On a `Select` or a field — a SET — every `patterns` entry names exactly one `{value}`. A set pattern
+  naming none is refused: the instruction's value would have nowhere to go.
+- On a `Button` — a CLICK — no `patterns` entry names one: there is no value for it to name.
+- No `readPatterns` entry names one, on any kind.
+- A blank pattern is refused.
+
+Each refusal is `WRONG_TYPE` at the offending entry (`$.kind.affordance.patterns[0]`,
+`$.kind.fields[0].affordance.readPatterns[1]`, …). An alias missing either member is `MISSING_FIELD`.
+
+### 31.3 The derivation
+
+`derive(mountId?, tree)` is a pure, total function from a tree to its affordances, in document order:
+pre-order over the positions the node's KIND holds (its ordered children and its arms; never an
+envelope `fallback`, and never a `Mount`'s inputs, which are the guest's own scope and are derived by the
+host under the guest's mount id).
+
+**Which nodes.** A `Select` or `Button` whose `id` is non-empty, and each field of a `Form` whose `id`
+is non-empty. A node or field whose affordance says `neverControllable` yields NOTHING — it is absent,
+not marked; an agent cannot tell it from a node that does not exist.
+
+**Each affordance** carries:
+
+- `node` — the node's `id` (a field's `id`), qualified as `<mountId>/<id>` when the host supplied a
+  mount id.
+- `kind` — one of `set`, `clear`, `click`, `navigate`, `read`.
+- `id` — `<node>:<kind>`, unique within one derivation. It is the string a host's dispatch gate sees for
+  an agent-initiated operation (`ActionDescriptor.Operate` on the reference host).
+- `label` — the node's label when it is a `Literal`, else its `id` with `-` and `_` read as spaces;
+  ASCII-lowercased and whitespace-collapsed (§31.4).
+- `forms` — the label-derived defaults below, then the declared patterns (normalised the same way),
+  duplicates removed, first occurrence kept.
+- `slot` — on a `set` only (below).
+- `description` — the declared description, verbatim.
+
+**Per node:**
+
+| Node | Affordances, in this order |
+|---|---|
+| `Select`, single | `set` (when it has a slot, or declared patterns), `clear` (when `clearable`), `read` |
+| `Select`, `multiple: true` | `read` only — a single slot value cannot say which members of a list to keep |
+| field | `set` (when it has a slot, or declared patterns), `clear` (when `clearable`), `read` |
+| `Button` whose `onClick` is a `Navigate` | `navigate` |
+| any other `Button` | `click` |
+
+**Default forms.** `set`: `set <label> to {value}`, `change <label> to {value}`. `clear`: `clear
+<label>`. `read`: `what is <label>`, then the `readPatterns`. `click`: `click <label>`, `press
+<label>`. `navigate`: `go to <label>`, `open <label>`. The declared `patterns` follow the defaults of
+the `set`, `click` or `navigate`.
+
+**The slot** is typed by the node's value space:
+
+| Value space | Slot |
+|---|---|
+| `Select` with a `Static` option list; field `Choice`, `SegmentedChoice`, `Combobox` with a `Static` list | `enumeration` — each option's `label` and `value`, and the aliases whose `value` names it |
+| field `Number` | `number`, unbounded, not integral |
+| field `RangedNumber`, `Range` | `number` with the field's `min` / `max`; integral when its `step` is a whole number |
+| field `Rating` | `number` from `0` to `max`; integral unless `allowHalf` |
+| field `Checkbox`, `Toggle` | `boolean` |
+| field `Text`, `TextArea`, `DateTime`, `DateTimeRange`, `Color`, `Tokens`; a `Select` whose options are not `Static` | none: FREE TEXT |
+
+**Free text has no slot of its own**, so it gets no default set forms, and a free-text node with no
+declared pattern has no `set` at all. A declared pattern IS the deliberate slot: the `set` then carries
+the declared forms only, and a `text` slot bounded at 256 UTF-16 code units. That is the author's
+exposure, and §31.6 says so.
+
+**`Resolve`** — host-side, never on the wire — is the node's OWN action applied to a slot value: a
+`Select`'s `onChange` with the option value or, when it declares no handler and its `value` is a
+`State` binding, a `SetState` of that key (the write-back default, §4); a field's `onChange` with the
+value as a JSON value of the field's type, or the same write-back; a button's `onClick`. A `clear`
+passes the absence (`onChange` with no value, a `SetState` with no value, an empty string to a field
+handler). A `read` dispatches nothing.
+
+### 31.4 Normalisation and clauses
+
+1. An instruction longer than **512** UTF-16 code units resolves to nothing.
+2. Runs of ASCII whitespace collapse to one space; the ends are trimmed.
+3. Literals compare **ASCII-lowercased** (`A`–`Z` → `a`–`z`) and nothing else. A Unicode case fold
+   differs between runtimes, which would make one instruction resolve differently on two hosts; the
+   ASCII fold is also length-preserving, which is what lets a `text` slot keep the instruction's own
+   spelling.
+4. The instruction is **question-shaped** when it ends with `?` or its first word is one of `what`,
+   `what's`, `whats`, `which`, `who`, `how`, `is`, `are`, `does`, `do`. A question-shaped instruction
+   resolves only to `read` affordances, and an instruction that is not one never resolves to a `read`.
+5. Trailing `?`, `.` and `!` are removed.
+6. The instruction splits into **clauses** on the whole words `and` and `then`. More than **8** clauses,
+   or an empty clause, resolves to nothing. A value containing `and` or `then` as a word is therefore
+   reachable only through an alias or its option value.
+
+### 31.5 Resolution
+
+Each clause is matched against every form of every eligible affordance, **anchored at both ends**:
+
+- A form with no slot matches a clause equal to it.
+- A form with a slot matches a clause that starts with the text before `{value}` and ends with the text
+  after it, with something between. The slot is **greedy** — it takes everything between the anchored
+  literals — and **typed**: the captured text, trimmed, must decode against the affordance's slot.
+  `enumeration`: equal to an option's label, an option's value, or one of its aliases (all compared
+  ASCII-lowercased), yielding the option VALUE. `number`: a decimal numeral (`-`? digits, optionally `.`
+  digits), within the bounds, whole when integral, yielding the numeral as written. `boolean`: `on`,
+  `true`, `yes`, `enabled`, `checked` → `true`; `off`, `false`, `no`, `disabled`, `unchecked` → `false`.
+  `text`: non-empty and within its bound, yielding the instruction's own spelling.
+
+The outcome of `resolve(instruction, affordances)`:
+
+- `resolved` — every clause matched exactly one affordance with one value: the `(id, value?)` pairs in
+  clause order (a `set` carries its value; the other kinds carry none).
+- `notResolved` — a cap was broken, or SOME clause matched nothing. Resolution is **all-or-nothing**:
+  nothing in a partly-understood instruction is dispatched.
+- `ambiguous` — every clause matched something and some clause matched more than one `(id, value)`:
+  the distinct ids of the first such clause. The matcher never chooses.
+
+### 31.6 What is not claimed
+
+The matcher does not understand the instruction. It matches declared forms; a paraphrase none declares
+is refused, which is the property this contract exists to provide, and an instruction asking for
+analysis — to summarise, compare, or explain — matches no form and is refused for the same reason. A
+declared pattern on a free-text node accepts any text within its bound, so an injection placed in the
+value position IS the value: that is the author's exposure, opened deliberately. Dispatch is the host's:
+an agent-initiated resolution is offered to the host's dispatch gate as a descriptor of its own,
+default-deny, before the resolved action meets its own descriptor.
+
+### 31.7 The `operability/` family
+
+`operability/manifest.json` names `operability/operability-vectors.json`, so the directory is one
+self-enumerated family, `operability` (§27.7). The reference host emits it (§27.8). Four sections:
+
+- `wire.roundTrip` — `{id, canonical}`: decode `canonical` and re-encode; the bytes are equal (§31.1).
+- `wire.reject` — `{id, input, expectedErrorCode, expectedPath}`: decoding `input` refuses with that
+  code, at a path starting with `expectedPath` (§31.2).
+- `trees` — `{id, mountId?, tree, affordances}`: decode `tree` with the host's codec, derive under
+  `mountId` (absent: no mount), and compare the canonical encoding (§2) of the derived list with
+  `affordances` byte for byte.
+- `resolve` — `{id, stratum, tree, instruction, expected}`: resolve `instruction` over the derivation of
+  the named tree and compare the canonical encoding of the outcome with `expected`.
+
+An affordance encodes as `{id, node, kind, label, forms, slot?, description?}`; a slot as
+`{kind:"enumeration", options:[{value, label, aliases?}]}`, `{kind:"number", integral, min?, max?}`,
+`{kind:"boolean"}` or `{kind:"text", maxLength}`; an outcome as `{outcome:"resolved", resolved:[{id,
+value?}]}`, `{outcome:"notResolved"}` or `{outcome:"ambiguous", ids:[…]}`.
+
+`stratum` names the calibration stratum a case was recast from: **S1** declared and label-derived
+verbatim hits; **S2** paraphrase misses; **S3** aliases and option labels; **S4** clears and reads;
+**S5** compound clauses, all-or-nothing and the caps; **S6** analytical refusals; **S7** adversarial
+refusals (withdrawn nodes, an injection in the value position, the length cap).
+
+**The affordance-carrying documents live in this family, not in `nodes/` or `reject/`.** A host whose
+codec predates §31.1 tolerates the unknown member on decode (§2 rule 2) and drops it on re-encode, so an
+`affordance` in a `nodes/` round-trip would fail every such host until it adopts; here it is demanded
+only of the hosts that declare the family covered (§27.7).
+
+### 31.8 The renderer's annotations
+
+A renderer stamps a `Select`, `Button` or field that DECLARES an affordance (and is not
+`neverControllable`) with, in order: `data-ai-name` (its `id`); for a value node, `data-fuaran-shape`
+(`choice`, `number`, `boolean`, `text`, or `unknown` when it has no `set`) and
+`data-fuaran-controllable` (`true` when it has a `set`); `data-fuaran-commands` (every form, as
+`[{phrase, effect}]` with effect `write` / `read` / `invoke` / `navigate`); `data-fuaran-aliases`
+(`[{alias, value}]`, when any); `data-fuaran-values` (`{kind:"oneOf", values}` for an enumeration or a
+boolean, `{kind:"numberRange", min?, max?}`, `{kind:"textLength", maxLength}`);
+`data-fuaran-description` (when declared); and an `aria-description` sentence naming the first three
+forms. JSON-valued attributes are canonical (§2). They go on the element an agent operates — the button
+itself, a select's wrapper, the field's control — and an attribute the author already set wins. **A node
+that declares no affordance is not annotated**, so every document written before §31 renders
+byte-for-byte as it did.
+
+### 31.9 Adoption
+
+| Host | `operability` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — emits the family; `Fuaran.UI.Operability` is the resident derivation and matcher |
+| `fuaran-ts` | pending — the codec round-trips and refuses per §31.1–31.2; the derivation and matcher are not yet ported |
+| `fuaran-py` | pending |
+| `fuaran-go` | pending |
+| `fuaran-rs` | pending |
+
+---
+
+## 32. The page document (normative, Phase 2522)
+
+A page a reader reshapes at run time is data a host stores, verifies and renders without compiling anything.
+A tree alone is not that data: a `Query` binding names a source by string, and nothing in the tree says what
+the source is. A **page document** is the tree with the rest of the answer beside it — a sidecar of
+**requests** keyed by string, and the **provenance** a reader needs to say where the page came from — together
+with a derived **demanded document** that says, before the page loads, everything it can reach.
+
+It is a document a host decodes *beside* a tree, like the attested document envelope (§26): no node kind, no
+binding case and no tree byte changes, so a host that renders no stored page holds no reader for it and is
+conformant (§32.8). Two rules a page's safety rests on are stated here and are not a host's choice: **every
+data-bearing source in a page names a request**, and **a page carries no inline rows** (§32.6).
+
+### 32.1 The document
+
+```json
+{ "kind": "pageDocument", "version": 1,
+  "tree": <node>,
+  "requests": { "<key>": { "kind": "<request kind>", "payload": <JSON value>, "dependsOn": ["<parameter>"] } },
+  "provenance": { "author": "<principal>", "at": "YYYY-MM-DDTHH:MM:SSZ",
+                  "seededFrom": "<origin>", "opsHeads": { "<layer>": "<head>" } } }
+```
+
+| Member | Rule |
+|---|---|
+| `kind`, `version` | `"pageDocument"` and `1`. Read first: another kind is `UnknownTag` at `kind`, another version `OutOfRange` at `version`. |
+| `tree` | A node (§3), in its canonical form, decoded by the host's node decoder. |
+| `requests` | An object. Each key is a non-empty string, named once. Each value has exactly `kind` (a non-empty string), `payload` (any JSON value, carried verbatim) and, omitted when empty, `dependsOn` (non-empty strings, none twice, written sorted Ordinal). |
+| `provenance` | Exactly `author` (non-empty), `at` (a UTC instant in the twenty-character form above), `seededFrom` (optional, non-empty) and `opsHeads` (optional; omitted when empty; an object of non-empty strings). |
+
+Every undeclared member at any of these levels is refused (`UndeclaredMember`, at the member). The document is
+written under the cross-host rendering (§2): members sorted Ordinal at every depth, no whitespace. A canonical
+document re-encodes byte-identically.
+
+**`dependsOn`** names the page parameters — state keys and filter names — whose change re-resolves the
+request. Inverted (parameter → the request keys that name it) it is the map a host hands its bounded driver,
+so a selector re-resolves exactly its dependents and nothing else.
+
+**`provenance`** is the writer's account: what the page was seeded from, the head of the op stream each
+layer of the document stood at when it was written, who wrote it and when. It is carried for a reader and is
+**not covered by the signature** (§32.5).
+
+### 32.2 Request kinds
+
+The language tier does not know what a request means. Two kinds are **declared**, and of those the tier reads
+exactly the fields named here; every other member of a payload is opaque.
+
+| Kind | Declared fields |
+|---|---|
+| `presentation` | `tableId` (non-empty string), `metrics` (one or more non-empty strings, none twice), `subjectLevel` (optional, non-empty string) |
+| `pipeline` | `tableId`, `metrics` (as above), `pipeline` (a `Transform` step array, §3, that the reference evaluator reads) |
+
+A request of any other kind is carried, named in the demanded document's `requestKinds`, and never read. A
+declared kind's field that is absent or ill-formed refuses the document at the field's path (`MissingField`,
+`WrongKind`, `OutOfRange`). `metrics` is required and enumerated for both kinds: a request that read "every
+metric of the table" would have a read-set nobody could state.
+
+### 32.3 The binding rule (decode)
+
+Over a document of the declared shape, the decoder compares the tree's query reads — every `Query` binding
+the tree holds, in the sense `binding-propagation` reads them (§27.8.2) — with the sidecar's keys, and
+refuses the document when they disagree:
+
+- **`DanglingRequestKey`** — a `Query` read by a node names a key the sidecar does not hold. The host could
+  not resolve it, and the read-set could not describe it.
+- **`UnnamedRequest`** — the sidecar holds a key no `Query` names. It is reach the page claims and never uses.
+
+Every disagreement is reported, the dangling keys in tree order then the unnamed requests in key order. A
+shape fault is reported first and alone, as Core's decode refusal: the code (`InvalidJson`, `MissingField`,
+`WrongKind`, `UnknownTag`, `OutOfRange`, `UndeclaredMember`) and the path in Core's `$["member"][index]`
+rendering, from the document root (a tree fault keeps its path below `tree`).
+
+### 32.4 The demanded document
+
+The demanded document is a pure, total function of a valid page document, so any verifier recomputes it:
+
+```json
+{ "kind": "demandedPage", "version": 1,
+  "reads": [ { "table": "<tableId>", "metrics": [...], "levels": [...] } ],
+  "verbs": [...], "kinds": [...], "capabilities": [...], "endpoints": [...], "requestKinds": [...] }
+```
+
+- **`reads`** — one entry per table a declared request reads, sorted by table; its `metrics` are every metric
+  a request on that table declares, and its `levels` every `subjectLevel`.
+- **`verbs`** — the `$type` of every step of every `pipeline` request, as the reference codec writes it.
+- **`kinds`** — the wire kind (§3.2) of every node the tree holds at any position: children, arms, the state
+  alternatives, the fallback and slot arguments.
+- **`capabilities`** — in the tree's canonical encoding, every tag of every object whose `$type` is `Mount`
+  (`capabilities`), and every `capabilityId` of every object whose `$type` is `Invoke`.
+- **`endpoints`** — every `endpoint` of every object whose `$type` is `Call`.
+- **`requestKinds`** — the kind of every request in the sidecar, declared or not.
+
+Every list is sorted Ordinal and holds no member twice; every member is always present. A decoder of the
+demanded document refuses an undeclared member and a name repeated in a list, and reads lists in any order as
+the same document.
+
+**Coverage.** A host declares the most it serves as a demanded document. A page is within it when the page
+reaches nothing the coverage does not: no table, no metric or level of a table, and no verb, kind, capability,
+endpoint or request kind outside it. Otherwise the **excess** is itself a demanded document — a table the
+coverage lacks whole, a table it has with only the metrics and levels it lacks — so every item beyond the
+coverage is named in the vocabulary the reader already reads.
+
+### 32.5 The signed read-set
+
+A page is signed over the canonical preimage
+
+```json
+{"demanded":"<demanded bytes>","kind":"signedPage","requestsHash":"sha256:<hex>","treeHash":"sha256:<hex>","version":1}
+```
+
+where `treeHash` is SHA-256 over the tree's canonical encoding, `requestsHash` SHA-256 over the canonical
+encoding of the `requests` object, both in the `sha256:` + 64-lowercase-hex form, and `demanded` the demanded
+document's canonical bytes. The signed record is the same five members with `keyId` and `signature` beside
+them. A signer derives the demanded document itself and does not sign a document that is not valid (§32.1–32.3)
+or that breaks the page rules (§32.6).
+
+A verifier holds the page, the record and a public key, and **recomputes before it checks**. The refusals are
+distinct, checked in this order, and the first is the answer:
+
+1. **NoKey** — no key was offered. Refused, never skipped.
+2. **ForeignKey** — the record names another key than the one offered. Nothing is recomputed.
+3. **InvalidDocument** — the page is not one §32.1–32.3 accept.
+4. **PageRulesBroken** — the page breaks §32.6.
+5. **Drift** — the recomputed demanded document is not the signed one (compared as documents, not bytes).
+   The **excess** (reached by the page, absent from the signed read-set) and the **shortfall** (named by the
+   read-set, not reached) are each a demanded document; unreadable signed bytes make the excess the whole
+   recomputation.
+6. **BadSignature** — the read-set matches, and the signature does not verify over the RECOMPUTED preimage
+   under the key. The carried and recomputed hashes tell a tree or sidecar that moved without moving its reach
+   (they differ) from forged bytes (they agree).
+
+**What is not claimed.** The signature says a named key paired this tree and this sidecar with this read-set.
+It does not say the reach is acceptable — that is coverage (§32.4), asked afterwards of the host's declaration
+— and it does not cover the provenance, which a reader takes as the writer's assertion. Whether a key is one
+to believe is the host's key directory's question, answered before the key is offered.
+
+### 32.6 The page rules (validator)
+
+Inside a page document, the data-bearing slots are a `Chart`'s `source`, a `DataGrid`'s `source`, `rowTotal`
+and `staticRows`, a `Metric`'s `value`, `trend` and every comparison's `value`, and a `Sparkline`'s `source`, at
+every position the tree holds a node. Two rules hold over them:
+
+- **FUARAN166 — a data-bearing source names a request.** Each such slot is a `Query` binding whose name is a
+  key of the sidecar. A `State`, `Filter`, `Selection`, `Transform` or any other binding there is refused by
+  name, as is a `Query` naming no request.
+- **FUARAN167 — no inline rows.** A `Static` binding carrying a value in such a slot, and a `DataGrid`'s
+  `staticRows`, are refused: they are numbers the tree carries itself, outside every request, which no request
+  supplies and the read-set cannot name.
+
+The two rules belong to the page-document mode; an ordinary tree may carry its own rows and is not judged by
+them. A `Chart` whose `yFields` is empty (§3.6.29) is a data-bearing slot like any other: over its request it is
+admitted, and over inline rows FUARAN167 refuses it here while the ordinary walk's FUARAN168 names the series nobody
+stated (`chart-derived-inline-rows`). Their codes, severities and message shapes are in the validator vocabulary
+([`validator/defect-vocabulary.json`](validator/defect-vocabulary.json)).
+
+### 32.7 The `page-document/` family
+
+Self-enumerated (§27.7): `page-document/manifest.json` names `page-document-vectors.json`, so the directory is
+one family, `page-document`, emitted by the reference host. Its vectors:
+
+- **`accept`** — `canonical` decodes and re-encodes byte-identically; `demanded`, `treeHash`, `requestsHash`
+  and `preimage` are what §32.4–32.5 derive from it, byte for byte.
+- **`reject`** — `input` is refused with `expected`: `{refusal: "Malformed", code, path}` or
+  `{refusal: "Unbound", defects}`, each defect `{defect, key, nodeId?}` in order.
+- **`rules`** — `input` decodes; the page rules give exactly `expectedDefects`, each `{code, nodeId, slot}`, in
+  walk order.
+- **`drift`** — verifying `document` against a read-set signed over `signedDemanded` is refused as drift with
+  the canonical `excess` and `shortfall` given.
+
+### 32.8 Adoption
+
+A host decodes a page document only when it renders one. Every host but the reference is not applicable until
+it renders a stored page, and from then on covers this family whole.
+
+| Host | `page-document` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — emits the family; `Fuaran.UI.PageDocument`, `DemandedPage` and `SignedPage` are the resident codec, derivation and verifier, and `PreEmitValidate.validatePage` the page rules |
+| `fuaran-ts` | not applicable — renders no stored page |
+| `fuaran-py` | not applicable — renders no stored page |
+| `fuaran-go` | not applicable — renders no stored page |
+| `fuaran-rs` | not applicable — renders no stored page |
+
+## 33. The DomPatch frame (normative, Phase 2528)
+
+A server-driven session keeps the tree on the server and sends the browser **frames**: each a sequence number, a
+list of `DomPatch`es that move the page's DOM from the tree it showed to the tree it now shows, and a list of
+`ClientEffect`s. The browser sends back **client events**. Both are a contract between whoever produces a frame
+and whoever applies it, stated here and certified by the `server-driven/` family, so a second host that drives or
+applies a session has something to certify against.
+
+**§11 status: one producer, one applier.** Today `fuaran-dotnet` is the only host that lowers ops to patches
+(`Fuaran.UI.ServerDriven.Lowering`) and its shim (`fuaran-live-patch.js`) the only applier. The family is
+therefore not a §11 forward-coupling obligation on the other codec hosts: a change to the frame moves the
+producer, the applier and this family together, and a host that neither drives nor applies a session declares the
+family not applicable (§33.6). The vocabulary below is closed; a new patch or effect kind is a change to this
+section first.
+
+### 33.1 The DOM a frame addresses
+
+A node's `data-fuaran-node-id` sits on its **wrapper** element; what the node renders is the wrapper's first
+element child, its **body**, with any tooltip hint after it. A form field that is not a node is addressed by its
+own `data-fuaran-field`. An address resolves to the element carrying that `data-fuaran-node-id`, else the element
+carrying that `data-fuaran-field`; an address resolving to nothing makes the patch a no-op, never an error.
+
+### 33.2 `DomPatch`
+
+Tagged objects, discriminator `kind`, members in the order shown when written:
+
+| `kind` | Members | Applying it |
+|---|---|---|
+| `SetAttr` | `nodeId`, `name`, `value` | Set the attribute on the node's body, or on the addressed field itself. |
+| `RemoveAttr` | `nodeId`, `name` | Remove the attribute from the node's body, or from the field itself. |
+| `SetText` | `nodeId`, `text` | Replace the text content of the node's body, or of the field itself. Text, never markup. |
+| `ReplaceFragment` | `nodeId`, `html` | Replace the addressed element with the fragment's first element. |
+| `InsertFragment` | `parentId`, `position`, `html` | Insert the fragment before the parent's node child at `position`, or after its last node child when `position` is at or past the count. |
+| `RemoveNode` | `nodeId` | Remove the addressed element. |
+| `ReorderChildren` | `parentId`, `orderedIds` | Move each listed child to the end of its parent, in order. The elements move; none is re-created. |
+| `MoveNode` | `nodeId`, `newParentId`, `position` | Move the addressed element under the new parent, as `InsertFragment` places a fragment. The element moves; it is not re-created. |
+
+A parent's **node children** are the elements carrying `data-fuaran-node-id` whose nearest marked ancestor is that
+parent. Applying a frame **preserves the reader's place** (Phase 158 QW5): when a `ReplaceFragment` replaces an
+element holding focus, focus returns to the replacement (the same element when the node itself was focused, else
+its first focusable descendant) with its caret and scroll; a moved element keeps focus, caret and scroll, its own
+included.
+
+### 33.3 The lowering
+
+A producer lowers an op **script** — the ops one turn applies to the tree, in order — reading each op against the
+tree as it stands after that op (the reading under which every patch addresses what the DOM holds at that point).
+The arms, each a vector:
+
+- `RemoveNode`, `ReorderChildren` lower directly; `MoveNode` and `InsertChild` lower to `MoveNode` /
+  `InsertFragment` at the index the child landed at (the ops append, so the append position).
+- A content op (`EditNode`, `UpdateProp`, `UpdateStyle`, `PatchStyle`, `UpdateState`, `UpdateAccessibility`,
+  `UpdateTooltip`, `ReplaceBinding`) re-renders the node: `ReplaceFragment`. `ReplaceRoot` re-renders the new root
+  into the root the page holds, whatever the new root's id.
+- The granular arm writes no fragment: an `UpdateProp` of a prop the producer maps to the body lowers to `SetText`,
+  or `SetAttr` / `RemoveAttr` for each attribute it moves; a text-only `EditNode` of a `Heading` or `Badge` lowers
+  to `SetText`; an `UpdateState` that leaves a stateless node stateless lowers to nothing.
+- `Batch` lowers to its inner ops in order; an op the apply engine refuses lowers to nothing; of two adjacent
+  `ReplaceFragment`s of one node, only the second ships.
+
+The prop map is the producer's: the family pins the reference's.
+
+### 33.4 The fragments
+
+A fragment is HTML whose first element is the node's wrapper. What a renderer draws is not part of this contract,
+so the family draws every fragment with a **reference renderer**: a node renders as
+`<div data-fuaran-node-id="ID"></div>`, `ID` its id with `&`, `<`, `>` and `"` written as character references.
+
+### 33.5 The frame envelope and the client event
+
+**Frame.** `{"seq":N,"patches":[…],"effects":[…]}`, members in that order, no whitespace, `N` the connection's
+sequence. Over Server-Sent Events it is one `patch` event: `id: N`, `event: patch`, `data: <the JSON body>` and a
+blank line, each line ending LF; the `id` is the key a reconnecting client replays from.
+
+**`ClientEffect`** — `kind` with: `WriteToClipboard` (`text`), `Navigate` (`route`, and `target: "Blank"` only
+for a new browsing context; absent is the same tab), `PushState` (`route`), `Focus` (`nodeId`), `Download` (`url`,
+`name`), `ReadFileBody` (`nodeId`, `encoding`), `Print`, `Confirm` (`prompt`, `token`).
+
+**Strings** are JSON strings escaping `"`, `\`, LF, CR and TAB short and every other character below U+0020 as
+`\u00XX` in lower-case hex; nothing else is escaped.
+
+**Client event.** `{"nodeId":…,"event":…,"payload":{…},"lastSeq":N}`, `lastSeq` the sequence of the last frame
+the client applied. A server reads a payload value as a string, a number, a boolean or null, refuses a body that is
+not JSON, and reads a missing member as empty (a missing or out-of-range `lastSeq` as `0`); its trust boundary then
+judges the event.
+
+### 33.6 The family and its schema
+
+Self-enumerated (§27.7): `server-driven/manifest.json` names two files, so the directory is one family,
+`server-driven`, emitted by the reference host. Every member below is required unless marked; an undeclared
+member is refused.
+
+`dom-patch-vectors.json` — `version`, `description`, `renderer` (§33.4), and:
+
+| Array | Case members | Check |
+|---|---|---|
+| `lowering` | `name`; `before`, a node; `ops`, TreeOps; `patches`; `dom` (`before`, `after`, HTML) | Lowering `ops` over `before` (§33.3) under the reference renderer gives `patches`. Applying `patches` to `dom.before` gives `dom.after`. |
+| `apply` | `name`; `patches`; `dom`; optional `focus` (`before` / `after`: `element`, a selector, and optional `selection` `[start, end]`, `scrollTop`, and on `after` `same`); optional `scroll` (`before` / `after`: selector → scrollTop) | Set the `before` state, apply `patches` to `dom.before`; the DOM is `dom.after` and the `after` state holds, `same` meaning the focused element is the same object. |
+
+`frame-vectors.json` — `version`, `description`, and:
+
+| Array | Case members | Check |
+|---|---|---|
+| `frames` | `name`; `frame`; `json`; `sse` | `frame` encodes to `json` and `sse` byte for byte (§33.5); a client reading `sse` receives `frame` and moves its sequence to `frame.seq`. |
+| `inbound` | `name`; `body`; `event`; and, together or not at all, `dom`, `seq`, `gesture` (`type`: `click`, `input` with `value`, `change` with `checked`, or `submit`; `target`, a selector) | A server reads `body` as `event`: `nodeId`, `event`, `lastSeq`, and each payload value as `{"$type":"Str"|"Num"|"Bool","value":…}` or `{"$type":"Null"}`; or `"refused"`. With `gesture`: in `dom`, after a frame of `seq`, the gesture makes the client send exactly `body`. |
+
+Every `TreeOp` case appears in a lowering script, every `DomPatch` kind in a DOM case and in a frame, and every
+`ClientEffect` kind in a frame.
+
+| Host | `server-driven` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — the producer half by `DomPatchCorpusTests` (emits the family), the applier half by its shim in a real headless Chromium (`tests/content-js/browser-leg.mjs`) |
+| `fuaran-ts` | not applicable — neither drives nor applies a server-driven session |
+| `fuaran-py` | not applicable — as above |
+| `fuaran-go` | not applicable — as above |
+| `fuaran-rs` | not applicable — as above |
+
+## 34. Merge by fold (normative, Phase 2293; the DAG's only merge since Phase 2645)
+
+A merge of two branches of an op DAG is a **derivation**: the two branches' op deltas are folded from their
+common base, and what the merge records is only what the fold cannot decide on its own. This section states the
+derivation, the policy that decides which concurrent pairs it admits, the one ordering rule it adds, and the
+envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
+
+**§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646; the
+Phase 2701 `Mount`-input fixtures certified on `fuaran-dotnet` and `fuaran-go` only (§34.6).**
+`fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
+`DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
+`merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
+A merge node records the script below as its op (§5.3.3).
+
+### 34.1 Inputs
+
+A reconcile takes a base tree `B` and two **deltas**, `A` and `C`: each an ordered list of `TreeOp`s (§4) as the
+branch recorded them, applying from `B` op by op. A delta whose op `i` does not apply from the tree the ops before
+it reach is refused before anything else is judged, naming the side and `i` (`DeltaDoesNotApply`).
+
+### 34.2 The conflict report
+
+The pairs that interfere are those Fuaran Core's `Dag.conflictsIn` reports over the base-aware footprint
+(`TreeOpFootprint.ofOpIn`, the projection the tier ships): every pair `(a ∈ A, c ∈ C)` whose footprints, each
+computed at the tree its own delta has reached, are not independent, tagged with the **address** they collide on
+and a **shape** — `ConcurrentUpdate`, `InsertPositionClash`, `MoveVsRemove`, or `SlotClash` with the slot. A host
+reproduces that report exactly; the projection is part of this contract, and a host whose footprint is coarser
+refuses pairs the reference admits and fails the derive fixtures, while one that is finer admits pairs the
+reference refuses and fails the refusal fixtures. A footprint's node walk, and the lookup an op's target and parent are
+found by, include slot arguments (a `FragmentRef`'s `args`, a `Mount`'s `inputs`) as every other position the tree
+holds a node in (Phase 2701); a node held only there is located by no ordered child list, so an in-place op on it
+takes the pure arm, an unknown-parent write.
+
+### 34.3 The policy
+
+Each reported pair is exactly one of:
+
+1. **Agreement** — the two ops have byte-identical canonical encodings (§3). Admitted: the fold already holds the
+   effect when it reaches the second.
+2. **Interleave** — the shape is `InsertPositionClash` at parent `p`, each op appends a node to `p` (an
+   `InsertChild` under `p`, or a `MoveNode` to `p`), and the two appended ids differ. Admitted, and ordered by
+   §34.4.
+3. **Rebase** (Phase 2671) — one op is a `ReorderChildren(p, order)` and the other changes `p`'s child list: an
+   `InsertChild` under `p`, a `MoveNode` to `p`, or a `RemoveNode` or `MoveNode` of a child `order` lists. Neither
+   op may be a `Batch`. Admitted, and folded as §34.4 states: the reorder is applied rebased, and the appends are
+   ordered by the child-order rule.
+4. **Refusal** — anything else. Classed `DeleteModify` when exactly one of the two ops removes (`RemoveNode`, or a
+   `Batch` containing one) and `Conflict` otherwise. A removal against a concurrent **move** of the same node is
+   therefore a `DeleteModify` refusal, as a removal against an edit is; two reorders of one parent that differ are
+   a `Conflict`.
+
+Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
+
+### 34.4 The fold and the child-order rule
+
+The derived tree is `A` then `C` applied from `B`, where an op whose application fails **only because its effect
+is already held** is applied as no change. Exactly two cases are held: a `RemoveNode` of a node the tree no longer
+holds, and an `InsertChild` of a node the parent already holds as a child with byte-identical canonical encoding.
+A `Batch` is applied member by member under the same rule, atomically. A `ReorderChildren(p, order)` whose `p` is
+a **rebased** parent (§34.3, case 3) is applied **rebased** to the children `p` holds when the fold reaches it: the
+children `order` lists that `p` still holds, in `order`'s order, then the children it does not list, in the order
+`p` holds them. A child the other delta removed or moved out is thereby dropped from the reordered run, and a child
+it appended or moved in follows it, in both fold orders.
+
+Then, for each interleaved or rebased parent `p` in ordinal order of its id, the **child-order rule**: the
+children of `p` that neither delta appended keep their order (the rebased reorder's, where a delta reordered `p`),
+and the appended ones follow — each delta's **run** of appends into `p` in that delta's own order, the two runs
+merged by comparing their heads ordinally by NodeId, the smaller first, and an id both runs hold (two agreeing
+moves of one node) listed **once**, at its first occurrence in the merged sequence. A delta's run is its appends
+into `p` (an `InsertChild` under `p`, a `MoveNode` to `p`; an id already in the run is not added again), less any
+id a LATER `ReorderChildren` of `p` in the same delta lists — that reorder placed it. Where the rule's order
+differs from the fold's, the merge records `ReorderChildren(p, order)`, listing every child once; the list of such
+ops is the merge's **script**. Since Phase 2645 the script carries that reorder for EVERY interleaved or rebased
+parent, whether or not it differs from the sequential fold's order: a merge node is replayed by Core's closure
+fold, which applies the two branches in its own drain order, so the script — not the order a reconcile checked —
+fixes the order, and `merge(A, C)` and `merge(C, A)` record one script and mint one node (§5.3.3). The rule is symmetric: two runs merge to the same sequence whichever delta is named
+first, so its first occurrences are the same too.
+
+Two consequences of the rule are **pinned** (operator ruling 2026-11-10) where the retired three-way tree merge
+answered differently: a `MoveNode` to the parent a node already sits under is an append, so the node goes
+last, as applying the op does (the tree merge keeps the node where the other side's list has it); and appended ids
+keep each delta's order, merged by heads (the tree merge sorts every appended id by NodeId). A host reproduces the
+policy's answer; `fold-pinned-own-parent-move` and `fold-pinned-append-order` certify it.
+
+A reconcile runs the fold in both orders — `A` then `C`, and `C` then `A` — each followed by the script. If the
+two trees differ in canonical encoding, the merge is refused (`OrderSensitive`). The admitted classes lie outside
+Core's independence theorem, so this is checked, not assumed. A merge that would carry an introduced validator
+defect is refused by the gate run over the two branch heads and the derived tree (`IntroducedDefects`): its
+verdict is the introduced-defect set, a JSON array of `{code,facet,message,nodeId}` objects (keys in that order,
+entries ordered by `nodeId`, then `facet`, then `code`), and `sha256` over it is the verdict hash.
+
+**Replay.** Core's closure fold applies each op through the fold's rule above: an op whose effect is already held
+applies as no change, and a `ReorderChildren` that does not apply as written (its list is stale because the other
+branch appended to the parent or took a child from it) applies rebased. On a linear history every op applies as
+written.
+
+**Precedence (optional, host-local).** A host MAY offer a merge that names one delta as taking precedence: the
+pairs the policy would refuse are admitted, and that delta's refused ops are re-asserted, in its own order, at
+the end of the script; both fold orders must still reach one tree with it. It settles a pair whose two ops both
+apply in either order (two writes of one slot) and nothing else — an edit beside a removal of its node still
+refuses. It is not certified by the corpus: a precedence merge's node is the host's to mint, and two hosts merging
+the same pair agree on it only when they name the same side.
+
+### 34.5 The refusal envelope
+
+A JSON array of the refused pairs. Each entry is an object with ordinal-sorted keys:
+
+```
+{"address":<string>,"class":"Conflict"|"DeleteModify","left":<op from A>,"right":<op from C>,"shape":<string>[,"slot":<string>]}
+```
+
+`left` and `right` are the ops' canonical encodings embedded verbatim, `shape` is one of the four names in §34.2,
+and `slot` is present exactly when `shape` is `SlotClash`. Entries are ordered by `address`, then `shape`, then
+`slot` (empty when absent), then `left`'s bytes, then `right`'s bytes, each ordinal, with exact duplicates
+removed. `sha256` over the envelope's bytes is the cross-host refusal hash. Swapping `A` and `C` swaps every
+entry's `left` and `right` and re-sorts; nothing else changes.
+
+### 34.6 The `foldFixtures` family
+
+Each entry names `baseFile`, `aOpsFile` and `bOpsFile` (canonical `TreeOp` arrays) and one of three kinds:
+`merge-fold-derive` (`expectedFile` + `outcomeHash`: the derived tree), `merge-fold-refusal` (`envelopeFile` +
+`envelopeHash`), and `merge-fold-gated` (`verdictFile` + `verdictHash`, under the sample validator — at most one
+`Brand`-toned child per box, each offending child a `TESTBRAND001` defect on its `style.tone` cell). Since Phase 2645
+it is the corpus's only family. The family pins the two cases the retired tree merge resolved differently: a
+removal against a concurrent move refuses (`fold-refusal-remove-vs-move`), and two concurrent appends under one
+parent are ordered by the rule above rather than by the tree merge's per-position comparison. Since Phase 2671
+it also pins the rebase (`fold-reorder-and-insert`, `-remove`, `-move-in`, `-move-out`), the agreed node listed
+once (`fold-double-move-and-appends`), the two pinned child orders above, two reorders that still refuse
+(`fold-refusal-two-reorders`), and one fixture per class the fold DERIVES where the tree merge refuses, accepted as
+the policy's answer by the same ruling: a move beside an edit of the moved node (`fold-move-and-target-edit`; the
+tree merge's `ConcurrentMove`, the pair the retired `merge-totality-concurrent-move` refused), the same move on both sides
+beside an edit of the moved node (`fold-agreed-move-and-edit`; `ConcurrentEdit`), and three `ReorderVsStructural`
+shapes — a reorder beside a change of the child list (`fold-reorder-and-insert`), a move to a node's own parent
+beside an append (`fold-own-parent-move-and-insert`), and an agreed append beside other appends
+(`fold-double-move-and-appends`). Since Phase 2701 it pins nodes held only in a `Mount`'s
+`inputs`: an append to a container there beside an edit outside the `Mount` derives (`fold-mount-input-insert`),
+two tones of one such node refuse (`fold-refusal-mount-input-tone`), its removal beside its edit is a
+`DeleteModify` refusal (`fold-refusal-mount-input-delete-modify`), and edits of two different such nodes refuse
+`MoveVsRemove`, each op an unknown-parent write (`fold-refusal-mount-input-disjoint`).
+
+| Host | `foldFixtures` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact and checks the swap; `DagMergeTests` mints and replays the merge node |
+| `fuaran-ts` | covered (fuaran#2646) — `packages/ops/test/fold.test.ts` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `packages/ops/test/dag.test.ts` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-py` | covered (fuaran#2646) — `tests/test_merge_fold_conformance.py` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/test_dag_roundtrip.py` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-go` | covered (fuaran#2646) — `conformance/fold_test.go` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `conformance/dag_test.go` and `dag/dag_test.go` round-trips the re-minted `dag/` records as a codec |
+| `fuaran-rs` | covered (fuaran#2646) — `tests/dag.rs` reproduces every artefact in both orders and checks the swap; the tree merge and its triad legs are retired, the manifest's version 2 is pinned, and `tests/dag.rs` round-trips the re-minted `dag/` records as a codec |
+
+The four `Mount`-input fixtures (Phase 2701) are certified by `fuaran-dotnet` and `fuaran-go`, whose decoder
+reads a `Mount`'s `inputs` as `FragmentArg`s and whose apply lookup and footprint walk reach the nodes they hold.
+`fuaran-ts`, `fuaran-py` and `fuaran-rs` do not yet pass them: each apply engine stops at a node held only in a slot
+argument (`DeltaDoesNotApply`), and each is that host's successor phase.
 
 ---
 

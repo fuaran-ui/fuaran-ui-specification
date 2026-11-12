@@ -86,7 +86,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.OpStream.Dag.Tests -- --emit-dag-corpus <corpus dir>"
       },
       "source": {
-        "commit": "b4151832f399311fa9c95969884c07a67ef623aa"
+        "commit": "adc8635c645006907a1e648e714e40f2c8945706"
       }
     },
     "decode-policy": {
@@ -266,7 +266,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.OpStream.Dag.Tests -- --emit-merge-corpus <corpus dir>"
       },
       "source": {
-        "commit": "a2463068508c3022e808db1d98142a98a52f6272"
+        "commit": "adc8635c645006907a1e648e714e40f2c8945706"
       }
     },
     "node-round-trip": {
@@ -284,6 +284,26 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-corpus <corpus dir>"
       },
       "source": "since"
+    },
+    "operability": {
+      "spec": "31",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Operability.Tests"
+      },
+      "source": {
+        "commit": "3e9e2ada7f0fa44b1dfc04b9d59452168511446b"
+      }
+    },
+    "page-document": {
+      "spec": "32",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.Tests -- --filter \"Phase 2522\""
+      },
+      "source": {
+        "commit": "43c345fad3f634c6a1fe6788a87a814f6e935a0e"
+      }
     },
     "reject": {
       "spec": "6",
@@ -304,6 +324,16 @@
     "sanitization": {
       "spec": "22",
       "authored": "semantic-invariant payloads, not byte fixtures: each case is a payload and the invariant a rendering host must satisfy, so there are no emitted bytes to produce"
+    },
+    "server-driven": {
+      "spec": "33",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "FUARAN_WIRE_FIXTURES=<corpus dir> FUARAN_REGEN=1 dotnet run --project src/Fuaran.UI.ServerDriven.Tests -- --filter \"DomPatch frame contract\""
+      },
+      "source": {
+        "commit": "952e36e45fc495adc1d19eeb76d4f8f4c8c02426"
+      }
     },
     "stored-emissions": {
       "spec": "28.6",

@@ -1,0 +1,309 @@
+{
+  "description": "The frame envelope and the client event (WIRE_FORMAT.md 33.5, Phase 2528). frames: `frame` is a frame; `json` is its JSON body and `sse` its Server-Sent-Events form, byte for byte; a client reading `sse` receives one `patch` event whose id is the frame's seq and whose data parses to `frame`. inbound: `body` is a client event; a server reads it as `event`, each payload value naming the case the server types it as (Str, Num, Bool, Null), or refuses it as not JSON (`event` is \"refused\"). Where `dom`, `seq` and `gesture` are given the shim produces `body` itself: in a DOM holding `dom`, after a frame with that seq, the gesture on `gesture.target` sends exactly `body`. Emitted by the reference host (fuaran-dotnet, FUARAN_REGEN=1 over Fuaran.UI.ServerDriven.Tests): the inputs are authored, `frame`, `json`, `sse` and `event` are the reference's.",
+  "frames": [
+    {
+      "frame": {
+        "effects": [],
+        "patches": [],
+        "seq": 0
+      },
+      "json": "{\"seq\":0,\"patches\":[],\"effects\":[]}",
+      "name": "an empty frame still carries both arrays",
+      "sse": "id: 0\nevent: patch\ndata: {\"seq\":0,\"patches\":[],\"effects\":[]}\n\n"
+    },
+    {
+      "frame": {
+        "effects": [],
+        "patches": [
+          {
+            "kind": "SetAttr",
+            "name": "title",
+            "nodeId": "n1",
+            "value": "a \"quoted\" \\ value"
+          },
+          {
+            "kind": "RemoveAttr",
+            "name": "title",
+            "nodeId": "n1"
+          },
+          {
+            "kind": "SetText",
+            "nodeId": "n2",
+            "text": "line one\nline two\ttabbed\fform feed é ✓"
+          },
+          {
+            "html": "<div data-fuaran-node-id=\"n3\"><p class=\"x\">&amp;</p></div>",
+            "kind": "ReplaceFragment",
+            "nodeId": "n3"
+          },
+          {
+            "html": "<div data-fuaran-node-id=\"n5\"></div>",
+            "kind": "InsertFragment",
+            "parentId": "n4",
+            "position": 2
+          },
+          {
+            "kind": "RemoveNode",
+            "nodeId": "n6"
+          },
+          {
+            "kind": "ReorderChildren",
+            "orderedIds": [
+              "n7",
+              "n5",
+              "n8"
+            ],
+            "parentId": "n4"
+          },
+          {
+            "kind": "MoveNode",
+            "newParentId": "n4",
+            "nodeId": "n9",
+            "position": 0
+          }
+        ],
+        "seq": 7
+      },
+      "json": "{\"seq\":7,\"patches\":[{\"kind\":\"SetAttr\",\"nodeId\":\"n1\",\"name\":\"title\",\"value\":\"a \\\"quoted\\\" \\\\ value\"},{\"kind\":\"RemoveAttr\",\"nodeId\":\"n1\",\"name\":\"title\"},{\"kind\":\"SetText\",\"nodeId\":\"n2\",\"text\":\"line one\\nline two\\ttabbed\\u000cform feed é ✓\"},{\"kind\":\"ReplaceFragment\",\"nodeId\":\"n3\",\"html\":\"<div data-fuaran-node-id=\\\"n3\\\"><p class=\\\"x\\\">&amp;</p></div>\"},{\"kind\":\"InsertFragment\",\"parentId\":\"n4\",\"position\":2,\"html\":\"<div data-fuaran-node-id=\\\"n5\\\"></div>\"},{\"kind\":\"RemoveNode\",\"nodeId\":\"n6\"},{\"kind\":\"ReorderChildren\",\"parentId\":\"n4\",\"orderedIds\":[\"n7\",\"n5\",\"n8\"]},{\"kind\":\"MoveNode\",\"nodeId\":\"n9\",\"newParentId\":\"n4\",\"position\":0}],\"effects\":[]}",
+      "name": "every DomPatch kind, with the strings the writer escapes",
+      "sse": "id: 7\nevent: patch\ndata: {\"seq\":7,\"patches\":[{\"kind\":\"SetAttr\",\"nodeId\":\"n1\",\"name\":\"title\",\"value\":\"a \\\"quoted\\\" \\\\ value\"},{\"kind\":\"RemoveAttr\",\"nodeId\":\"n1\",\"name\":\"title\"},{\"kind\":\"SetText\",\"nodeId\":\"n2\",\"text\":\"line one\\nline two\\ttabbed\\u000cform feed é ✓\"},{\"kind\":\"ReplaceFragment\",\"nodeId\":\"n3\",\"html\":\"<div data-fuaran-node-id=\\\"n3\\\"><p class=\\\"x\\\">&amp;</p></div>\"},{\"kind\":\"InsertFragment\",\"parentId\":\"n4\",\"position\":2,\"html\":\"<div data-fuaran-node-id=\\\"n5\\\"></div>\"},{\"kind\":\"RemoveNode\",\"nodeId\":\"n6\"},{\"kind\":\"ReorderChildren\",\"parentId\":\"n4\",\"orderedIds\":[\"n7\",\"n5\",\"n8\"]},{\"kind\":\"MoveNode\",\"nodeId\":\"n9\",\"newParentId\":\"n4\",\"position\":0}],\"effects\":[]}\n\n"
+    },
+    {
+      "frame": {
+        "effects": [
+          {
+            "kind": "WriteToClipboard",
+            "text": "copied \"text\""
+          },
+          {
+            "kind": "Navigate",
+            "route": "/orders?page=2"
+          },
+          {
+            "kind": "Navigate",
+            "route": "https://example.com/help",
+            "target": "Blank"
+          },
+          {
+            "kind": "PushState",
+            "route": "/orders/42"
+          },
+          {
+            "kind": "Focus",
+            "nodeId": "email"
+          },
+          {
+            "kind": "Download",
+            "name": "orders.csv",
+            "url": "/export/orders.csv"
+          },
+          {
+            "encoding": "base64",
+            "kind": "ReadFileBody",
+            "nodeId": "upload"
+          },
+          {
+            "kind": "Print"
+          },
+          {
+            "kind": "Confirm",
+            "prompt": "Delete 3 orders?",
+            "token": "c-17"
+          }
+        ],
+        "patches": [],
+        "seq": 8
+      },
+      "json": "{\"seq\":8,\"patches\":[],\"effects\":[{\"kind\":\"WriteToClipboard\",\"text\":\"copied \\\"text\\\"\"},{\"kind\":\"Navigate\",\"route\":\"/orders?page=2\"},{\"kind\":\"Navigate\",\"route\":\"https://example.com/help\",\"target\":\"Blank\"},{\"kind\":\"PushState\",\"route\":\"/orders/42\"},{\"kind\":\"Focus\",\"nodeId\":\"email\"},{\"kind\":\"Download\",\"url\":\"/export/orders.csv\",\"name\":\"orders.csv\"},{\"kind\":\"ReadFileBody\",\"nodeId\":\"upload\",\"encoding\":\"base64\"},{\"kind\":\"Print\"},{\"kind\":\"Confirm\",\"prompt\":\"Delete 3 orders?\",\"token\":\"c-17\"}]}",
+      "name": "every ClientEffect kind, Navigate in both targets",
+      "sse": "id: 8\nevent: patch\ndata: {\"seq\":8,\"patches\":[],\"effects\":[{\"kind\":\"WriteToClipboard\",\"text\":\"copied \\\"text\\\"\"},{\"kind\":\"Navigate\",\"route\":\"/orders?page=2\"},{\"kind\":\"Navigate\",\"route\":\"https://example.com/help\",\"target\":\"Blank\"},{\"kind\":\"PushState\",\"route\":\"/orders/42\"},{\"kind\":\"Focus\",\"nodeId\":\"email\"},{\"kind\":\"Download\",\"url\":\"/export/orders.csv\",\"name\":\"orders.csv\"},{\"kind\":\"ReadFileBody\",\"nodeId\":\"upload\",\"encoding\":\"base64\"},{\"kind\":\"Print\"},{\"kind\":\"Confirm\",\"prompt\":\"Delete 3 orders?\",\"token\":\"c-17\"}]}\n\n"
+    },
+    {
+      "frame": {
+        "effects": [
+          {
+            "kind": "Focus",
+            "nodeId": "count"
+          }
+        ],
+        "patches": [
+          {
+            "kind": "SetText",
+            "nodeId": "count",
+            "text": "42"
+          }
+        ],
+        "seq": 2147483647
+      },
+      "json": "{\"seq\":2147483647,\"patches\":[{\"kind\":\"SetText\",\"nodeId\":\"count\",\"text\":\"42\"}],\"effects\":[{\"kind\":\"Focus\",\"nodeId\":\"count\"}]}",
+      "name": "patches and effects in one frame",
+      "sse": "id: 2147483647\nevent: patch\ndata: {\"seq\":2147483647,\"patches\":[{\"kind\":\"SetText\",\"nodeId\":\"count\",\"text\":\"42\"}],\"effects\":[{\"kind\":\"Focus\",\"nodeId\":\"count\"}]}\n\n"
+    }
+  ],
+  "inbound": [
+    {
+      "body": "{\"nodeId\":\"go\",\"event\":\"click\",\"payload\":{},\"lastSeq\":3}",
+      "dom": "<div data-fuaran-node-id=\"go\"><button type=\"button\">Go</button></div>",
+      "event": {
+        "event": "click",
+        "lastSeq": 3,
+        "nodeId": "go",
+        "payload": {}
+      },
+      "gesture": {
+        "target": "button",
+        "type": "click"
+      },
+      "name": "a click on a node carries an empty payload and the last applied sequence",
+      "seq": 3
+    },
+    {
+      "body": "{\"nodeId\":\"flt\",\"event\":\"input\",\"payload\":{\"value\":\"north\",\"name\":\"region\"},\"lastSeq\":11}",
+      "dom": "<div data-fuaran-node-id=\"flt\" data-filter-name=\"region\"><input value=\"\"></div>",
+      "event": {
+        "event": "input",
+        "lastSeq": 11,
+        "nodeId": "flt",
+        "payload": {
+          "name": {
+            "$type": "Str",
+            "value": "region"
+          },
+          "value": {
+            "$type": "Str",
+            "value": "north"
+          }
+        }
+      },
+      "gesture": {
+        "target": "input",
+        "type": "input",
+        "value": "north"
+      },
+      "name": "an input on a filter control carries its value and the filter's name",
+      "seq": 11
+    },
+    {
+      "body": "{\"nodeId\":\"opt\",\"event\":\"change\",\"payload\":{\"checked\":true},\"lastSeq\":12}",
+      "dom": "<div data-fuaran-node-id=\"opt\"><input type=\"checkbox\"></div>",
+      "event": {
+        "event": "change",
+        "lastSeq": 12,
+        "nodeId": "opt",
+        "payload": {
+          "checked": {
+            "$type": "Bool",
+            "value": true
+          }
+        }
+      },
+      "gesture": {
+        "checked": true,
+        "target": "input",
+        "type": "change"
+      },
+      "name": "a checkbox change carries checked",
+      "seq": 12
+    },
+    {
+      "body": "{\"nodeId\":\"signup\",\"event\":\"submit\",\"payload\":{\"email\":\"a@b.c\",\"age\":42,\"agree\":true,\"nick\":null},\"lastSeq\":4}",
+      "dom": "<form data-fuaran-node-id=\"signup\"><input data-fuaran-field=\"email\" value=\"a@b.c\"><input data-fuaran-field=\"age\" type=\"number\" value=\"42\"><input data-fuaran-field=\"agree\" type=\"checkbox\" checked=\"\"><input data-fuaran-field=\"nick\" type=\"number\" value=\"\"></form>",
+      "event": {
+        "event": "submit",
+        "lastSeq": 4,
+        "nodeId": "signup",
+        "payload": {
+          "age": {
+            "$type": "Num",
+            "value": 42
+          },
+          "agree": {
+            "$type": "Bool",
+            "value": true
+          },
+          "email": {
+            "$type": "Str",
+            "value": "a@b.c"
+          },
+          "nick": {
+            "$type": "Null"
+          }
+        }
+      },
+      "gesture": {
+        "target": "form",
+        "type": "submit"
+      },
+      "name": "a submit harvests every buffered field: a string, a number, a bool, and an empty number as null",
+      "seq": 4
+    },
+    {
+      "body": "{\"nodeId\":\"tabs\",\"event\":\"click\",\"payload\":{\"index\":2},\"lastSeq\":5}",
+      "dom": "<div data-fuaran-node-id=\"tabs\"><button type=\"button\" data-tab-index=\"2\">Third</button></div>",
+      "event": {
+        "event": "click",
+        "lastSeq": 5,
+        "nodeId": "tabs",
+        "payload": {
+          "index": {
+            "$type": "Num",
+            "value": 2
+          }
+        }
+      },
+      "gesture": {
+        "target": "button",
+        "type": "click"
+      },
+      "name": "a tab-header click carries the tab index",
+      "seq": 5
+    },
+    {
+      "body": "{\"nodeId\":\"apply\",\"event\":\"click\",\"payload\":{\"limit\":10},\"lastSeq\":6}",
+      "dom": "<div data-fuaran-node-id=\"apply\"><input data-fuaran-field=\"limit\" type=\"number\" value=\"10\"><button type=\"button\" data-fuaran-commit=\"limit\">Apply</button></div>",
+      "event": {
+        "event": "click",
+        "lastSeq": 6,
+        "nodeId": "apply",
+        "payload": {
+          "limit": {
+            "$type": "Num",
+            "value": 10
+          }
+        }
+      },
+      "gesture": {
+        "target": "button",
+        "type": "click"
+      },
+      "name": "an Apply click harvests the one field it commits",
+      "seq": 6
+    },
+    {
+      "body": "{\"event\":\"click\"}",
+      "event": {
+        "event": "click",
+        "lastSeq": 0,
+        "nodeId": "",
+        "payload": {}
+      },
+      "name": "a body with missing members degrades to empties"
+    },
+    {
+      "body": "{\"nodeId\":\"go\",\"event\":\"click\",\"payload\":{},\"lastSeq\":4294967296}",
+      "event": {
+        "event": "click",
+        "lastSeq": 0,
+        "nodeId": "go",
+        "payload": {}
+      },
+      "name": "a lastSeq outside the 32-bit range degrades to 0"
+    },
+    {
+      "body": "{\"nodeId\":",
+      "event": "refused",
+      "name": "a body that is not JSON is refused"
+    }
+  ],
+  "version": 1
+}
