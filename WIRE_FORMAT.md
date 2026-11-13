@@ -6835,6 +6835,8 @@ The manifest's `style-observer` fixture rows name the vectors under [`style-obse
 
 The theme manifest the `manifest` member carries is decoded **tolerantly and totally** on every host: an absent member decodes to its default, because the canonical manifest every host writes OMITS a member at its default — keys Ordinal-sorted (rule 2), no whitespace, numbers under rule 5, and an empty `$type`, `meta` name or version, an anonymous role binding (`{"named":""}`), a zero number, a weight of `1`, and an empty `meta`, `roles` or `invariants` block all left out. `tokens` is never omitted: a top-level `tokens` key is what selects the manifest wrapper over a bare DTCG tree. So `{"kind":"ContrastFloor","role":"x"}` IS the canonical encoding of a floor of `0`, and a decoder that refused it would refuse every host's output.
 
+A manifest string is read under §21.1's syntactic limits — JSON depth, string length, array length, object members and document bytes (the node bounds do not apply: a manifest has no nodes) — and one past any of them is refused as `LIMIT_EXCEEDED` on the same terms §21.2 sets for a document, on every host (Phase 2653).
+
 A floor of `0` passes every contrast pair, though, and so does an explicit `0.5`; an empty or unbound role floors nothing; a budget on an undeclared token can never be measured; and an invariant kind a host does not know would, if dropped, leave a newer constraint unenforced in silence. Each of those fails OPEN, and none is a syntax error. They are caught by a **validation pass run after decode**, on every host that consumes manifests, with this one code table:
 
 | Code | Raised when | `subject` |
