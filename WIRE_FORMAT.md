@@ -5647,6 +5647,66 @@ The first row's DAG pre-image is
   every other host certifies against `dag/` as a codec, and re-certified the re-minted records at
   fuaran#2646, each refusing a record that carries a retired member by name.
 
+### 5.3.6 The checkpoint seal (normative, Phase 2652; the rule cut by Phase 2305)
+
+A **checkpoint** is a tree state stored beside a stream so that replay can resume from it rather than from genesis.
+Its **seal** binds the state to the point in the history it stands at. There is one seal, Fuaran.Core's strict
+snapshot seal, for the linear checkpoint and for the DAG checkpoint alike; only the anchor differs.
+
+```text
+seal     = SHA-256( <anchorHash> + "|" + payload )
+payload  = {"snapshot":true,"seq":<anchorSeq>,"state":<state>}
+```
+
+- **`<state>`** is the canonical encoding (§2) of the checkpoint's tree, embedded verbatim as a JSON value. A host
+  decodes a stored state and re-encodes it canonically before sealing; it never seals bytes it has not re-encoded.
+- **The payload's members, in this order:** `snapshot` (the literal `true`), `seq`, `state`. As in §5.3.1, this is a
+  pre-image and not a wire emission: the order is pinned, and there is no whitespace.
+- **The linear anchor.** A checkpoint at `sequence` N, the number of records folded into its state, takes
+  `<anchorSeq>` = N and `<anchorHash>` = the `hash` of record N (its `previousChainHead`). The 1-based count enters
+  the pre-image as it stands: a checkpoint after two records seals `"seq":2`.
+- **The DAG anchor.** A checkpoint at node `<node>`, whose state is the fold of the node's ancestor closure with the
+  node's own op applied, takes `<anchorSeq>` = `0` and `<anchorHash>` = `<node>`, the node's §5.3.3 address. It is
+  the linear seal of a history that begins at the node, so the two are one function at two anchors.
+- **Strict, never chain-only.** The state is inside the seal, so a swapped state, a moved anchor and a replaced seal
+  each fail to recompute. There is no pre-image that binds the anchor without the state.
+- **Retired.** The pre-2305 linear pre-image (`{"snapshot":true,"seq":N,"tree":…}`) and the pre-2645 DAG pre-image
+  (`{"snapshot":true,"tree":…}` under the node). A checkpoint sealed by either does not recompute: a linear one is
+  re-sealed once by the reference host's migration, and a DAG one is re-taken at its re-minted node (§5.3.3 "No
+  format tag" — the node it stood at no longer exists under that address).
+
+**Verification and its refusal classes.** A host verifying a linear checkpoint and the tail above it checks, in
+this order, and reports the FIRST break:
+
+1. **`seal`** — the seal does not recompute from the anchor and the state. The tail is not walked.
+2. **`tail`, at a 0-based index into the tail, with one reason.** Each tail record is walked from the anchor
+   `(sequence, previousChainHead)` under the §5.3.2 rule, checking in this order:
+   - `sequenceMismatch` — its `sequence` is not one more than the anchor's (or its predecessor's): a dropped or an
+     inserted record.
+   - `prevHashLinkBroken` — its `previousHash` is not the anchor's hash (or its predecessor's `hash`).
+   - `hashMismatch` — its `hash` does not recompute.
+
+The whole tail is walked, not its first link only: a break below the first record is a break. A DAG checkpoint is
+verified by recomputing its seal at its node, and the history above it under §5.3.3; a node above the checkpoint
+that does not descend from its node is history the checkpoint does not cover, and is refused.
+
+Worked example — `chain/checkpoint-corpus.json`'s checkpoint (sequence 2, state `nodes/markdown-1.json`). Its
+pre-image is
+
+```text
+5b7c55d6668e524aab6e1a6c8d443c54bba9c01deb521bc7460c28d3e1072a05|{"snapshot":true,"seq":2,"state":{"id":"markdown-1","kind":{"$type":"Markdown","text":"Updated hourly."}}}
+```
+
+and its seal is `464d861fb8f8a17a06ebbd2439df01fc5eb923c803bc0db90b608ec98ec06087`, the stored `snapshotHash`. The
+same state sealed as a DAG checkpoint at the §5.3.3 worked example's node `4624bd23…` (`seq` 0, that address as the
+anchor hash) seals to `8d28ad3ab53318a0d6e15e809b12c1415bfbf514b8aca952ec5427cad048d63c`. (Both states are the
+seal's subject only; neither is claimed to be the replay of the history below it.)
+
+**Conformance.** A host that claims checkpoints on the linear chain reproduces the stored `snapshotHash` in
+`chain/checkpoint-corpus.json` byte for byte and refuses each of its vectors at the class and index the vector
+names. The DAG checkpoint follows the DAG content address: it is part of that declared profile (§5.3.5), and only a
+host that claims the profile seals one.
+
 ## 6. `DecodeError` envelope + the eight codes
 
 Every wire-shape violation surfaces a **structured, recoverable** error (never a throw). The envelope:
