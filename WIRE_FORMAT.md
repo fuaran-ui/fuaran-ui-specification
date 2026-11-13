@@ -10829,6 +10829,12 @@ Each reported pair is exactly one of:
    therefore a `DeleteModify` refusal, as a removal against an edit is; two reorders of one parent that differ are
    a `Conflict`.
 
+A `ReorderChildren(p, order)` whose `order` is `p`'s child order in the tree it applies to (the same ids, in the same
+order, of the same length) changes nothing there, so its footprint reads `p`'s child list and writes nothing
+(Phase 2696): it is never reported against another reorder that also leaves its own list as it was, and a reorder
+that changes the list is still reported against it and refused, because applied after that reorder it restores the
+order it lists, so the two replays differ.
+
 Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
 
 ### 34.4 The fold and the child-order rule
@@ -10930,6 +10936,15 @@ The four `Mount`-input fixtures (Phase 2701) are certified by `fuaran-dotnet` an
 reads a `Mount`'s `inputs` as `FragmentArg`s and whose apply lookup and footprint walk reach the nodes they hold.
 `fuaran-ts`, `fuaran-py` and `fuaran-rs` do not yet pass them: each apply engine stops at a node held only in a slot
 argument (`DeltaDoesNotApply`), and each is that host's successor phase.
+
+Since Phase 2696 the family pins the reorder that leaves its list as it was (§34.3): one branch lists a parent's
+children in the order it holds while the other appends a child and then lists the order the parent then holds, and
+the fold derives the append (`fold-two-restated-orders`); and two reorders of one parent's three children to two
+different orders refuse (`fold-refusal-two-real-reorders`), beside `fold-refusal-two-reorders`, a real reorder and
+a restated one, which still refuses. The derive fixture is certified by `fuaran-dotnet` only: `fuaran-ts`,
+`fuaran-py`, `fuaran-go` and `fuaran-rs` still declare a write of the parent's child list for every resolved reorder,
+so each refuses the pair, and each is that host's successor phase. The two refusal fixtures refuse on every host,
+because every host's footprint writes the child list for a reorder that changes it.
 
 ---
 
