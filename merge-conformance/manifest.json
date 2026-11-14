@@ -1,7 +1,7 @@
 {
   "version": 2,
   "description": "Fuaran merge-conformance corpus. Since Phase 2645 (the cut) the UI op-stream DAG is Fuaran.Core's DAG and its only merge is the fold (WIRE_FORMAT.md section 34), so this corpus is the foldFixtures family alone; the tree merge's triad families (fixtures, refusalFixtures, totalityFixtures) were retired with it.",
-  "foldDescription": "merge-fold (Phase 2293; the merge-conformance corpus's only family since Phase 2645, manifest version 2): decode base and the two branches' op deltas (aOpsFile, bOpsFile: canonical TreeOp arrays, each applying from base op by op), reconcile them by fold under the policy of WIRE_FORMAT.md section 34 (Core's conflict report over the base-aware footprint, in which a reorder to the order its parent already holds reads the child list and writes nothing (Phase 2696); agreements applied as no change; two appends of distinct nodes under one parent admitted and ordered by the declared child-order rule; a reorder of a parent beside an append to it or a removal or move of a child it lists admitted as a rebase (Phase 2671); every other reported pair refused, a removal against a concurrent touch of the removed node as DeleteModify). merge-fold-derive: the derived tree is byte-equal to expectedFile and sha256(expected) == outcomeHash. merge-fold-refusal: the policy refuses and the envelope is byte-equal to envelopeFile with sha256 == envelopeHash; swapping a and b swaps every entry's left and right and re-sorts. merge-fold-gated: the fold derives and the sample validator over the derived tree introduces defects neither branch head carries; the verdict is byte-equal to verdictFile with sha256 == verdictHash.",
+  "foldDescription": "merge-fold (Phase 2293; the merge-conformance corpus's only family since Phase 2645, manifest version 2): decode base and the two branches' op deltas (aOpsFile, bOpsFile: canonical TreeOp arrays, each applying from base op by op), reconcile them by fold under the policy of WIRE_FORMAT.md section 34 (Core's conflict report over the base-aware footprint, in which a reorder to the order its parent already holds reads the child list and writes nothing (Phase 2696); before the report, a top-level reorder that leaves its parent's order as it was on its own branch dropped from its delta when the other delta holds a top-level reorder of the same parent that changes the order on its branch, the script recording that parent's surviving order (Phase 2724); agreements applied as no change; two appends of distinct nodes under one parent admitted and ordered by the declared child-order rule; a reorder of a parent beside an append to it or a removal or move of a child it lists admitted as a rebase (Phase 2671); every other reported pair refused, a removal against a concurrent touch of the removed node as DeleteModify). merge-fold-derive: the derived tree is byte-equal to expectedFile and sha256(expected) == outcomeHash. merge-fold-refusal: the policy refuses and the envelope is byte-equal to envelopeFile with sha256 == envelopeHash; swapping a and b swaps every entry's left and right and re-sorts. merge-fold-gated: the fold derives and the sample validator over the derived tree introduces defects neither branch head carries; the verdict is byte-equal to verdictFile with sha256 == verdictHash. retiredFoldFixtures (Phase 2724): the ids the family has retired, each with the phase that retired it (retiredBy) and the fixtures that took its case (successors); a retired id is never reused, and no foldFixtures entry carries one.",
   "foldFixtures": [
     {
       "id": "fold-disjoint",
@@ -184,6 +184,36 @@
       "description": "One branch lists a parent's children in the order it holds; the other appends a child to the parent and then lists the children in the order they then hold. Each reorder changes nothing where it applies, so each reads the parent's child-list and kind slots and writes neither (Phase 2696): the two are not reported against each other, the first is admitted beside the append as a rebase (Phase 2671), and the fold derives the append"
     },
     {
+      "id": "fold-reorder-beside-restated-order",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-reorder-beside-restated-order.base.json",
+      "aOpsFile": "fold-reorder-beside-restated-order.a.ops.json",
+      "bOpsFile": "fold-reorder-beside-restated-order.b.ops.json",
+      "expectedFile": "fold-reorder-beside-restated-order.expected.json",
+      "outcomeHash": "60b2c3d46a40f6959f259e0d7cd975a30479d5e04b6d731d0c5dd39ecf68ff77",
+      "description": "One branch reorders a parent's children while the other lists them in the order the parent already holds — the pair the retired fold-refusal-two-reorders refused. The restated reorder changes nothing on its own branch, so it yields to the other branch's real reorder of the same parent and is dropped before the conflict report (Phase 2724); the fold derives the real order and the script records it for the parent, because a merge node's replay still applies the restated op"
+    },
+    {
+      "id": "fold-restated-order-beside-reorder",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-restated-order-beside-reorder.base.json",
+      "aOpsFile": "fold-restated-order-beside-reorder.a.ops.json",
+      "bOpsFile": "fold-restated-order-beside-reorder.b.ops.json",
+      "expectedFile": "fold-restated-order-beside-reorder.expected.json",
+      "outcomeHash": "60b2c3d46a40f6959f259e0d7cd975a30479d5e04b6d731d0c5dd39ecf68ff77",
+      "description": "The mirror of fold-reorder-beside-restated-order: the restated reorder is on the first branch and the real one on the second. The restated one yields wherever it sits (Phase 2724), and the fold derives the real order"
+    },
+    {
+      "id": "fold-append-restated-beside-reorder",
+      "kind": "merge-fold-derive",
+      "baseFile": "fold-append-restated-beside-reorder.base.json",
+      "aOpsFile": "fold-append-restated-beside-reorder.a.ops.json",
+      "bOpsFile": "fold-append-restated-beside-reorder.b.ops.json",
+      "expectedFile": "fold-append-restated-beside-reorder.expected.json",
+      "outcomeHash": "18f33945ac7607ab473820350cfee307da8e20dc9da20a7cec8d28622d6dc613",
+      "description": "One branch appends a child to a parent and then lists the children in the order the parent then holds; the other reorders the parent's two children. The list is unchanged where its own branch applies it, so it yields to the real reorder (Phase 2724); the append and the real reorder are a rebase (Phase 2671), and the fold derives the real order with the append after it"
+    },
+    {
       "id": "fold-mount-input-insert",
       "kind": "merge-fold-derive",
       "baseFile": "fold-mount-input-insert.base.json",
@@ -294,16 +324,6 @@
       "description": "One branch removes a node the other moves to another parent — a DeleteModify refusal, as against an edit. The tree-level merge let the move win; the fold refuses it"
     },
     {
-      "id": "fold-refusal-two-reorders",
-      "kind": "merge-fold-refusal",
-      "baseFile": "fold-refusal-two-reorders.base.json",
-      "aOpsFile": "fold-refusal-two-reorders.a.ops.json",
-      "bOpsFile": "fold-refusal-two-reorders.b.ops.json",
-      "envelopeFile": "fold-refusal-two-reorders.envelope.json",
-      "envelopeHash": "6ed1c777bf7a4cb7d326463dd01911dd9f1c0373f709156d052503f0d93607e3",
-      "description": "One branch reorders a parent's children while the other lists them in the order the parent already holds. The second reorder changes nothing where it applies, so it reads the parent's child-list and kind slots and writes neither (Phase 2696); its reads meet the first reorder's writes, SlotClashes no rule decides, refused as a Conflict. The pair does not commute under replay: applied after the real reorder, the restated one puts the old order back"
-    },
-    {
       "id": "fold-refusal-two-real-reorders",
       "kind": "merge-fold-refusal",
       "baseFile": "fold-refusal-two-real-reorders.base.json",
@@ -332,6 +352,13 @@
       "verdictFile": "fold-validator-gated-brand.verdict.json",
       "verdictHash": "81f5fd4c1ed6868855d57c92ed094b7079fdcbcf18db57986154ecb275b06216",
       "description": "Brand tone on two sibling panes, one per branch — the fold derives, and the derived tree carries a duplicate-Brand defect neither branch had"
+    }
+  ],
+  "retiredFoldFixtures": [
+    {
+      "id": "fold-refusal-two-reorders",
+      "retiredBy": "Phase 2724",
+      "successors": ["fold-reorder-beside-restated-order", "fold-restated-order-beside-reorder"]
     }
   ]
 }

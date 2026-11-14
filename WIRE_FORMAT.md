@@ -10848,7 +10848,8 @@ derivation, the policy that decides which concurrent pairs it admits, the one or
 envelope a refusal carries. It is certified by the `foldFixtures` family of `merge-conformance/` (§34.6).
 
 **§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646; the
-Phase 2701 `Mount`-input fixtures certified on `fuaran-dotnet` and `fuaran-go` only (§34.6).**
+Phase 2701 `Mount`-input fixtures certified on `fuaran-dotnet` and `fuaran-go` only, and the Phase 2696 and Phase 2724
+reorder derive fixtures on `fuaran-dotnet` only (§34.6).**
 `fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
 `DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
 `merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
@@ -10889,13 +10890,26 @@ Each reported pair is exactly one of:
 4. **Refusal** — anything else. Classed `DeleteModify` when exactly one of the two ops removes (`RemoveNode`, or a
    `Batch` containing one) and `Conflict` otherwise. A removal against a concurrent **move** of the same node is
    therefore a `DeleteModify` refusal, as a removal against an edit is; two reorders of one parent that differ are
-   a `Conflict`.
+   a `Conflict`, unless one of them yields (the yield rule, below).
 
 A `ReorderChildren(p, order)` whose `order` is `p`'s child order in the tree it applies to (the same ids, in the same
 order, of the same length) changes nothing there, so its footprint reads `p`'s child list and writes nothing
 (Phase 2696): it is never reported against another reorder that also leaves its own list as it was, and a reorder
 that changes the list is still reported against it and refused, because applied after that reorder it restores the
 order it lists, so the two replays differ.
+
+**The yield rule** (Phase 2724, operator ruling 2026-11-14). Before the conflict report is taken, a top-level
+`ReorderChildren(p, order)` whose `order` is `p`'s child order in the tree its own delta applies it to (the equality
+above) is **dropped from its delta** when the other delta holds a top-level `ReorderChildren` of the same `p` that
+changes `p`'s order in the tree its own delta applies it to. An op that changes nothing on its own branch carries no
+intent to protect, so the real reorder survives, and the merge takes its order. Dropping it changes no later tree of
+its delta, so the delta still applies op by op. The rule decides nothing else: an unchanged reorder beside an append to
+`p` or a removal or move of a child it lists, beside another unchanged reorder, or beside a reorder held inside a
+`Batch` (on either side) keeps its reads and is judged as above, and two reorders that each change the order still
+refuse. Each such `p` is a **yielded** parent: the script records its order as §34.4 states, because a merge node's
+replay still applies the dropped op, in Core's drain order, and the script is what fixes the order. The rule holds
+in every context, a named precedence side's included (§34.4): it runs before precedence is consulted, so neither
+side's re-assertion can restore a dropped reorder.
 
 Any refusal refuses the merge, with every refused pair in the envelope (§34.5).
 
@@ -10910,7 +10924,7 @@ children `order` lists that `p` still holds, in `order`'s order, then the childr
 `p` holds them. A child the other delta removed or moved out is thereby dropped from the reordered run, and a child
 it appended or moved in follows it, in both fold orders.
 
-Then, for each interleaved or rebased parent `p` in ordinal order of its id, the **child-order rule**: the
+Then, for each interleaved, rebased or yielded (§34.3) parent `p` in ordinal order of its id, the **child-order rule**: the
 children of `p` that neither delta appended keep their order (the rebased reorder's, where a delta reordered `p`),
 and the appended ones follow — each delta's **run** of appends into `p` in that delta's own order, the two runs
 merged by comparing their heads ordinally by NodeId, the smaller first, and an id both runs hold (two agreeing
@@ -10973,8 +10987,8 @@ it is the corpus's only family. The family pins the two cases the retired tree m
 removal against a concurrent move refuses (`fold-refusal-remove-vs-move`), and two concurrent appends under one
 parent are ordered by the rule above rather than by the tree merge's per-position comparison. Since Phase 2671
 it also pins the rebase (`fold-reorder-and-insert`, `-remove`, `-move-in`, `-move-out`), the agreed node listed
-once (`fold-double-move-and-appends`), the two pinned child orders above, two reorders that still refuse
-(`fold-refusal-two-reorders`), and one fixture per class the fold DERIVES where the tree merge refuses, accepted as
+once (`fold-double-move-and-appends`), the two pinned child orders above, two reorders that refused until the Phase 2724 yield rule
+(`fold-refusal-two-reorders`, since retired, below), and one fixture per class the fold DERIVES where the tree merge refuses, accepted as
 the policy's answer by the same ruling: a move beside an edit of the moved node (`fold-move-and-target-edit`; the
 tree merge's `ConcurrentMove`, the pair the retired `merge-totality-concurrent-move` refused), the same move on both sides
 beside an edit of the moved node (`fold-agreed-move-and-edit`; `ConcurrentEdit`), and three `ReorderVsStructural`
@@ -11003,10 +11017,25 @@ Since Phase 2696 the family pins the reorder that leaves its list as it was (§3
 children in the order it holds while the other appends a child and then lists the order the parent then holds, and
 the fold derives the append (`fold-two-restated-orders`); and two reorders of one parent's three children to two
 different orders refuse (`fold-refusal-two-real-reorders`), beside `fold-refusal-two-reorders`, a real reorder and
-a restated one, which still refuses. The derive fixture is certified by `fuaran-dotnet` only: `fuaran-ts`,
+a restated one, which refused until Phase 2724 (below). The derive fixture is certified by `fuaran-dotnet` only: `fuaran-ts`,
 `fuaran-py`, `fuaran-go` and `fuaran-rs` still declare a write of the parent's child list for every resolved reorder,
 so each refuses the pair, and each is that host's successor phase. The two refusal fixtures refuse on every host,
 because every host's footprint writes the child list for a reorder that changes it.
+
+Since Phase 2724 the family pins the yield rule (§34.3). `fold-refusal-two-reorders` — a real reorder beside a
+restated one — is **retired**: its pair now derives, under the new id `fold-reorder-beside-restated-order`, with its
+mirror (the restated reorder on the first branch) as `fold-restated-order-beside-reorder`, and an append followed by
+a restatement on one branch beside a real reorder on the other derives the real order with the append after it
+(`fold-append-restated-beside-reorder`). **A retired fixture id is never reused**: a fixture whose verdict changes
+moves to a new id, so a host's record of a verdict under an id stays true of that id. The manifest records each
+retired id in its top-level `retiredFoldFixtures` array — `{"id","retiredBy","successors"}`, the id, the phase that
+retired it and the fixtures that took its case — and no `foldFixtures` entry carries an id listed there; a host's leg
+reads `foldFixtures` and needs no change for the array. (Earlier retirements in this corpus — the tree merge's triad
+families at Phase 2645, and elsewhere single fixtures such as `reject/reject-transform-source-empty-wrapper` — were
+recorded in prose only; this is the convention's first entry.) The three derive fixtures are certified by
+`fuaran-dotnet` only: `fuaran-ts`, `fuaran-py`, `fuaran-go` and `fuaran-rs` do not yet drop the yielded reorder, so
+each refuses the pair, and each is that host's successor phase. `fold-refusal-two-real-reorders` stays refused on
+every host.
 
 ---
 
