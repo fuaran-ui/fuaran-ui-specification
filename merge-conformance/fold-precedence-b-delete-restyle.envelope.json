@@ -1,0 +1,1 @@
+[{"address":"left","class":"DeleteModify","left":{"$type":"RemoveNode","target":"left"},"right":{"$type":"PatchStyle","style":{"tone":"Success"},"target":"left"},"shape":"ConcurrentUpdate"}]

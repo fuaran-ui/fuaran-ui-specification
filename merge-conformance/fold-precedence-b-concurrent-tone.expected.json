@@ -1,0 +1,1 @@
+{"accessibility":{"role":"main"},"id":"dash","kind":{"$type":"Box","children":[{"id":"left","kind":{"$type":"Markdown","text":"Left pane"},"style":{"tone":"Critical"}},{"id":"right","kind":{"$type":"Markdown","text":"Right pane"}}],"layout":{"$type":"Auto"},"role":"Dashboard"}}

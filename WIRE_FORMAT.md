@@ -10849,7 +10849,8 @@ envelope a refusal carries. It is certified by the `foldFixtures` family of `mer
 
 **§11 status: certified on all five hosts (§34.6); the four ported hosts re-certified at fuaran#2646; the
 Phase 2701 `Mount`-input fixtures certified on `fuaran-dotnet` and `fuaran-go` only, and the Phase 2696 and Phase 2724
-reorder derive fixtures on `fuaran-dotnet` only (§34.6).**
+reorder derive fixtures on `fuaran-dotnet` only (§34.6). The Phase 2725 `precedenceFixtures` (§34.4's optional
+precedence merge) are certified on `fuaran-dotnet` only: no other host offers a precedence merge.**
 `fuaran-dotnet` is the reference (`Fuaran.UI.OpStream.Dag.Merge.DagReconcile`, minted through
 `DagMerge.mergeDag`). Since Phase 2645 the fold is the DAG's ONLY merge: the three-way tree merge and its
 `merge-conformance/` keys are retired, and the corpus's manifest (version 2) carries `foldFixtures` alone.
@@ -10956,12 +10957,40 @@ applies as no change, and a `ReorderChildren` that does not apply as written (it
 branch appended to the parent or took a child from it) applies rebased. On a linear history every op applies as
 written.
 
-**Precedence (optional, host-local).** A host MAY offer a merge that names one delta as taking precedence: the
-pairs the policy would refuse are admitted, and that delta's refused ops are re-asserted, in its own order, at
-the end of the script; both fold orders must still reach one tree with it. It settles a pair whose two ops both
-apply in either order (two writes of one slot) and nothing else — an edit beside a removal of its node still
-refuses. It is not certified by the corpus: a precedence merge's node is the host's to mint, and two hosts merging
-the same pair agree on it only when they name the same side.
+**Precedence (optional; Phases 2645, 2695 and 2725).** A host MAY offer a merge that names one delta as taking
+precedence. The yield rule (§34.3) runs first, as in every context. The pairs the policy would refuse are then
+admitted, and the named delta's ops of them are **re-asserted**, each once, in that delta's own order, at the end
+of the script, after the child-order reorders; both fold orders must still reach one tree with it. Precedence
+settles a pair whose two ops both apply in either order (two writes of one slot) and nothing else. A pair it cannot
+settle **refuses with the entry the default context gives it** (§34.5): same address, shape, slot, class and ops.
+So a precedence merge's refusal envelope holds only entries the default envelope holds, it adds no refusal class,
+and it never answers with a fold fault (operator ruling 2026-11-14). Three readings decide which pairs those are,
+whichever side is named:
+
+1. **A removal of the other op's node** (Phase 2695), before the fold. A `DeleteModify` pair whose other op (the
+   one that does not remove) addresses a node the base holds and the removing delta's head does not: an edit, a
+   restyle, an insert beneath or a move of a removed node, or of a node under a removed ancestor. A `DeleteModify`
+   pair whose removal is of another node (an insert beside the removal of a sibling) applies in either order and
+   is settled.
+2. **A pair that does not apply in both orders** (Phase 2725), before the fold. The two ops insert a node under one
+   id (an `InsertChild`'s subtree, or one inside a `Batch`; the bytes differ, or the pair would be an agreement):
+   whichever applies second meets the id the first placed. Or one op, in the tree its own delta applied it to,
+   takes away what the other needs there: the other applies to that tree, and no longer applies once the first
+   has, the fold's held rule (above) applying to both (two moves that would put each node inside the other, for
+   one). Where the other does not apply to that tree at all, this reading says nothing about the pair.
+3. **A re-asserted op that no longer applies** (Phase 2725), after the fold. In each fold order, the re-asserted
+   ops are applied in turn under the held rule; one that does not apply is skipped and the walk goes on. A pair
+   whose named-side op is skipped in either order is not settled. Two causes reach it: the op's own delta later
+   removed or moved what it addresses (it no longer applies to that delta's own head), or the other delta changed
+   the child list a re-asserted `ReorderChildren` names (an append to the parent, a removal or move of a child).
+
+Readings 1 and 2 refuse together, before the fold; reading 3 is reached only when they refuse nothing, and its
+envelope is every refused pair whose named-side op was skipped. The refusal is a **class the envelope already
+has**: a precedence refusal names the pair it could not settle, and its entry names the re-asserted op as `left`
+(side `a`) or `right` (side `b`); why that op could not settle the pair is the reading, which every host derives
+from the same deltas. Certified by the `precedenceFixtures` of `merge-conformance/` (§34.6). Two hosts merging the
+same pair agree on the merge only when they name the same side; swapping the deltas and naming the other side
+gives the same tree, or the mirrored envelope.
 
 ### 34.5 The refusal envelope
 
@@ -11036,6 +11065,47 @@ recorded in prose only; this is the convention's first entry.) The three derive 
 `fuaran-dotnet` only: `fuaran-ts`, `fuaran-py`, `fuaran-go` and `fuaran-rs` do not yet drop the yielded reorder, so
 each refuses the pair, and each is that host's successor phase. `fold-refusal-two-real-reorders` stays refused on
 every host.
+
+**Precedence (Phase 2725).** Before Phase 2725 no fixture certified a precedence merge on any host. The manifest's
+top-level `precedenceFixtures` array now does: each entry is shaped as a `foldFixtures` entry (`merge-fold-derive`
+or `merge-fold-refusal`, read the same way) with a `precedence` member, `"a"` or `"b"`, naming the delta that takes
+precedence (`aOpsFile` or `bOpsFile`), and is reconciled under that side (§34.4). Each case is emitted under both
+sides, as `fold-precedence-a-<case>` and `fold-precedence-b-<case>`, so the rule is pinned whichever side is named.
+The cases:
+
+- **Settled** (derive under both sides): two tones of one pane (`concurrent-tone`, the named side's tone); two real
+  reorders of one parent (`two-real-reorders`, the named side's order); a real reorder beside a restated one
+  (`restated-order`: the yield rule runs first, so the merge takes the real order, also when the named side is the
+  one that restated it); and Phase 2695's admitted case, an insert beside the removal of a sibling
+  (`sibling-insert-beside-removal`).
+- **Phase 2695's rule** (refuse under both sides, `DeleteModify`): an edit (`delete-edit`), a restyle
+  (`delete-restyle`), an insert beneath (`delete-insert-beneath`) and a move (`delete-move`) of a removed node.
+- **A pair that does not apply in both orders** (refuse under both sides, `Conflict`): two inserts of one id with
+  different content (`same-id-insert`), and two moves that would put each container inside the other
+  (`mutual-move`).
+- **A re-asserted op that no longer applies**: an append beside a move of the container's child that its own branch
+  then removes (`superseded-move`: derives under `a`, whose append is already held; refuses under `b`, whose move
+  meets a removed node); and two real reorders of one parent, the second branch then removing a child
+  (`stale-reorder`: refuses under `a`, the other branch having changed the child list the re-asserted reorder names,
+  and under `b`, its own branch having removed a child it names).
+
+Every precedence refusal fixture's envelope is the one the default context gives the same deltas, or a subset of it;
+the reference also pins that over a generated population (3,000 pairs under each side) no precedence merge faults,
+none refuses an entry the default envelope lacks, and every derivation the reference made before Phase 2725 is
+byte-identical after it.
+
+| Host | `precedenceFixtures` |
+|---|---|
+| `fuaran-dotnet` (reference) | covered — `FoldReconcileTests` reproduces every artefact under its side, checks that swapping the deltas and the side gives the same tree or the mirrored envelope, and mints and replays the merge node of every derive fixture |
+| `fuaran-ts` | not applicable — offers no precedence merge (`reconcileFold` takes no side); its leg reads `foldFixtures` only |
+| `fuaran-py` | not applicable — offers no precedence merge (`reconcile` takes no side); its leg reads `foldFixtures` only |
+| `fuaran-go` | not applicable — offers no precedence merge (`ReconcileFold` takes no side); its leg reads `foldFixtures` only |
+| `fuaran-rs` | not applicable — offers no precedence merge (`reconcile_fold` takes no side); its leg reads `foldFixtures` only |
+
+A host that adds a precedence merge certifies the whole array in the same change; until then the array is not read
+there, and the host claims nothing about precedence. What the corpus certifies is the reference's precedence merge
+on the cases above and nothing wider: it does not certify that a host without one agrees with it, and it does not
+certify a precedence merge's minted node beyond the reference's own replay check.
 
 ---
 

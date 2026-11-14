@@ -1,0 +1,1 @@
+[{"address":"dash","class":"DeleteModify","left":{"$type":"RemoveNode","target":"left"},"right":{"$type":"MoveNode","newParentId":"box","target":"left"},"shape":"SlotClash","slot":"#children"},{"address":"left","class":"DeleteModify","left":{"$type":"RemoveNode","target":"left"},"right":{"$type":"MoveNode","newParentId":"box","target":"left"},"shape":"ConcurrentUpdate"}]

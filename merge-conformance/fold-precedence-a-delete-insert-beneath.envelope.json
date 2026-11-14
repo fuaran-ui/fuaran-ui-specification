@@ -1,0 +1,1 @@
+[{"address":"box","class":"DeleteModify","left":{"$type":"RemoveNode","target":"box"},"right":{"$type":"InsertChild","child":{"id":"new","kind":{"$type":"Markdown","text":"New"}},"parentId":"box"},"shape":"ConcurrentUpdate"}]

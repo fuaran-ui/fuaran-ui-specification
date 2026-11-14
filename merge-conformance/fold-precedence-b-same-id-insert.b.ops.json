@@ -1,0 +1,1 @@
+[{"$type":"InsertChild","child":{"id":"new","kind":{"$type":"Markdown","text":"B wrote this"}},"parentId":"dash"}]
