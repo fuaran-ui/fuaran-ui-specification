@@ -10957,38 +10957,49 @@ applies as no change, and a `ReorderChildren` that does not apply as written (it
 branch appended to the parent or took a child from it) applies rebased. On a linear history every op applies as
 written.
 
-**Precedence (optional; Phases 2645, 2695 and 2725).** A host MAY offer a merge that names one delta as taking
+**Precedence (optional; Phases 2645, 2695, 2725 and 2743).** A host MAY offer a merge that names one delta as taking
 precedence. The yield rule (§34.3) runs first, as in every context. The pairs the policy would refuse are then
 admitted, and the named delta's ops of them are **re-asserted**, each once, in that delta's own order, at the end
 of the script, after the child-order reorders; both fold orders must still reach one tree with it. Precedence
 settles a pair whose two ops both apply in either order (two writes of one slot) and nothing else. A pair it cannot
-settle **refuses with the entry the default context gives it** (§34.5): same address, shape, slot, class and ops.
-So a precedence merge's refusal envelope holds only entries the default envelope holds, it adds no refusal class,
-and it never answers with a fold fault (operator ruling 2026-11-14). Three readings decide which pairs those are,
-whichever side is named:
+settle **refuses, naming a pair the default context refuses** (§34.5): same address, shape, slot and ops. Its
+`class` is the reading that refused it, so an entry says why without the context it was produced in (operator
+ruling 2026-11-15). A precedence merge never answers with a fold fault (operator ruling 2026-11-14). Three readings
+decide which pairs those are, whichever side is named, checked in this order:
 
 1. **A removal of the other op's node** (Phase 2695), before the fold. A `DeleteModify` pair whose other op (the
    one that does not remove) addresses a node the base holds and the removing delta's head does not: an edit, a
-   restyle, an insert beneath or a move of a removed node, or of a node under a removed ancestor. A `DeleteModify`
-   pair whose removal is of another node (an insert beside the removal of a sibling) applies in either order and
-   is settled.
+   restyle, an insert beneath or a move of a removed node, or of a node under a removed ancestor. Class
+   `DeleteModify`, the default entry unchanged. A `DeleteModify` pair whose removal is of another node (an insert
+   beside the removal of a sibling) applies in either order and is settled.
 2. **A pair that does not apply in both orders** (Phase 2725), before the fold. The two ops insert a node under one
    id (an `InsertChild`'s subtree, or one inside a `Batch`; the bytes differ, or the pair would be an agreement):
    whichever applies second meets the id the first placed. Or one op, in the tree its own delta applied it to,
    takes away what the other needs there: the other applies to that tree, and no longer applies once the first
    has, the fold's held rule (above) applying to both (two moves that would put each node inside the other, for
-   one). Where the other does not apply to that tree at all, this reading says nothing about the pair.
+   one). Where the other does not apply to that tree at all, this reading says nothing about the pair. Class
+   `NotInBothOrders`. A pair reading 1 refuses also fails this reading; reading 1 is checked first, so its class is
+   `DeleteModify`.
 3. **A re-asserted op that no longer applies** (Phase 2725), after the fold. In each fold order, the re-asserted
    ops are applied in turn under the held rule; one that does not apply is skipped and the walk goes on. A pair
    whose named-side op is skipped in either order is not settled. Two causes reach it: the op's own delta later
    removed or moved what it addresses (it no longer applies to that delta's own head), or the other delta changed
    the child list a re-asserted `ReorderChildren` names (an append to the parent, a removal or move of a child).
+   Class `StaleReassertion`.
 
 Readings 1 and 2 refuse together, before the fold; reading 3 is reached only when they refuse nothing, and its
-envelope is every refused pair whose named-side op was skipped. The refusal is a **class the envelope already
-has**: a precedence refusal names the pair it could not settle, and its entry names the re-asserted op as `left`
-(side `a`) or `right` (side `b`); why that op could not settle the pair is the reading, which every host derives
-from the same deltas. Certified by the `precedenceFixtures` of `merge-conformance/` (§34.6). Two hosts merging the
+envelope is every refused pair whose named-side op was skipped. **The precedence classes (normative).** A precedence
+refusal entry's `class` is exactly one of three values, and a reader acts on it without knowing the context:
+
+| `class` | Reading | What it tells the reader |
+|---|---|---|
+| `DeleteModify` | 1 | One op removes the node the other touches; the default context refuses the pair the same way |
+| `NotInBothOrders` | 2 | The two ops do not both apply in either order, so no naming of either side settles the pair |
+| `StaleReassertion` | 3 | The named side's op, `left` under side `a` and `right` under side `b`, no longer applies where it is re-asserted; the other naming may settle the pair, or the op must be restated against its own delta's head |
+
+A precedence refusal is never classed `Conflict`, and the default context never gives `NotInBothOrders` or
+`StaleReassertion`, so no `foldFixtures` envelope carries either. Every host derives the class from the same deltas.
+Certified by the `precedenceFixtures` of `merge-conformance/` (§34.6). Two hosts merging the
 same pair agree on the merge only when they name the same side; swapping the deltas and naming the other side
 gives the same tree, or the mirrored envelope.
 
@@ -10997,10 +11008,11 @@ gives the same tree, or the mirrored envelope.
 A JSON array of the refused pairs. Each entry is an object with ordinal-sorted keys:
 
 ```
-{"address":<string>,"class":"Conflict"|"DeleteModify","left":<op from A>,"right":<op from C>,"shape":<string>[,"slot":<string>]}
+{"address":<string>,"class":<class>,"left":<op from A>,"right":<op from C>,"shape":<string>[,"slot":<string>]}
 ```
 
-`left` and `right` are the ops' canonical encodings embedded verbatim, `shape` is one of the four names in §34.2,
+`class` is `Conflict` or `DeleteModify` (§34.3) in the default context, and one of the three precedence classes of
+§34.4 under a named side. `left` and `right` are the ops' canonical encodings embedded verbatim, `shape` is one of the four names in §34.2,
 and `slot` is present exactly when `shape` is `SlotClash`. Entries are ordered by `address`, then `shape`, then
 `slot` (empty when absent), then `left`'s bytes, then `right`'s bytes, each ordinal, with exact duplicates
 removed. `sha256` over the envelope's bytes is the cross-host refusal hash. Swapping `A` and `C` swaps every
@@ -11080,19 +11092,22 @@ The cases:
   (`sibling-insert-beside-removal`).
 - **Phase 2695's rule** (refuse under both sides, `DeleteModify`): an edit (`delete-edit`), a restyle
   (`delete-restyle`), an insert beneath (`delete-insert-beneath`) and a move (`delete-move`) of a removed node.
-- **A pair that does not apply in both orders** (refuse under both sides, `Conflict`): two inserts of one id with
+- **A pair that does not apply in both orders** (refuse under both sides, `NotInBothOrders`): two inserts of one id with
   different content (`same-id-insert`), and two moves that would put each container inside the other
   (`mutual-move`).
-- **A re-asserted op that no longer applies**: an append beside a move of the container's child that its own branch
+- **A re-asserted op that no longer applies** (`StaleReassertion`): an append beside a move of the container's child that its own branch
   then removes (`superseded-move`: derives under `a`, whose append is already held; refuses under `b`, whose move
   meets a removed node); and two real reorders of one parent, the second branch then removing a child
   (`stale-reorder`: refuses under `a`, the other branch having changed the child list the re-asserted reorder names,
   and under `b`, its own branch having removed a child it names).
 
-Every precedence refusal fixture's envelope is the one the default context gives the same deltas, or a subset of it;
-the reference also pins that over a generated population (3,000 pairs under each side) no precedence merge faults,
-none refuses an entry the default envelope lacks, and every derivation the reference made before Phase 2725 is
-byte-identical after it.
+Every precedence refusal fixture's envelope names the pairs the default context's envelope names for the same deltas,
+or a subset of them, each under its §34.4 class; the reference also pins that over a generated population (3,000 pairs
+under each side) no precedence merge faults, none refuses a pair the default envelope lacks, every entry is the
+default's or the default's pair under a precedence-only class, no entry is classed `Conflict`, and every derivation
+the reference made before Phase 2725 is byte-identical after it. Phase 2743 re-classed the seven refusal envelopes of
+the two Phase 2725 readings in place (`same-id-insert` and `mutual-move` under both sides, `stale-reorder` under both,
+`superseded-move` under `b`): the verdict of each is still a refusal of the same pairs, so the ids are kept.
 
 | Host | `precedenceFixtures` |
 |---|---|

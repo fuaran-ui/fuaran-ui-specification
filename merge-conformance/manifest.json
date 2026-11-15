@@ -361,7 +361,7 @@
       "successors": ["fold-reorder-beside-restated-order", "fold-restated-order-beside-reorder"]
     }
   ],
-  "precedenceDescription": "merge-fold under precedence (Phase 2725; WIRE_FORMAT.md section 34.4, the optional precedence merge): each entry is a foldFixtures entry with a precedence member naming the delta that takes precedence (a: aOpsFile, b: bOpsFile), reconciled under that side. A named side admits the pairs the policy would refuse and re-asserts its own ops of them, in its delta's order, at the end of the script, with three exceptions that refuse with the entries the default context gives those pairs: a DeleteModify pair whose removal takes the other op's node (a node the other op addresses that the base holds and the removing branch's head does not; Phase 2695), checked before the fold; a pair whose two ops insert a node under one id, which applies in neither order, checked before the fold; and a pair whose named-side op does not apply, as written, where it is re-asserted after the fold and the child-order script, in either fold order. A precedence merge's refusal envelope therefore holds only entries the default context's envelope holds, and it never answers with a fold fault. merge-fold-derive and merge-fold-refusal are read as in foldDescription; swapping a and b and naming the other side gives the same tree, or the mirrored envelope. A host that offers no precedence merge does not read this array and certifies nothing from it.",
+  "precedenceDescription": "merge-fold under precedence (Phase 2725; WIRE_FORMAT.md section 34.4, the optional precedence merge): each entry is a foldFixtures entry with a precedence member naming the delta that takes precedence (a: aOpsFile, b: bOpsFile), reconciled under that side. A named side admits the pairs the policy would refuse and re-asserts its own ops of them, in its delta's order, at the end of the script, with three exceptions that refuse, each naming a pair the default context refuses: a DeleteModify pair whose removal takes the other op's node (a node the other op addresses that the base holds and the removing branch's head does not; Phase 2695), checked before the fold, with the default entry (class DeleteModify); a pair whose two ops do not both apply in either order (two inserts of one id, or one op that in its own branch's tree leaves the other unable to apply), checked before the fold, as class NotInBothOrders; and a pair whose named-side op does not apply, as written, where it is re-asserted after the fold and the child-order script, in either fold order, as class StaleReassertion (the two classes Phase 2743; never given in the default context). A precedence merge's refusal envelope therefore names only pairs the default context's envelope names, each entry the default's or the default's pair under one of the two precedence-only classes, and it never answers with a fold fault. merge-fold-derive and merge-fold-refusal are read as in foldDescription; swapping a and b and naming the other side gives the same tree, or the mirrored envelope. A host that offers no precedence merge does not read this array and certifies nothing from it.",
   "precedenceFixtures": [
     {
       "id": "fold-precedence-a-concurrent-tone",
@@ -459,8 +459,8 @@
       "aOpsFile": "fold-precedence-a-same-id-insert.a.ops.json",
       "bOpsFile": "fold-precedence-a-same-id-insert.b.ops.json",
       "envelopeFile": "fold-precedence-a-same-id-insert.envelope.json",
-      "envelopeHash": "5fbb5f6576e9c49bef25766bda6ed4da84f9fa84e0280a2e3058a96a55dc1821",
-      "description": "Both branches insert a node under one id with different content. The pair applies in neither order (the second insert meets the id the first placed), so precedence cannot settle it: it refuses before the fold with the entry the default context gives it, whichever side is named (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "4b26a75a66c7e3377846bcd4353015d01ddd64609a27fa36cb7e7ee28c9a221f",
+      "description": "Both branches insert a node under one id with different content. The pair applies in neither order (the second insert meets the id the first placed), so no named side can settle it: it refuses before the fold, naming the pair the default context refuses, as NotInBothOrders, whichever side is named (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-a-mutual-move",
@@ -470,8 +470,8 @@
       "aOpsFile": "fold-precedence-a-mutual-move.a.ops.json",
       "bOpsFile": "fold-precedence-a-mutual-move.b.ops.json",
       "envelopeFile": "fold-precedence-a-mutual-move.envelope.json",
-      "envelopeHash": "feaf0558607b8b601c5b9521b1369c5ed92af2a88af912a3dc7e99f29c8a1ef7",
-      "description": "One branch moves a container into a second container while the other moves the second into the first. Whichever applies second would put a node inside its own descendant, so the pair applies in neither order and precedence cannot settle it: it refuses before the fold with the entry the default context gives it, whichever side is named (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "8baadd3d6eaf765982e3c5808a1bcc740097a4d55fafff6e5b943306665efda1",
+      "description": "One branch moves a container into a second container while the other moves the second into the first. Whichever applies second would put a node inside its own descendant, so the pair applies in neither order and no named side can settle it: it refuses before the fold, naming the pair the default context refuses, as NotInBothOrders, whichever side is named (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-a-superseded-move",
@@ -482,7 +482,7 @@
       "bOpsFile": "fold-precedence-a-superseded-move.b.ops.json",
       "expectedFile": "fold-precedence-a-superseded-move.expected.json",
       "outcomeHash": "a9e052ff03538e6c1a4787839bb947121007db1521188f9ac527b780854f08a4",
-      "description": "One branch appends a child to a container while the other moves that container's child out and then removes it: the append and the move both change the container's child list, a Conflict. Under a the append is re-asserted, already held, and the merge derives. Under b the move is re-asserted at the end of the script, and its own branch has since removed the node it moves, so it no longer applies: the pair refuses with the entry the default context gives it (Phase 2725; before it the merge faulted)"
+      "description": "One branch appends a child to a container while the other moves that container's child out and then removes it: the append and the move both change the container's child list, a Conflict. Under a the append is re-asserted, already held, and the merge derives. Under b the move is re-asserted at the end of the script, and its own branch has since removed the node it moves, so it no longer applies: the pair refuses, naming the pair the default context refuses, as StaleReassertion (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-a-stale-reorder",
@@ -492,8 +492,8 @@
       "aOpsFile": "fold-precedence-a-stale-reorder.a.ops.json",
       "bOpsFile": "fold-precedence-a-stale-reorder.b.ops.json",
       "envelopeFile": "fold-precedence-a-stale-reorder.envelope.json",
-      "envelopeHash": "3bf7ce916cdb92493d3050328b8092dc3f2324772b55470703fe84c49848da93",
-      "description": "Both branches reorder one parent's three children to different orders, and the second branch then removes one of them. Under a the first branch's reorder is re-asserted at the end of the script, and the other branch has changed the child list it names; under b the second branch's reorder is re-asserted, and its own branch has since removed a child it names. Neither applies where it is re-asserted, so under either side the pair refuses with the entry the default context gives it (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "de9e76992b83c0ce3d70366f084ae8f7c990a811cca453d4e0a40e4e8f25bb72",
+      "description": "Both branches reorder one parent's three children to different orders, and the second branch then removes one of them. Under a the first branch's reorder is re-asserted at the end of the script, and the other branch has changed the child list it names; under b the second branch's reorder is re-asserted, and its own branch has since removed a child it names. Neither applies where it is re-asserted, so under either side the pair refuses, naming the pair the default context refuses, as StaleReassertion (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-b-concurrent-tone",
@@ -591,8 +591,8 @@
       "aOpsFile": "fold-precedence-b-same-id-insert.a.ops.json",
       "bOpsFile": "fold-precedence-b-same-id-insert.b.ops.json",
       "envelopeFile": "fold-precedence-b-same-id-insert.envelope.json",
-      "envelopeHash": "5fbb5f6576e9c49bef25766bda6ed4da84f9fa84e0280a2e3058a96a55dc1821",
-      "description": "Both branches insert a node under one id with different content. The pair applies in neither order (the second insert meets the id the first placed), so precedence cannot settle it: it refuses before the fold with the entry the default context gives it, whichever side is named (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "4b26a75a66c7e3377846bcd4353015d01ddd64609a27fa36cb7e7ee28c9a221f",
+      "description": "Both branches insert a node under one id with different content. The pair applies in neither order (the second insert meets the id the first placed), so no named side can settle it: it refuses before the fold, naming the pair the default context refuses, as NotInBothOrders, whichever side is named (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-b-mutual-move",
@@ -602,8 +602,8 @@
       "aOpsFile": "fold-precedence-b-mutual-move.a.ops.json",
       "bOpsFile": "fold-precedence-b-mutual-move.b.ops.json",
       "envelopeFile": "fold-precedence-b-mutual-move.envelope.json",
-      "envelopeHash": "feaf0558607b8b601c5b9521b1369c5ed92af2a88af912a3dc7e99f29c8a1ef7",
-      "description": "One branch moves a container into a second container while the other moves the second into the first. Whichever applies second would put a node inside its own descendant, so the pair applies in neither order and precedence cannot settle it: it refuses before the fold with the entry the default context gives it, whichever side is named (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "8baadd3d6eaf765982e3c5808a1bcc740097a4d55fafff6e5b943306665efda1",
+      "description": "One branch moves a container into a second container while the other moves the second into the first. Whichever applies second would put a node inside its own descendant, so the pair applies in neither order and no named side can settle it: it refuses before the fold, naming the pair the default context refuses, as NotInBothOrders, whichever side is named (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-b-superseded-move",
@@ -613,8 +613,8 @@
       "aOpsFile": "fold-precedence-b-superseded-move.a.ops.json",
       "bOpsFile": "fold-precedence-b-superseded-move.b.ops.json",
       "envelopeFile": "fold-precedence-b-superseded-move.envelope.json",
-      "envelopeHash": "32a3f5888ae71a14b4785b0675a7df643d11807f8ac3b5b1059b39bdbcbdb1fe",
-      "description": "One branch appends a child to a container while the other moves that container's child out and then removes it: the append and the move both change the container's child list, a Conflict. Under a the append is re-asserted, already held, and the merge derives. Under b the move is re-asserted at the end of the script, and its own branch has since removed the node it moves, so it no longer applies: the pair refuses with the entry the default context gives it (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "e158738746f205768e7c7c66f11119f606256b9be7abb6c7803f0f2b2fa50e48",
+      "description": "One branch appends a child to a container while the other moves that container's child out and then removes it: the append and the move both change the container's child list, a Conflict. Under a the append is re-asserted, already held, and the merge derives. Under b the move is re-asserted at the end of the script, and its own branch has since removed the node it moves, so it no longer applies: the pair refuses, naming the pair the default context refuses, as StaleReassertion (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     },
     {
       "id": "fold-precedence-b-stale-reorder",
@@ -624,8 +624,8 @@
       "aOpsFile": "fold-precedence-b-stale-reorder.a.ops.json",
       "bOpsFile": "fold-precedence-b-stale-reorder.b.ops.json",
       "envelopeFile": "fold-precedence-b-stale-reorder.envelope.json",
-      "envelopeHash": "3bf7ce916cdb92493d3050328b8092dc3f2324772b55470703fe84c49848da93",
-      "description": "Both branches reorder one parent's three children to different orders, and the second branch then removes one of them. Under a the first branch's reorder is re-asserted at the end of the script, and the other branch has changed the child list it names; under b the second branch's reorder is re-asserted, and its own branch has since removed a child it names. Neither applies where it is re-asserted, so under either side the pair refuses with the entry the default context gives it (Phase 2725; before it the merge faulted)"
+      "envelopeHash": "de9e76992b83c0ce3d70366f084ae8f7c990a811cca453d4e0a40e4e8f25bb72",
+      "description": "Both branches reorder one parent's three children to different orders, and the second branch then removes one of them. Under a the first branch's reorder is re-asserted at the end of the script, and the other branch has changed the child list it names; under b the second branch's reorder is re-asserted, and its own branch has since removed a child it names. Neither applies where it is re-asserted, so under either side the pair refuses, naming the pair the default context refuses, as StaleReassertion (Phase 2725, classed by Phase 2743; before 2725 the merge faulted)"
     }
   ]
 }

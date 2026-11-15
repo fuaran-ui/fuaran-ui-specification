@@ -1,1 +1,1 @@
-[{"address":"boxa","class":"Conflict","left":{"$type":"InsertChild","child":{"id":"n","kind":{"$type":"Markdown","text":"New"}},"parentId":"boxa"},"right":{"$type":"MoveNode","newParentId":"boxb","target":"m"},"shape":"SlotClash","slot":"#children"}]
+[{"address":"boxa","class":"StaleReassertion","left":{"$type":"InsertChild","child":{"id":"n","kind":{"$type":"Markdown","text":"New"}},"parentId":"boxa"},"right":{"$type":"MoveNode","newParentId":"boxb","target":"m"},"shape":"SlotClash","slot":"#children"}]
