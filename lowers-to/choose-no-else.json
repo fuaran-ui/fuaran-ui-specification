@@ -1,0 +1,1 @@
+{"action":{"$type":"Choose","condition":{"$type":"State","key":"order.express"},"whenTrue":{"$type":"Navigate","route":"/express"}},"lowersTo":{"arm":"Choose","whenFalse":{"arm":"Sequence","members":[]},"whenTrue":{"arm":"Leaf","effectKinds":["Navigate"],"hostCalls":[]}}}
