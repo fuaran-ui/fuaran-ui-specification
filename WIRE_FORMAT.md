@@ -5179,7 +5179,7 @@ The orchestrator's typed re-attachment happens downstream via `moduleMsgDecoder`
 | `FormFieldKind.Range.value` | `float * float` | bare `{"max":<number>,"min":<number>}` – no `Static` envelope (Phase 423 shape, kept at 0.2.0) | – (both bounds always present) |
 | `FormFieldKind.DateTimeRange.value` | `string * string` | bare `{"from":<iso>,"to":<iso>}` – no `Static` envelope (the `Range` posture, 0.7.0); ordered, `from <= to` by ordinal compare | – (both ends always present) |
 
-**The option and marker labels (normative; operator ruling 2026-10-19, Phase 2345).** `SelectOption.label` and `MapMarker.label` are `TextSource`, as the table above writes them, so an option or a marker label can be bound or localised like every other user-visible text: all three arms ride the slot. A literal label is the BARE JSON string, the canonical form `TextSource.Literal` takes wherever it appears; the `{"$type":"Literal","text":…}` envelope is decode-accepted and normalises to it on re-encode; `Bound` and `I18n` labels carry their `$type` envelope. Every document written with string labels therefore reads unchanged. The IDL row and the reference host's codec still type the two members as a string and refuse the `Bound` and `I18n` arms; they adopt the widening in the announced breaking cut (Phase 2303), because widening a public record member is breaking for the hosts that construct it. Until then a producer that needs every host to read its document writes literal labels only.
+**The option and marker labels (normative; operator ruling 2026-10-19, Phase 2345).** `SelectOption.label` and `MapMarker.label` are `TextSource`, as the table above writes them, so an option or a marker label can be bound or localised like every other user-visible text: all three arms ride the slot. A literal label is the BARE JSON string, the canonical form `TextSource.Literal` takes wherever it appears; the `{"$type":"Literal","text":…}` envelope is decode-accepted and normalises to it on re-encode; `Bound` and `I18n` labels carry their `$type` envelope. Every document written with string labels therefore reads unchanged. The IDL types both members `TextSource` since Phase 2811, which landed the widening in the announced breaking cut (Phase 2303), because widening a public record member is breaking for the hosts that construct it; every codec host reads and writes all three arms, pinned by the `select-textsource-labels` and `map-textsource-labels` vectors.
 
 The typed encoding applies at the binding's `State.defaultValue` position too, and recursively through `Local.initialFrom` – the whole `Binding` in a typed slot is typed, not just the `Static` case. **This is not a footnote for the row feed**: the canonical editable-grid authoring shape is a `State`-sourced rows array (`nodes/grid-editable-state.json`), so a host that routes only `Static.value` through its slot-typed parser leaves the *principal* case un-normalised. Route every value-carrying `Binding` arm.
 
@@ -6667,8 +6667,8 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->776<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->285<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->779<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->288<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->243<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->92<!-- /fuaran:count --> `lenient-accept`,
@@ -10518,7 +10518,7 @@ the `set`, `click` or `navigate`.
 
 | Value space | Slot |
 |---|---|
-| `Select` with a `Static` option list; field `Choice`, `SegmentedChoice`, `Combobox` with a `Static` list | `enumeration` — each option's `label` and `value`, and the aliases whose `value` names it |
+| `Select` with a `Static` option list; field `Choice`, `SegmentedChoice`, `Combobox` with a `Static` list | `enumeration` — each option's `label` and `value`, and the aliases whose `value` names it. An option label that is not a `Literal` (§5) contributes the option's `value` as its label, as a node's `id` stands in for a non-literal node label |
 | field `Number` | `number`, unbounded, not integral |
 | field `RangedNumber`, `Range` | `number` with the field's `min` / `max`; integral when its `step` is a whole number |
 | field `Rating` | `number` from `0` to `max`; integral unless `allowHalf` |
