@@ -7146,6 +7146,29 @@ renamed to `DateTime`. That rename's alias (§16, the temporal table) is the shi
 `lenient/lenient-2451-*` vectors pin it as one. Every codec host already carried that alias for the
 Phase 1811 ruling, so `oldestAccepted` names `panel@1.0` for all five.
 
+### 15.7 The announced breaking cut (Phase 2303)
+
+The reference host's release `0.105.0` (the `Fuaran.UI` version line) is the one announced breaking release of the
+pre-1.0 line. It was named for the cut on 2026-11-21. The open riders that a wire reader can see are below, each with
+its §15.4 class. A rider that has landed records its own change in the section it amends. This entry records only the
+set and the version.
+
+| Rider | Wire change | §15.4 class |
+|---|---|---|
+| Phase 2107 | `Action` gains `Choose` and `Require` (§3.6.34, §30.1) | Additive: a new tag |
+| Phase 2413 | `Select.multiple` is omitted at its default `false`. An explicit `false` is a lenient accept. | A narrowing of the canonical form: no step |
+| Phase 2811 (Phase 2345's label half) | `SelectOption.label` and `MapMarker.label` are `TextSource` in the IDL, as §5's ruling already states | Additive: a member widened |
+| Phase 2340 | Rules 2 and 3 of the canonical form, and the renames in its naming table. Every old form still decodes. | Rename, on the §15.4 Phase 1811 vehicle (b): §16 aliases, never emitted |
+
+Phase 2345 itself shipped ahead of the cut: the §5 ruling paragraph and the §3.6 coercion row. Its open half is Phase
+2811. No other rider moves a wire byte. The remaining riders change the reference host's F# and C# surface only, and
+the host's `STABILITY.md` records them.
+
+**The profile step is not decided here.** §15.4's table names a minor step for a new tag and for a widened member,
+and a major step for a rename. The profile has stood at `core@1.0` through earlier tag additions, and the Phase 1811
+ruling carried a rename without a major. The release act rules on whether the cut steps the profile. It records the
+ruling in this section, and each host lands it in the same change-set.
+
 ---
 
 ## 16. Lenient AI-ingest profile (decode-only convenience)
