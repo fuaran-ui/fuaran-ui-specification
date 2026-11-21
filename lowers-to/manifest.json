@@ -16,7 +16,9 @@
     "Invoke",
     "Print",
     "Focus",
-    "Confirm"
+    "Confirm",
+    "Choose",
+    "Require"
   ],
   "vectors": [
     {
@@ -113,6 +115,21 @@
       "arm": "CommitLocal",
       "file": "commit-local-no-destination.json",
       "name": "commit-local-no-destination"
+    },
+    {
+      "arm": "Choose",
+      "file": "choose.json",
+      "name": "choose"
+    },
+    {
+      "arm": "Choose",
+      "file": "choose-no-else.json",
+      "name": "choose-no-else"
+    },
+    {
+      "arm": "Require",
+      "file": "require.json",
+      "name": "require"
     }
   ]
 }

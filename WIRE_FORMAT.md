@@ -5072,6 +5072,74 @@ reaches an exported file.
 holding a link or an image is not expressible here. fuaran-kt and fuaran-swift pin an earlier corpus, and these
 fixtures reach them through Phase 2574.
 
+### 3.6.34 `Action.Choose` and `Action.Require` — selection and the guard (Phase 2107)
+
+Two additive `Action` cases, and both are the bounded program core's own arms spelled with the
+core's own names (§30): **`Choose`** runs one of two actions depending on a condition read at
+dispatch time; **`Require`** halts the gesture unless a condition holds.
+
+```json
+{"$type":"Choose","condition":{"$type":"State","key":"order.express"},"whenTrue":{"$type":"SetState","key":"shipping","value":"express"}}
+{"$type":"Choose","condition":{"$type":"State","key":"details.open"},"exit":{"$type":"State","key":"details.open"},"whenFalse":{"$type":"SetState","key":"details.open","value":true},"whenTrue":{"$type":"SetState","key":"details.open","value":false}}
+{"$type":"Chain","ops":[{"$type":"Require","condition":{"$type":"State","key":"form.valid"}},{"$type":"Call","endpoint":"/orders/submit"}]}
+```
+
+**`Choose` members.** `condition` is a **required `Binding`**, resolved at DISPATCH time exactly as
+`SetState.valueFrom` is (§3.3). `whenTrue` is a **required** nested `Action`. `whenFalse` is an
+**optional** nested `Action`, omitted when absent; an absent false arm means *nothing happens* (the
+`Confirm.onCancel` rule, §3.6.22), so a host MUST NOT substitute one. `exit` is an **optional
+`Binding`**, omitted when absent: the core's exit assertion. A `Choose` with no `whenTrue` is
+`MISSING_FIELD` at the member's path (`reject/reject-choose-missing-whentrue.json`).
+
+**`Require` members.** `condition` is a **required `Binding`**, resolved at dispatch. There is no
+default: a guard that holds when it is absent is a guard that is not there
+(`reject/reject-require-missing-condition.json`).
+
+**Semantics (normative) — the core's, not restated.** The condition selects by the boolean `true`:
+`Choose` runs `whenTrue` when the condition resolves to `true` and `whenFalse` when it resolves to
+any other value; `Require` holds on `true` and halts on anything else. A condition that does not
+resolve, or errors, halts the gesture before either arm runs. A halted gesture runs nothing after the
+point it halted and keeps what ran before it. `exit`, when present, is checked against the store the
+arm left: it must resolve to `true` after `whenTrue` and to anything else after `whenFalse`, and a
+violation halts after the arm. Each of these is the bounded core's `Choose` / `Require` as its own
+specification states them; this section names the arms (§30.1) and adds nothing to their meaning.
+
+**Control, never an effect.** Neither case is gated itself and neither adds a capability: every
+effect an arm reaches is an existing case meeting its own gate, and a condition reads the store
+through the same binding a `SetState.valueFrom` or a bound `Navigate` route already reads. A host's
+demanded-effect projection of a `Choose` is the union of both arms' demands, because which arm runs
+is the condition's value at dispatch, which no projection can see.
+
+**Where they run (normative).** A host runs these cases **on the bounded path only** — the one
+evaluator a host lowers actions onto (§30) — never through a second interpreter of its own. A host
+that interprets actions without the bounded path MUST refuse a gesture that reaches either case
+**whole** (anywhere under a `Chain`, a `Confirm` continuation or a `Choose` arm): it runs nothing of
+that gesture and reports the refusal on its diagnostic channel. Refusing only the arm would run the
+members after a guard, which is the guard failing open. A zero-JS resume interpreter routes such a
+node to hydration, and a static or card projection treats both as client-only.
+
+**`Choose` is the third RECURSIVE case**, after `Chain` and `Confirm`, and recurses into two named
+members. The confirmation bound of §3.6.22 reaches through it: a `Confirm` inside a `Choose` arm
+inside a confirmation's continuation is still a dialogue answering a dialogue, and is refused with
+`WRONG_TYPE` at the nested confirm's path (`reject/reject-confirm-nested-in-choose.json`). A
+`Confirm` inside a `Choose` arm at the top of a gesture is ordinary: on the bounded path its address
+names the arm (`whenTrue` / `whenFalse`) as a continuation's address names the continuation (§30.1).
+
+**There is no bounded-repeat case (ruled, Phase 2107).** The core's `Repeat` and `Each` have no UI
+spelling. Nothing in the prompt corpus or the recorded emissions reaches for a loop inside a gesture,
+and a list-shaped effect is already a binding's or a `Chain`'s. The question reopens on a recorded
+emission of one.
+
+**Wire survivability: survivable** (§5.1) for both — a condition is a wire `Binding`, and an arm is
+as survivable as its own case, which its own row states.
+
+**Host adoption.** Every codec host in the §11.0 roster decodes and encodes both cases. The bounded
+hosts execute them through the core; the others refuse them as above.
+
+Fixtures: `nodes/action-require.json` (a guarded chain, and a `Choose` with no `whenFalse` and no
+`exit`), `nodes/action-choose.json` (every member), `reject/reject-choose-missing-whentrue.json`,
+`reject/reject-require-missing-condition.json` and `reject/reject-confirm-nested-in-choose.json`.
+
 ### The declarative floor (Phase 430)
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
@@ -5426,6 +5494,8 @@ longer exist; `NodeKind` is flat, and its 43 rows are below._
 | `Action.Print` | survivable | – |
 | `Action.Confirm` | survivable | – |
 | `Action.Focus` | survivable | – |
+| `Action.Choose` | survivable | – |
+| `Action.Require` | survivable | – |
 | `Action.ReadFileBody` | partial | – |
 | `Action.Invoke` | survivable | – |
 
@@ -5733,7 +5803,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->243<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6597,10 +6667,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->771<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->284<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->776<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->286<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->240<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->243<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->91<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
@@ -10160,8 +10230,8 @@ Every `Action` arm (§3.3) has a meaning on the **bounded path**: a host that ru
 actions without closures lowers each arm onto one arm of the bounded program core's action view and
 interprets that. The core is the `Fuaran.Program.Bounded` package (repository
 `Fuaran-Build/fuaran-program`, `docs/generic-tier.md` §3.2), whose `ActionView` names eight arms;
-five of them — `Sequence`, `Assign`, `Call` and `Leaf`, and `Choose` for the one round-trip arm's
-answer — are the targets below. Until this section
+six of them — `Sequence`, `Assign`, `Call`, `Leaf`, `Choose` (the `Choose` arm's own row, and the
+one round-trip arm's answer) and `Require` — are the targets below. Until this section
 the mapping was written down only in two hosts' code, so a third host running actions on the bounded
 path had to reverse-engineer it from one of them. It is now the format's.
 
@@ -10173,7 +10243,7 @@ leaf declaration are the client-effect discriminators the host's effect registry
 ### 30.1 The table
 
 The table is **exhaustive over the closed union**. An `Action` arm with no row is a specification
-defect, not a host's choice: a host whose action union gains a fifteenth arm fails §30.3's
+defect, not a host's choice: a host whose action union gains a seventeenth arm fails §30.3's
 completeness check until this table and the vector family both have its row.
 
 | `Action` arm | Core arm | Leaf declaration (effect kinds / host calls) | Notes |
@@ -10191,6 +10261,8 @@ completeness check until this table and the vector family both have its row.
 | `AiTool` | `Leaf` | host call, channel `AiTool`, name = `toolName` | |
 | `Confirm` | `Leaf`, then `Choose` | effect `Confirm` | **a round trip — two events** (Phase 2106). The gesture lowers to a leaf that asks: it emits the `Confirm` effect, whose token is the confirm's address, and runs no continuation. The ANSWER — the originating event re-delivered with `confirmToken` and `confirmAccepted` — lowers to `Choose` over the answer: `onConfirm` the true arm, `onCancel` (or the empty `Sequence`) the false. The answer is correlated (below) |
 | `Dispatch` | `Leaf` | none, and **opaque**: reason class `in-process`, name `Dispatch` | its message has no wire projection (§4) and is folded by the host's own `update`, which no walk can see into — see below |
+| `Choose` | `Choose` | — | Phase 2107: the core's own arm. `condition` is the entry and `exit` the exit assertion, both resolved at dispatch; `whenTrue` and `whenFalse` (or the empty `Sequence`) are the arms, each lowered by this table |
+| `Require` | `Require` | — | Phase 2107: the core's halting guard over `condition`, resolved at dispatch |
 | `CommitLocal` | `Assign` | — | **the one arm whose lowering reads the tree** (Phase 2198): the key is the `commitTo` of the form field it names, the value is the event's flush payload, a literal. A commit whose field declares no destination lowers to `Leaf`, declaring nothing — see below |
 
 The two client-effect kinds no `Action` produces — `PushState` and `Download` — are absent
@@ -10199,8 +10271,8 @@ deliberately: they reach a host from the navigation layer, which is not a progra
 A leaf declaration is what a lowered arm **may** demand, which is what a host's demanded-effect
 projection reports and what a capability check is made against. It is an upper bound, not a promise
 to emit: a `Navigate` whose route fails the §19 floor emits nothing and still declares `Navigate`.
-The core arms the table never targets (`Require`, `Repeat`, `Each`) have no UI spelling; a host's
-lowering never produces them, and it produces `Choose` only for a `Confirm`'s answer.
+The core arms the table never targets (`Repeat`, `Each`) have no UI spelling, by ruling (§3.6.34);
+a host's lowering never produces them.
 
 **`Dispatch` lowers to an OPAQUE leaf (Phase 2194).** A leaf that declares nothing reads, in a
 host's demanded-effect projection, exactly like an action that does nothing — and a `Dispatch` is
@@ -10281,8 +10353,10 @@ it carries:
   exactly when the leaf declares itself opaque (`Dispatch` only), a member
   `"opaque":{"name":<string>,"reason":<string>}`. A reading of an opaque leaf without that member, or
   of any other leaf with it, is a different reading (Phase 2194);
-- `Choose`: `{"arm":"Choose","whenFalse":<reading>,"whenTrue":<reading>}` — the two arms the
-  answer selects between, each read by this table; the entry, being the reader's answer, is not stated.
+- `Choose`: `{"arm":"Choose","whenFalse":<reading>,"whenTrue":<reading>}` — the two arms, each read
+  by this table; the entry (the reader's answer, or a `Choose` arm's condition) and any exit
+  assertion are resolved at dispatch and are not stated;
+- `Require`: `{"arm":"Require"}` — its condition is resolved at dispatch and is not stated.
 
 A reading is a comparison form, not a wire: no document carries it, and nothing here asks a host to
 encode one. Two readings are equal when they are equal as JSON values, member order ignored.
@@ -10290,7 +10364,7 @@ encode one. Two readings are equal when they are equal as JSON values, member or
 ### 30.3 The `lowers-to/` vector family
 
 [`lowers-to/`](./lowers-to/) holds one vector per row of §30.1 (two for `Chain`, `SetState`,
-`Call`, `Confirm` and `CommitLocal`, which each have a second case worth pinning), enumerated by
+`Call`, `Confirm`, `Choose` and `CommitLocal`, which each have a second case worth pinning), enumerated by
 [`lowers-to/manifest.json`](./lowers-to/manifest.json) — the authoritative list, never a directory
 listing. Each vector is `{"action":<Action>,"lowersTo":<reading>}`, and a `CommitLocal` vector also
 carries `"tree":<Node>`, the tree its key is found in (Phase 2198). A host certifies the family by:
@@ -10309,7 +10383,7 @@ the round-trip families: a reading derived by one host's mapping and certified b
 would grade its own paper. The manifest is therefore hand-maintained, and §12's regeneration rule
 does not reach it.
 
-The manifest's `arms` member lists the fourteen arm names. A host asserts, against its own closed
+The manifest's `arms` member lists the sixteen arm names. A host asserts, against its own closed
 union, that every arm it holds is listed there and that every listed arm has at least one vector; a
 host whose union and the list disagree fails, whichever side holds the extra arm.
 
