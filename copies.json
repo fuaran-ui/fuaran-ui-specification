@@ -1740,6 +1740,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "lenient/lenient-2413-select-multiple-false.expected.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-2413-select-multiple-false.expected.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
+      "source": "lenient/lenient-2413-select-multiple-false.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/lenient/lenient-2413-select-multiple-false.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "lenient/lenient-2451-panel-1-0.expected.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/lenient/lenient-2451-panel-1-0.expected.json"
@@ -7786,14 +7802,6 @@
       ],
       "check": "fingerprint",
       "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
-    },
-    {
-      "source": "nodes/select-multiple-false.json",
-      "consumers": [
-        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/nodes/select-multiple-false.json"
-      ],
-      "check": "fingerprint",
-      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
       "source": "nodes/select-option-groups-remainder.json",
