@@ -567,7 +567,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?=false`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `scale?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `withheldField?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `interval?`, `kind`, `legendPosition?`, `onPointClick?`, `pathField?`, `scale?`, `sizeField?`, `sortBy?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `withheldField?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -5269,6 +5269,78 @@ drawn geometry: `chart-lowering/derived-series/derived-mixed-columns` was re-cut
 had been drawn as a zero-height bar with the readout `orders · Central · 0`. No top-level or `heatmap/` golden
 moved. Adoption is recorded per host in §11.0.
 
+### 3.6.37 The mark channels — `interval`, `sizeField`, `sortBy`, `pathField` and `ReferenceLineX` (Phase 2654)
+
+A CHANNEL names a column of the chart's rows that a mark reads besides its x and its value. Each is an optional
+member of the one `Chart` kind, never a kind of its own, and each omits when absent, so every pre-2654 document is
+byte-unchanged.
+
+```json
+"interval": { "high": "upper", "low": "lower" },
+"sizeField": "buyers",
+"sortBy": { "direction": "desc", "field": "share" },
+"pathField": "season",
+"annotations": [ { "$type": "ReferenceLineX", "label": "Median", "value": 50 } ]
+```
+
+- **`interval`** (`ChartInterval`: `low`, `high`, both column names) — an extent on each datum of the single series.
+  Read by `Bar`, `Line`, `Area` and `Scatter` with exactly one `yFields` entry.
+- **`sizeField`** (string) — the column that sizes each `Scatter` point by area.
+- **`sortBy`** (`ChartSort`: `field`, a column name, and `direction`, the `SortDirection` tokens `asc` / `desc`) —
+  the rows' order before layout. Read by `Bar`, `Line`, `Area` and `Pie` on a non-temporal x.
+- **`pathField`** (string) — the column whose numeric value orders a `Scatter` series' points along a path.
+- **`ChartAnnotation.ReferenceLineX`** (`value`, finite, in the x axis's units; optional `label`) — a vertical line
+  at a NUMERIC x on a `Scatter` whose x is numeric. A category or a date on x is `EventMarker`'s address.
+
+**The combination rules (pre-emit, `validator/defect-vocabulary.json`).** A channel on a kind that does not read it
+is `FUARAN172` (`ChartChannelKindUnsupported`, naming the channel and the kinds that read it); an `interval` over
+other than one series is `FUARAN173` (`ChartIntervalSeriesShape`); a `sortBy` on a temporal x is `FUARAN174`
+(`ChartSortByTemporal`); a `ReferenceLineX` on a temporal `Scatter` is `FUARAN139`, and a non-finite one
+`FUARAN137`. Every column a channel names is grounded like a series (`FUARAN086`) and, being read as a number,
+refused at a decidable non-numeric type (`FUARAN087`).
+
+**The lowering (normative for every host that lowers the series arms).** A channel the kind does not read is
+NEUTRALISED: the chart lowers byte-identically to the same chart without it. Every channel value is read by
+§3.6.36 rule 1 (present or missing), and a withheld row reads no interval and no size.
+
+1. **Order first.** `sortBy` reorders the rows before any other stage: rows with a present key, by that key,
+   STABLY (equal keys keep source order), ascending or descending; then every row whose key is missing, and every
+   withheld row, in source order.
+2. **The interval.** A row's interval is `(min(low, high), max(low, high))` when both ends are present and the row
+   is not withheld; otherwise it has none. Both ends join the value domain (§4l rule 3). On a `Bar` (grouped, or a
+   stack of one) and a `Scatter`, each interval is an ERROR BAR: three `Line`s — the stem from the high end to the
+   low end at the datum's centre x (a bar's `x + w/2`, a point's x), then a cap of `IntervalCapWidth` (8) at the
+   low end and one at the high end — stroked `currentColor` at the axis opacity and the reference-line stroke
+   width, each with the readout `<series> · <category> · <low> – <high>` and no mark id, emitted after every bar or
+   point of the series. On a `Line` and an `Area` (overlaid or stacked) each maximal run of rows with an interval
+   is one BAND: a `Polygon` along the high ends then back along the low ends, filled with the series colour at
+   `IntervalBandOpacity` (0.2), readout `<series> · interval`, emitted before the series' own shapes.
+3. **The size.** On a `Scatter` with `sizeField`, a row whose size is missing, negative or withheld draws no
+   point. Otherwise its radius is `r2(max(ScatterMinRadius, ScatterMaxRadius · √(size / maxSize)))` (2 and 16),
+   `maxSize` the largest size drawn, or `ScatterMinRadius` when that is 0; the readout gains
+   `· <sizeField> <size>` in the default number form.
+4. **The path.** On a `Scatter` with `pathField`, the rows with a present path order are taken in ascending order,
+   stably; a row's path order is read whether or not it is withheld. For each series, each maximal run of those
+   rows whose point is present (x and value) of two or more points is one `Polyline` in the series colour and
+   stroke, with the series mark and readout, emitted before the points. A missing or withheld point therefore
+   breaks the path.
+5. **The x reference line.** Each finite `ReferenceLineX` joins the x domain, and is a `Line` across the plot's
+   height at its x in the reference-line paint, mark `annotation|referencex|<n>` (document order within the case),
+   emitted after the value-axis reference lines. Its label sits at the top of the plot beside the line, as an event
+   marker's does, with the width budget running to the next x reference line to the right; it is emitted after
+   every other annotation label.
+6. **The summary** gains, after the band clause, `1 x reference line: <x>` / `<k> x reference lines: …` (x in the
+   axis's tick form, a literal label in parentheses), then for each channel read: `Interval <low> to <high>`,
+   `Sized by <field>`, `Path in <field> order`, `Sorted by <field>, ascending|descending`.
+
+**Vectors.** `chart-lowering/channels/`, a subfamily in the `withheld/` shape (that input contract plus
+`interval`, `sizeField`, `sortBy`, `pathField`, `xScale` and `annotations`): `bar-interval`, `line-interval`,
+`area-interval`, `scatter-interval`, `scatter-size`, `scatter-path`, `bar-sort-desc`, `pie-sort-asc`,
+`scatter-reference-x` and `scatter-all-channels`, and three NEUTRALISED cases that must lower as their channel-free
+twins: `bar-channels-neutralised`, `line-interval-two-series-neutralised` and `line-sort-temporal-neutralised`. No
+other golden moved. Horizontal orientation and facets are not channels of this section (D39). Adoption is
+recorded per host in §11.0.
+
 ## 4. Closure-bearing slots → `"<closure>"`
 
 Every function-typed payload the encoder cannot observe renders as the sentinel string `"<closure>"`. The decoder reconstructs each as a **placeholder** that re-encodes to the same `"<closure>"` sentinel, keeping the round-trip byte-stable. The slots are:
@@ -6317,6 +6389,20 @@ lowers the heatmap in-host also owes rule 8 and the `heatmap-withheld-*` cases o
 | `fuaran-py` | **adopted** — as `fuaran-ts` |
 | `fuaran-rs` | **pending** — owes the codec member and the lowering rules, rule 8 included |
 | `fuaran-go` | **pending** — owes the codec member; lowering `n/a` (REQUIRE-PRE-LOWERED) |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Channel adoption (`interval`, `sizeField`, `sortBy`, `pathField` and `ReferenceLineX`, Phase 2654, §3.6.37).** A
+codec bar and a lowering bar. Every codec host owes the four optional members and the annotation case, and a host
+that lowers a chart in-host owes the `chart-lowering/channels/` subfamily.
+
+| Host | Channel adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the members, `FUARAN172`-`FUARAN174`, the lowering, and the AG adapter's declared order (its interval, size, path and x line are declared gaps there); generates the goldens |
+| `fuaran-ts` | **adopted** — the codec members and the lowering, byte-identical on every `channels` golden |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec members and the lowering |
+| `fuaran-go` | **pending** — owes the codec members; lowering `n/a` (REQUIRE-PRE-LOWERED) |
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 

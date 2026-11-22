@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"month","yFields":["plan","actual"],"title":"line-interval-two-series-neutralised","stacked":false,"interval":{"high":"hi","low":"lo"},"data":[{"month":"Jan","plan":10,"actual":11,"lo":8,"hi":12},{"month":"Feb","plan":12,"actual":14,"lo":9,"hi":15}]}
