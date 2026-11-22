@@ -5195,6 +5195,7 @@ with `kind: "Heatmap"`, `yFields` naming the row field and then the value field,
 JSON. The cases are `heatmap-sequential` (no scale, labelled), `heatmap-sequential-bounds` (declared 0 to 100),
 `heatmap-diverging` (a correlation matrix, about zero), `heatmap-diverging-midpoint` (a declared midpoint of 50),
 `heatmap-missing-cells` (absent pairs and an empty value cell) and `heatmap-refusal-cell-cap` (101 × 101 cells).
+The three `heatmap-withheld-*` cases are §3.6.36 rule 8's (Phase 2810).
 The vectors sit below the top level deliberately: a host that lowers or round-trips every top-level vector is not
 reddened before it adopts the arm. Adoption is recorded per host in §11.0.
 
@@ -5243,12 +5244,27 @@ own spec, never by a sentinel in a value column.
    the placeholder paint above, carrying the datum's mark and readout.
 7. **The summary** gains `1 value withheld` or `<k> values withheld` after the peak clause, where `k` is the
    withheld rows times the series count. A chart with nothing withheld gains no clause.
+8. **The withheld heatmap cell** (Phase 2810). A heatmap row is a cell, so a cell is WITHHELD when the FIRST row of
+   its pair is withheld (the first row of a pair wins, as it does for the value); a later row of the pair is never
+   read. A withheld cell is neither a value nor ABSENT: its value is never read (no scale extent, no data label),
+   and it draws the cell `Rectangle` at the cell's own geometry with the placeholder paint of rule 5 (`fill:
+   "none"`, `stroke: "currentColor"` at the axis opacity and the axis stroke width), carrying the cell's mark
+   (`<value>|<x>|<row>`) and the readout `<row> · <x> · withheld`. An absent pair keeps §3.6.35's surface tone
+   (gridline opacity) and carries no mark. When any cell is withheld, the legend ramp gains a KEY: after the ramp's
+   labels, a `LegendSwatchSize` square in the placeholder paint at the ramp's x, centred on
+   `keyY = plotY1 + CategoryLabelOffsetY − TickLabelBaselineDy`, then the label `withheld` at `keyY` as the ramp's
+   labels are placed; the legend column's width also measures the word. The summary counts the cells empty as the
+   cells neither present nor withheld, and gains `1 value withheld` / `<k> values withheld` (`k` the withheld
+   cells) after that clause. A heatmap with no withheld cell is byte-unchanged.
 
 **Vectors.** `chart-lowering/withheld/`, a subfamily in the `heatmap/` shape: the top-level input contract plus
 `withheldField`, with a missing cell written as an absent key, a `null` or a text. The missing cases are
 `bar-missing`, `bar-stacked-missing`, `line-missing`, `area-missing`, `area-stacked-missing`, `scatter-missing` and
 `pie-missing`; the withheld cases are `bar-withheld`, `bar-stacked-withheld`, `line-withheld`, `area-withheld`
-(whose text `"true"` withholds nothing), `scatter-withheld` and `pie-withheld`. The gap rule is a CORRECTION of
+(whose text `"true"` withholds nothing), `scatter-withheld` and `pie-withheld`. Rule 8's vectors sit in
+`chart-lowering/heatmap/` beside the other heatmap cases: `heatmap-withheld-cells` (absent pairs, an empty value
+cell and withheld cells in one grid, both first-row-wins orders, and the key), `heatmap-withheld-only` (every cell
+withheld: no values) and `heatmap-withheld-diverging` (the key beside a diverging ramp's midpoint label). The gap rule is a CORRECTION of
 drawn geometry: `chart-lowering/derived-series/derived-mixed-columns` was re-cut, because its empty `orders` cell
 had been drawn as a zero-height bar with the readout `orders · Central · 0`. No top-level or `heatmap/` golden
 moved. Adoption is recorded per host in §11.0.
@@ -6290,14 +6306,16 @@ lowering bar. Every codec host owes the optional `scale` member, and a host that
 
 **Withheld adoption (`ChartSpec.withheldField` and the gap rule, Phase 2809, §3.6.36).** A codec bar and a
 lowering bar. Every codec host owes the optional `withheldField` member, and a host that lowers a chart in-host owes
-the `chart-lowering/withheld/` subfamily and the re-cut `derived-series/derived-mixed-columns` golden.
+the `chart-lowering/withheld/` subfamily and the re-cut `derived-series/derived-mixed-columns` golden; a host that
+lowers the heatmap in-host also owes rule 8 and the `heatmap-withheld-*` cases of `chart-lowering/heatmap/`
+(Phase 2810).
 
 | Host | Withheld adoption |
 |---|---|
-| `fuaran` (F#) | **adopted** — the reference: the member, the gap rule on every arm, the placeholder, the summary clause, `FUARAN171`; generates the goldens |
-| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `withheld` golden |
+| `fuaran` (F#) | **adopted** — the reference: the member, the gap rule on every arm, the placeholder, the summary clause, `FUARAN171`, the withheld heatmap cell and its key (rule 8), and the AG adapter's redaction of a withheld row's values; generates the goldens |
+| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `withheld` golden and every `heatmap-withheld-*` golden |
 | `fuaran-py` | **adopted** — as `fuaran-ts` |
-| `fuaran-rs` | **pending** — owes the codec member and the lowering rules |
+| `fuaran-rs` | **pending** — owes the codec member and the lowering rules, rule 8 included |
 | `fuaran-go` | **pending** — owes the codec member; lowering `n/a` (REQUIRE-PRE-LOWERED) |
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
