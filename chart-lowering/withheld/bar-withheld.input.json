@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"bin","yFields":["train","test"],"title":"Mean residual by bin","stacked":false,"dataLabels":"Ends","withheldField":"suppressed","data":[{"bin":"0-10","train":12,"test":14,"suppressed":false},{"bin":"10-20","train":900,"test":900,"suppressed":true},{"bin":"20-30","train":18,"test":21,"suppressed":false},{"bin":"30-40","train":9,"test":11}]}

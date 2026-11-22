@@ -567,7 +567,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?=false`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `interval?`, `kind`, `legendPosition?`, `onPointClick?`, `pathField?`, `scale?`, `sizeField?`, `sortBy?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `withheldField?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -5144,6 +5144,203 @@ Fixtures: `nodes/action-require.json` (a guarded chain, and a `Choose` with no `
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
 
+### 3.6.35 `Chart.scale` — a heatmap's declared colour scale, and the `Heatmap` lowering (Phase 2655)
+
+A `Heatmap` plots a VALUE over two categorical axes. Its colour is a **declared scale**, never a per-cell colour.
+The author states what the value means, and the host chooses and proves the colours. No colour crosses the wire.
+
+```json
+"scale": { "$type": "Diverging", "min": -1, "max": 1 }
+```
+
+- **The two kinds.** `Sequential { min?, max? }` runs light to dark. `min` defaults to the data minimum and `max`
+  to the data maximum. `Diverging { midpoint?, min?, max? }` meets at a light neutral centre. `midpoint` defaults
+  to zero and the bounds to the data's extent. The scale is symmetric about the midpoint, using the wider of the
+  two excursions. Every bound is an ordinary float slot (§7). A non-finite bound is read as absent.
+- **Absent means `Sequential` over the data's extent.** The member is optional and omits when absent, so every
+  pre-2655 document is byte-unchanged.
+- **Only a `Heatmap` reads it.** A `scale` on any other kind is refused pre-emit as `FUARAN169`
+  (`validator/defect-vocabulary.json`) until a later phase admits it on a sized or coloured mark.
+- **The fields.** `yFields` is exactly `[rowField, valueField]`, and any other count is `FUARAN170`. The columns
+  are the distinct `xField` keys and the rows the distinct row-field keys, both in first-appearance order. A
+  cell's value is the value field of the FIRST row carrying that pair.
+
+**The lowering (normative for every host that lowers the subfamily below).**
+
+1. **The bin.** `Sequential`: `t = (v − lo) / (hi − lo)`, clamped to `[0, 1]`, or `0` when `hi <= lo`. The stop is
+   `floor(t · n)`. `Diverging`: `e = max(m − lo, hi − m)`; `t = (v − m) / e`, clamped to `[−1, 1]`, or `0` when
+   `e <= 0`. The stop is `floor((t + 1) / 2 · n)`. Both clamp to `n − 1`. `n` is the ramp's stop count, so the
+   ramp IS the declared bin count, and a host reproduces the bytes with IEEE arithmetic in this order.
+2. **The ramps** are the host's `ChartStyle`, gated at install (`ChartPalette.validateRamp` on the reference
+   host). Adjacent stops differ by an OKLab ΔE ×100 of at least 6 under full colour vision and under simulated
+   protanopia and deuteranopia. Every stop clears 4.5:1 contrast against the label tone. A diverging ramp has an
+   odd count. The shipped ramps are five sequential stops (`#e8f2f7` … `#2c92b9`) and seven diverging stops
+   (`#2c92b9` … `#f2f2f0` … `#b47803`). The label tone is `#1a1a19`.
+3. **An absent cell draws the surface, never a zero.** A pair no row carries, or a row whose value cell is empty,
+   text or non-finite, emits a `Rectangle` with `fill: "none"` under a `currentColor` outline at the gridline
+   opacity, and it carries no mark.
+4. **The geometry.** Cells are drawn column-major, inset by half the cell gap. Row labels are right-aligned in a
+   left margin autosized as the value axis's is. Column labels are centred under their column and truncated to
+   it. The axis titles fall back to the capitalised x field and row field. The legend ramp is a right-hand column
+   with one swatch per stop, the highest on top, labelled with the scale's ends and, when diverging, its midpoint.
+   `legendPosition: "None"` drops it; any other position is the column. `dataLabels: "Ends"` writes each present
+   cell's value at its centre in the label tone where it fits, and nothing where it does not. A present cell's
+   mark is `<valueField>|<x>|<row>`.
+5. **The cost.** The CELL GRID (columns × rows, present or not) is held to the lowering's point budget (10,000 by
+   default), after the row cap. A grid over it is the refusal drawing, whose description names the cell count and
+   the limit.
+
+**Vectors.** `chart-lowering/heatmap/`, a subfamily in the `derived-series/` shape: the top-level input contract
+with `kind: "Heatmap"`, `yFields` naming the row field and then the value field, and `scale` in canonical `$type`
+JSON. The cases are `heatmap-sequential` (no scale, labelled), `heatmap-sequential-bounds` (declared 0 to 100),
+`heatmap-diverging` (a correlation matrix, about zero), `heatmap-diverging-midpoint` (a declared midpoint of 50),
+`heatmap-missing-cells` (absent pairs and an empty value cell) and `heatmap-refusal-cell-cap` (101 × 101 cells).
+The three `heatmap-withheld-*` cases are §3.6.36 rule 8's (Phase 2810).
+The vectors sit below the top level deliberately: a host that lowers or round-trips every top-level vector is not
+reddened before it adopts the arm. Adoption is recorded per host in §11.0.
+
+### 3.6.36 `Chart.withheldField` — a withheld value, and a missing value is a gap (Phase 2809)
+
+A chart over governed data meets three kinds of value: a **released** one, an **absent** one, and a **withheld**
+one, where a disclosure gate suppressed a value that does exist. The chart is told which rows are withheld by its
+own spec, never by a sentinel in a value column.
+
+```json
+"withheldField": "suppressed"
+```
+
+- **The member.** `withheldField` is an optional string naming a column of the chart's rows. A row whose cell in
+  that column is the boolean `true` is WITHHELD: every series value of that row is withheld, whatever its own value
+  cells hold. Any other cell (`false`, `null`, absent, a text) leaves the row to its values. Absent means nothing is
+  withheld, and the member omits, so every pre-2809 document is byte-unchanged.
+- **Grounding.** A `withheldField` naming a column the source does not produce is `FUARAN086`; one naming a column
+  of a decidable type other than boolean is `FUARAN171` (`validator/defect-vocabulary.json`).
+
+**The lowering (normative for every host that lowers the series arms).**
+
+1. **Present or missing.** A value cell is PRESENT when it is a finite number, an exact decimal the float range
+   holds, or a boolean (read 1/0). Anything else — an absent key, `null`, a text, a date, a non-finite number — is
+   MISSING. A withheld row's values are treated as missing by every reader below, and only rules 5 to 7 ask which
+   of the two a value was.
+2. **A missing value is a gap, never a zero.** No bar, no stack segment, no point, no wedge. A Line, an Area and a
+   stacked Area draw each maximal run of consecutive present points (row order) exactly as a whole series is drawn:
+   one polyline; one baseline-closed band and its edge; one band between its boundaries and its upper edge. Each
+   carries the series mark and readout. A series with no gap is one run and is byte-unchanged.
+3. **Present values only.** A missing value adds nothing to a stack's running sum, to the value domain, to a pie's
+   total, to the peak clause or to a data label. A stack segment's gap is taken only where another DRAWN segment
+   follows. A stacked bar with no present segment has no cap label; a Line or Area series whose last value is
+   missing has no endpoint label. A Scatter row with a missing x has no position, draws nothing, and is outside
+   the x domain.
+4. **A pie's missing category** draws no wedge and has no legend entry. The shares are of the present total.
+5. **The withheld placeholder.** A `Rectangle` with `fill: "none"`, `stroke: "currentColor"` at the axis opacity
+   and the axis stroke width, of height `WithheldMarkSize` (8 on the shipped style), centred on the value axis's
+   zero line (`y = zeroY − 4`). A grouped bar's placeholder spans its own bar slot. A stacked bar's slot is split
+   evenly between its series, series `j` at `x + j·w/m` with width `w/m`. On a Line, an Area and a Scatter the
+   series' squares sit side by side centred on the datum's x, series `j` at `cx − m·8/2 + j·8`; they are emitted
+   after the series' own shapes, in row order. Each carries the datum's own mark (`<series>|<category>`, on a
+   Scatter the canonical numeric x) and the readout `<series> · <category> · withheld`, with no number. A
+   withheld Scatter row whose x is missing draws nothing.
+6. **The withheld pie category** draws no wedge. Its legend entry reads `<category> (withheld)`, and its swatch is
+   the placeholder paint above, carrying the datum's mark and readout.
+7. **The summary** gains `1 value withheld` or `<k> values withheld` after the peak clause, where `k` is the
+   withheld rows times the series count. A chart with nothing withheld gains no clause.
+8. **The withheld heatmap cell** (Phase 2810). A heatmap row is a cell, so a cell is WITHHELD when the FIRST row of
+   its pair is withheld (the first row of a pair wins, as it does for the value); a later row of the pair is never
+   read. A withheld cell is neither a value nor ABSENT: its value is never read (no scale extent, no data label),
+   and it draws the cell `Rectangle` at the cell's own geometry with the placeholder paint of rule 5 (`fill:
+   "none"`, `stroke: "currentColor"` at the axis opacity and the axis stroke width), carrying the cell's mark
+   (`<value>|<x>|<row>`) and the readout `<row> · <x> · withheld`. An absent pair keeps §3.6.35's surface tone
+   (gridline opacity) and carries no mark. When any cell is withheld, the legend ramp gains a KEY: after the ramp's
+   labels, a `LegendSwatchSize` square in the placeholder paint at the ramp's x, centred on
+   `keyY = plotY1 + CategoryLabelOffsetY − TickLabelBaselineDy`, then the label `withheld` at `keyY` as the ramp's
+   labels are placed; the legend column's width also measures the word. The summary counts the cells empty as the
+   cells neither present nor withheld, and gains `1 value withheld` / `<k> values withheld` (`k` the withheld
+   cells) after that clause. A heatmap with no withheld cell is byte-unchanged.
+
+**Vectors.** `chart-lowering/withheld/`, a subfamily in the `heatmap/` shape: the top-level input contract plus
+`withheldField`, with a missing cell written as an absent key, a `null` or a text. The missing cases are
+`bar-missing`, `bar-stacked-missing`, `line-missing`, `area-missing`, `area-stacked-missing`, `scatter-missing` and
+`pie-missing`; the withheld cases are `bar-withheld`, `bar-stacked-withheld`, `line-withheld`, `area-withheld`
+(whose text `"true"` withholds nothing), `scatter-withheld` and `pie-withheld`. Rule 8's vectors sit in
+`chart-lowering/heatmap/` beside the other heatmap cases: `heatmap-withheld-cells` (absent pairs, an empty value
+cell and withheld cells in one grid, both first-row-wins orders, and the key), `heatmap-withheld-only` (every cell
+withheld: no values) and `heatmap-withheld-diverging` (the key beside a diverging ramp's midpoint label). The gap rule is a CORRECTION of
+drawn geometry: `chart-lowering/derived-series/derived-mixed-columns` was re-cut, because its empty `orders` cell
+had been drawn as a zero-height bar with the readout `orders · Central · 0`. No top-level or `heatmap/` golden
+moved. Adoption is recorded per host in §11.0.
+
+### 3.6.37 The mark channels — `interval`, `sizeField`, `sortBy`, `pathField` and `ReferenceLineX` (Phase 2654)
+
+A CHANNEL names a column of the chart's rows that a mark reads besides its x and its value. Each is an optional
+member of the one `Chart` kind, never a kind of its own, and each omits when absent, so every pre-2654 document is
+byte-unchanged.
+
+```json
+"interval": { "high": "upper", "low": "lower" },
+"sizeField": "buyers",
+"sortBy": { "direction": "desc", "field": "share" },
+"pathField": "season",
+"annotations": [ { "$type": "ReferenceLineX", "label": "Median", "value": 50 } ]
+```
+
+- **`interval`** (`ChartInterval`: `low`, `high`, both column names) — an extent on each datum of the single series.
+  Read by `Bar`, `Line`, `Area` and `Scatter` with exactly one `yFields` entry.
+- **`sizeField`** (string) — the column that sizes each `Scatter` point by area.
+- **`sortBy`** (`ChartSort`: `field`, a column name, and `direction`, the `SortDirection` tokens `asc` / `desc`) —
+  the rows' order before layout. Read by `Bar`, `Line`, `Area` and `Pie` on a non-temporal x.
+- **`pathField`** (string) — the column whose numeric value orders a `Scatter` series' points along a path.
+- **`ChartAnnotation.ReferenceLineX`** (`value`, finite, in the x axis's units; optional `label`) — a vertical line
+  at a NUMERIC x on a `Scatter` whose x is numeric. A category or a date on x is `EventMarker`'s address.
+
+**The combination rules (pre-emit, `validator/defect-vocabulary.json`).** A channel on a kind that does not read it
+is `FUARAN172` (`ChartChannelKindUnsupported`, naming the channel and the kinds that read it); an `interval` over
+other than one series is `FUARAN173` (`ChartIntervalSeriesShape`); a `sortBy` on a temporal x is `FUARAN174`
+(`ChartSortByTemporal`); a `ReferenceLineX` on a temporal `Scatter` is `FUARAN139`, and a non-finite one
+`FUARAN137`. Every column a channel names is grounded like a series (`FUARAN086`) and, being read as a number,
+refused at a decidable non-numeric type (`FUARAN087`).
+
+**The lowering (normative for every host that lowers the series arms).** A channel the kind does not read is
+NEUTRALISED: the chart lowers byte-identically to the same chart without it. Every channel value is read by
+§3.6.36 rule 1 (present or missing), and a withheld row reads no interval and no size.
+
+1. **Order first.** `sortBy` reorders the rows before any other stage: rows with a present key, by that key,
+   STABLY (equal keys keep source order), ascending or descending; then every row whose key is missing, and every
+   withheld row, in source order.
+2. **The interval.** A row's interval is `(min(low, high), max(low, high))` when both ends are present and the row
+   is not withheld; otherwise it has none. Both ends join the value domain (§4l rule 3). On a `Bar` (grouped, or a
+   stack of one) and a `Scatter`, each interval is an ERROR BAR: three `Line`s — the stem from the high end to the
+   low end at the datum's centre x (a bar's `x + w/2`, a point's x), then a cap of `IntervalCapWidth` (8) at the
+   low end and one at the high end — stroked `currentColor` at the axis opacity and the reference-line stroke
+   width, each with the readout `<series> · <category> · <low> – <high>` and no mark id, emitted after every bar or
+   point of the series. On a `Line` and an `Area` (overlaid or stacked) each maximal run of rows with an interval
+   is one BAND: a `Polygon` along the high ends then back along the low ends, filled with the series colour at
+   `IntervalBandOpacity` (0.2), readout `<series> · interval`, emitted before the series' own shapes.
+3. **The size.** On a `Scatter` with `sizeField`, a row whose size is missing, negative or withheld draws no
+   point. Otherwise its radius is `r2(max(ScatterMinRadius, ScatterMaxRadius · √(size / maxSize)))` (2 and 16),
+   `maxSize` the largest size drawn, or `ScatterMinRadius` when that is 0; the readout gains
+   `· <sizeField> <size>` in the default number form.
+4. **The path.** On a `Scatter` with `pathField`, the rows with a present path order are taken in ascending order,
+   stably; a row's path order is read whether or not it is withheld. For each series, each maximal run of those
+   rows whose point is present (x and value) of two or more points is one `Polyline` in the series colour and
+   stroke, with the series mark and readout, emitted before the points. A missing or withheld point therefore
+   breaks the path.
+5. **The x reference line.** Each finite `ReferenceLineX` joins the x domain, and is a `Line` across the plot's
+   height at its x in the reference-line paint, mark `annotation|referencex|<n>` (document order within the case),
+   emitted after the value-axis reference lines. Its label sits at the top of the plot beside the line, as an event
+   marker's does, with the width budget running to the next x reference line to the right; it is emitted after
+   every other annotation label.
+6. **The summary** gains, after the band clause, `1 x reference line: <x>` / `<k> x reference lines: …` (x in the
+   axis's tick form, a literal label in parentheses), then for each channel read: `Interval <low> to <high>`,
+   `Sized by <field>`, `Path in <field> order`, `Sorted by <field>, ascending|descending`.
+
+**Vectors.** `chart-lowering/channels/`, a subfamily in the `withheld/` shape (that input contract plus
+`interval`, `sizeField`, `sortBy`, `pathField`, `xScale` and `annotations`): `bar-interval`, `line-interval`,
+`area-interval`, `scatter-interval`, `scatter-size`, `scatter-path`, `bar-sort-desc`, `pie-sort-asc`,
+`scatter-reference-x` and `scatter-all-channels`, and three NEUTRALISED cases that must lower as their channel-free
+twins: `bar-channels-neutralised`, `line-interval-two-series-neutralised` and `line-sort-temporal-neutralised`. No
+other golden moved. Horizontal orientation and facets are not channels of this section (D39). Adoption is
+recorded per host in §11.0.
+
 ## 4. Closure-bearing slots → `"<closure>"`
 
 Every function-typed payload the encoder cannot observe renders as the sentinel string `"<closure>"`. The decoder reconstructs each as a **placeholder** that re-encodes to the same `"<closure>"` sentinel, keeping the round-trip byte-stable. The slots are:
@@ -6162,6 +6359,50 @@ move (an empty list always decoded), so only a host that lowers a chart in-host 
 | `fuaran-py` | **pending** — lowers charts and does not yet derive series: an empty `yFields` lowers to a chart with no series |
 | `fuaran-rs` | **pending** — as `fuaran-py` |
 | `fuaran-go` | `n/a` — REQUIRE-PRE-LOWERED: a raw `Chart` is a typed passthrough, and the lowered `Drawing` it is handed renders as any other |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Heatmap adoption (`ChartSpec.scale` and the `Heatmap` lowering, Phase 2655, §3.6.35).** A codec bar and a
+lowering bar. Every codec host owes the optional `scale` member, and a host that lowers a chart in-host owes the
+`chart-lowering/heatmap/` subfamily, which the hosts reading the top-level family enumerate past.
+
+| Host | Heatmap adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: `ChartScale`, the lowering, the ramp gate (`ChartPalette.validateRamp`), `FUARAN169` / `FUARAN170` and the AG adapter's colour range; generates the goldens |
+| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `heatmap` golden, the refusal included |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec member and the lowering (successor: Phase 2808) |
+| `fuaran-go` | **pending** — owes the codec member (successor: Phase 2808); lowering `n/a` (REQUIRE-PRE-LOWERED) |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Withheld adoption (`ChartSpec.withheldField` and the gap rule, Phase 2809, §3.6.36).** A codec bar and a
+lowering bar. Every codec host owes the optional `withheldField` member, and a host that lowers a chart in-host owes
+the `chart-lowering/withheld/` subfamily and the re-cut `derived-series/derived-mixed-columns` golden; a host that
+lowers the heatmap in-host also owes rule 8 and the `heatmap-withheld-*` cases of `chart-lowering/heatmap/`
+(Phase 2810).
+
+| Host | Withheld adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the member, the gap rule on every arm, the placeholder, the summary clause, `FUARAN171`, the withheld heatmap cell and its key (rule 8), and the AG adapter's redaction of a withheld row's values; generates the goldens |
+| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `withheld` golden and every `heatmap-withheld-*` golden |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec member and the lowering rules, rule 8 included |
+| `fuaran-go` | **pending** — owes the codec member; lowering `n/a` (REQUIRE-PRE-LOWERED) |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Channel adoption (`interval`, `sizeField`, `sortBy`, `pathField` and `ReferenceLineX`, Phase 2654, §3.6.37).** A
+codec bar and a lowering bar. Every codec host owes the four optional members and the annotation case, and a host
+that lowers a chart in-host owes the `chart-lowering/channels/` subfamily.
+
+| Host | Channel adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the members, `FUARAN172`-`FUARAN174`, the lowering, and the AG adapter's declared order (its interval, size, path and x line are declared gaps there); generates the goldens |
+| `fuaran-ts` | **adopted** — the codec members and the lowering, byte-identical on every `channels` golden |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec members and the lowering |
+| `fuaran-go` | **pending** — owes the codec members; lowering `n/a` (REQUIRE-PRE-LOWERED) |
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 

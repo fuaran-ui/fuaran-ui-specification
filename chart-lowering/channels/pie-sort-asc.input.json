@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"segment","yFields":["buyers"],"title":"pie-sort-asc","stacked":false,"sortBy":{"direction":"asc","field":"rank"},"data":[{"segment":"Loyal","buyers":42,"rank":3},{"segment":"Lapsed","buyers":18,"rank":1},{"segment":"New","buyers":25,"rank":2},{"segment":"Occasional","buyers":15,"rank":4}]}

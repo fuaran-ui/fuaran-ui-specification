@@ -1,0 +1,1 @@
+{"kind":"Heatmap","xField":"entity","yFields":["question","n"],"title":"Asked, not asked, not shown","stacked":false,"dataLabels":"Ends","data":[{"entity":"A","question":"Q1","n":4},{"entity":"B","question":"Q1","n":9},{"entity":"C","question":"Q1"},{"entity":"A","question":"Q2","n":0},{"entity":"C","question":"Q2","n":6},{"entity":"B","question":"Q3","n":2}]}

@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"month","yFields":["enrolled"],"title":"Enrolment by month","stacked":false,"dataLabels":"Ends","withheldField":"withheld","data":[{"month":"Jan","enrolled":80,"withheld":"true"},{"month":"Feb","enrolled":95,"withheld":false},{"month":"Mar","enrolled":3,"withheld":true},{"month":"Apr","enrolled":110,"withheld":null}]}

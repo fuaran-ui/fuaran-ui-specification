@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"week","yFields":["trial","paid"],"title":"Weekly signups","stacked":false,"dataLabels":"Ends","data":[{"week":"W1","trial":120,"paid":40},{"week":"W2","trial":135,"paid":44},{"week":"W3","paid":47},{"week":"W4","trial":150,"paid":52},{"week":"W5","trial":162,"paid":null}]}

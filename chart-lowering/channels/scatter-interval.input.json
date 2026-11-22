@@ -1,0 +1,1 @@
+{"kind":"Scatter","xField":"dose","yFields":["response"],"title":"scatter-interval","stacked":false,"interval":{"high":"hi","low":"lo"},"data":[{"dose":1,"response":2.5,"lo":1.8,"hi":3.1},{"dose":2,"response":4,"lo":3.2,"hi":4.9},{"dose":4,"response":5.5,"lo":4.1,"hi":6.6},{"response":3,"lo":2,"hi":4},{"dose":8,"response":6.2,"lo":5,"hi":7.5}]}

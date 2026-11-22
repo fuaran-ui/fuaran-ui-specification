@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"arm","yFields":["effect"],"title":"bar-channels-neutralised","stacked":false,"sizeField":"fans","pathField":"season","annotations":[{"$type":"ReferenceLineX","label":"Ignored","value":1}],"data":[{"arm":"A","effect":12,"fans":4,"season":2},{"arm":"B","effect":18,"fans":9,"season":1}]}

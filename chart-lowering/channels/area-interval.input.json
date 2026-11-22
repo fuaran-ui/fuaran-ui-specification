@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"quarter","yFields":["demand"],"title":"area-interval","stacked":false,"interval":{"high":"hi","low":"lo"},"data":[{"quarter":"Q1","demand":40,"lo":35,"hi":46},{"quarter":"Q2","demand":44,"lo":38,"hi":51},{"quarter":"Q3","demand":41,"lo":33,"hi":50},{"quarter":"Q4","demand":47,"lo":37,"hi":58}]}

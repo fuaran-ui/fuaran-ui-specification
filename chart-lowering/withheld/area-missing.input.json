@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"day","yFields":["users"],"title":"Daily active users","stacked":false,"data":[{"day":"Mon","users":310},{"day":"Tue","users":342},{"day":"Wed","users":null},{"day":"Thu","users":365},{"day":"Fri","users":390}]}
