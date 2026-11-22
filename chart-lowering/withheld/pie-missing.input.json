@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"category","yFields":["spend"],"title":"Share of spend","stacked":false,"data":[{"category":"Rent","spend":1200},{"category":"Food","spend":450},{"category":"Travel"},{"category":"Other","spend":150}]}

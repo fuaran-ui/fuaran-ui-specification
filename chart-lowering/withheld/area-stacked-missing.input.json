@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"hour","yFields":["search","social"],"title":"Traffic by source","stacked":true,"dataLabels":"Ends","data":[{"hour":"09","search":50,"social":20},{"hour":"10","social":25},{"hour":"11","search":64,"social":28},{"hour":"12","search":70,"social":31}]}

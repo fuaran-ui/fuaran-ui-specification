@@ -567,7 +567,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?=false`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `scale?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `scale?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `withheldField?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -5198,6 +5198,61 @@ JSON. The cases are `heatmap-sequential` (no scale, labelled), `heatmap-sequenti
 The vectors sit below the top level deliberately: a host that lowers or round-trips every top-level vector is not
 reddened before it adopts the arm. Adoption is recorded per host in §11.0.
 
+### 3.6.36 `Chart.withheldField` — a withheld value, and a missing value is a gap (Phase 2809)
+
+A chart over governed data meets three kinds of value: a **released** one, an **absent** one, and a **withheld**
+one, where a disclosure gate suppressed a value that does exist. The chart is told which rows are withheld by its
+own spec, never by a sentinel in a value column.
+
+```json
+"withheldField": "suppressed"
+```
+
+- **The member.** `withheldField` is an optional string naming a column of the chart's rows. A row whose cell in
+  that column is the boolean `true` is WITHHELD: every series value of that row is withheld, whatever its own value
+  cells hold. Any other cell (`false`, `null`, absent, a text) leaves the row to its values. Absent means nothing is
+  withheld, and the member omits, so every pre-2809 document is byte-unchanged.
+- **Grounding.** A `withheldField` naming a column the source does not produce is `FUARAN086`; one naming a column
+  of a decidable type other than boolean is `FUARAN171` (`validator/defect-vocabulary.json`).
+
+**The lowering (normative for every host that lowers the series arms).**
+
+1. **Present or missing.** A value cell is PRESENT when it is a finite number, an exact decimal the float range
+   holds, or a boolean (read 1/0). Anything else — an absent key, `null`, a text, a date, a non-finite number — is
+   MISSING. A withheld row's values are treated as missing by every reader below, and only rules 5 to 7 ask which
+   of the two a value was.
+2. **A missing value is a gap, never a zero.** No bar, no stack segment, no point, no wedge. A Line, an Area and a
+   stacked Area draw each maximal run of consecutive present points (row order) exactly as a whole series is drawn:
+   one polyline; one baseline-closed band and its edge; one band between its boundaries and its upper edge. Each
+   carries the series mark and readout. A series with no gap is one run and is byte-unchanged.
+3. **Present values only.** A missing value adds nothing to a stack's running sum, to the value domain, to a pie's
+   total, to the peak clause or to a data label. A stack segment's gap is taken only where another DRAWN segment
+   follows. A stacked bar with no present segment has no cap label; a Line or Area series whose last value is
+   missing has no endpoint label. A Scatter row with a missing x has no position, draws nothing, and is outside
+   the x domain.
+4. **A pie's missing category** draws no wedge and has no legend entry. The shares are of the present total.
+5. **The withheld placeholder.** A `Rectangle` with `fill: "none"`, `stroke: "currentColor"` at the axis opacity
+   and the axis stroke width, of height `WithheldMarkSize` (8 on the shipped style), centred on the value axis's
+   zero line (`y = zeroY − 4`). A grouped bar's placeholder spans its own bar slot. A stacked bar's slot is split
+   evenly between its series, series `j` at `x + j·w/m` with width `w/m`. On a Line, an Area and a Scatter the
+   series' squares sit side by side centred on the datum's x, series `j` at `cx − m·8/2 + j·8`; they are emitted
+   after the series' own shapes, in row order. Each carries the datum's own mark (`<series>|<category>`, on a
+   Scatter the canonical numeric x) and the readout `<series> · <category> · withheld`, with no number. A
+   withheld Scatter row whose x is missing draws nothing.
+6. **The withheld pie category** draws no wedge. Its legend entry reads `<category> (withheld)`, and its swatch is
+   the placeholder paint above, carrying the datum's mark and readout.
+7. **The summary** gains `1 value withheld` or `<k> values withheld` after the peak clause, where `k` is the
+   withheld rows times the series count. A chart with nothing withheld gains no clause.
+
+**Vectors.** `chart-lowering/withheld/`, a subfamily in the `heatmap/` shape: the top-level input contract plus
+`withheldField`, with a missing cell written as an absent key, a `null` or a text. The missing cases are
+`bar-missing`, `bar-stacked-missing`, `line-missing`, `area-missing`, `area-stacked-missing`, `scatter-missing` and
+`pie-missing`; the withheld cases are `bar-withheld`, `bar-stacked-withheld`, `line-withheld`, `area-withheld`
+(whose text `"true"` withholds nothing), `scatter-withheld` and `pie-withheld`. The gap rule is a CORRECTION of
+drawn geometry: `chart-lowering/derived-series/derived-mixed-columns` was re-cut, because its empty `orders` cell
+had been drawn as a zero-height bar with the readout `orders · Central · 0`. No top-level or `heatmap/` golden
+moved. Adoption is recorded per host in §11.0.
+
 ## 4. Closure-bearing slots → `"<closure>"`
 
 Every function-typed payload the encoder cannot observe renders as the sentinel string `"<closure>"`. The decoder reconstructs each as a **placeholder** that re-encodes to the same `"<closure>"` sentinel, keeping the round-trip byte-stable. The slots are:
@@ -6230,6 +6285,20 @@ lowering bar. Every codec host owes the optional `scale` member, and a host that
 | `fuaran-py` | **adopted** — as `fuaran-ts` |
 | `fuaran-rs` | **pending** — owes the codec member and the lowering (successor: Phase 2808) |
 | `fuaran-go` | **pending** — owes the codec member (successor: Phase 2808); lowering `n/a` (REQUIRE-PRE-LOWERED) |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Withheld adoption (`ChartSpec.withheldField` and the gap rule, Phase 2809, §3.6.36).** A codec bar and a
+lowering bar. Every codec host owes the optional `withheldField` member, and a host that lowers a chart in-host owes
+the `chart-lowering/withheld/` subfamily and the re-cut `derived-series/derived-mixed-columns` golden.
+
+| Host | Withheld adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the member, the gap rule on every arm, the placeholder, the summary clause, `FUARAN171`; generates the goldens |
+| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `withheld` golden |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec member and the lowering rules |
+| `fuaran-go` | **pending** — owes the codec member; lowering `n/a` (REQUIRE-PRE-LOWERED) |
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 

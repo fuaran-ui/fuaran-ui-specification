@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"month","yFields":["web","store","phone"],"title":"Orders by channel","stacked":true,"dataLabels":"Ends","data":[{"month":"Jan","web":30,"store":20,"phone":10},{"month":"Feb","web":34,"phone":12},{"month":"Mar","store":null},{"month":"Apr","web":41,"store":22,"phone":null}]}

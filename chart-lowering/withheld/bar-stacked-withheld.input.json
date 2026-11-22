@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"site","yFields":["early","late"],"title":"Cases by cohort","stacked":true,"dataLabels":"Ends","withheldField":"withheld","data":[{"site":"A","early":40,"late":25,"withheld":false},{"site":"B","withheld":true},{"site":"C","early":33,"late":29,"withheld":false}]}
