@@ -567,7 +567,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Filters` | _Input_ | `items` |  |
 | `Form` | _Input_ | `disabled?`, `fields`, `onSubmit`, `submitLabel` |  |
 | `Select` | _Input_ | `affordance?`, `disabled?`, `groups?=[]`, `label`, `multiple?=false`, `onChange?`, `onChangeMulti?`, `placeholder?`, `source`, `value?`, `values?` | `value` is required when `multiple` is not `true` and absent when it is — a multi-select carries its selection in `values` (§3.2, Phase 1962). The IDL cannot state that relation per field, so `value` reads optional here; the decoder enforces it, and drops a `value` on a multi-select as a §16 lenient accept. |
-| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
+| `Chart` | _Visualisation_ | `annotations?`, `dataLabels?`, `kind`, `legendPosition?`, `onPointClick?`, `scale?`, `source`, `stacked?=false`, `subtitle?`, `title?`, `valueFormat?`, `xField`, `xScale?`, `xTitle?`, `yFields`, `yTitle?` | `yFields` may be empty only over a `Query` source; the series are then every numeric column of the rows but `xField`, Ordinal-ordered and named by column (§3.6.29, Phase 2568). |
 | `DataGrid` | _Visualisation_ | `columns`, `defaultSort?`, `editStateKey?`, `editable?=false`, `exportable?=false`, `keepRowsTogether?=false`, `onRowClick?`, `pageSize?`, `pageStateKey?`, `reorderable?=false`, `repeatHeader?=false`, `rowKey?`, `rowKeyField?`, `rowTotal?`, `sortStateKey?`, `source`, `staticRows?`, `transferInKey?`, `transferOutKey?`, `windowStateKey?` | The wire discriminator is `DataGrid`; the F# display tag is `Grid`. The former `Grid` collision with the CSS-grid container is resolved — that container is a `Box`. |
 | `Map` | _Visualisation_ | `centreLatitude`, `centreLongitude`, `onMarkerClick?`, `source`, `zoom` |  |
 | `Custom` | _Meta_ | `componentId`, `contentHash?`, `exposedNodeIds?`, `moduleId`, `props` | The host-registered escape hatch. `props` is opaque to the wire; the host renderer is a trust boundary. |
@@ -5144,6 +5144,60 @@ Fixtures: `nodes/action-require.json` (a guarded chain, and a `Choose` with no `
 
 The design principle the 423–428 family enforces, stated once so the next spec author designs against it: **closures are overrides, never the floor.** Every interactive control's event surface has a declarative default (an omitted handler writes the change back to the control's own writable value binding – State/Filter/Selection store write-back); every data-display accessor has a declarative field-name form (`field` / `rowKeyField`); every result continuation has a declarative destination (`Call … into`); and — Phase 750, the same principle applied to *appearance* rather than behaviour or data — a cell's value-conditional **tone** has a declarative form (`CellKindErased.TonedPill`'s `field` + value→tone `map`) where the closure `Pill` erased the rule entirely. That last one is worth naming because it was the longest-standing hole in the floor and the least visible: `Pill` parsed, validated and rendered on a decoded tree, and rendered every row in the *same* tone, so the failure looked like a styling omission rather than an inexpressible intent. A slot that only works via a closure is dead on the decoded path – it parses, validates, renders, and does nothing. The machine-checked registry of every closure-bearing slot's posture (`WriteBack` / `FieldName` / `ResultTarget` / `HostOnly-by-design`) is `Fuaran.UI.SlotCapability` – a new closure-bearing spec field MUST add its row (the completeness test fails otherwise), and the dead-on-decode lint (`Fuaran.UI.DeadOnDecode.lint`, FUARAN080/081) flags sentinel slots on decoded trees with the declarative remedy. Relatedly, the **`queryResults` population contract**: `$queries.*` population is a host concern – the host feeds `BindingSources.QueryResults`, or a declarative `Call … into Query <name>` (Phase 428) writes it live; decoded trees own the *names and edges* (`Query.name`, `dependsOn`, `into`), never the fetch itself.
 
+### 3.6.35 `Chart.scale` — a heatmap's declared colour scale, and the `Heatmap` lowering (Phase 2655)
+
+A `Heatmap` plots a VALUE over two categorical axes. Its colour is a **declared scale**, never a per-cell colour.
+The author states what the value means, and the host chooses and proves the colours. No colour crosses the wire.
+
+```json
+"scale": { "$type": "Diverging", "min": -1, "max": 1 }
+```
+
+- **The two kinds.** `Sequential { min?, max? }` runs light to dark. `min` defaults to the data minimum and `max`
+  to the data maximum. `Diverging { midpoint?, min?, max? }` meets at a light neutral centre. `midpoint` defaults
+  to zero and the bounds to the data's extent. The scale is symmetric about the midpoint, using the wider of the
+  two excursions. Every bound is an ordinary float slot (§7). A non-finite bound is read as absent.
+- **Absent means `Sequential` over the data's extent.** The member is optional and omits when absent, so every
+  pre-2655 document is byte-unchanged.
+- **Only a `Heatmap` reads it.** A `scale` on any other kind is refused pre-emit as `FUARAN169`
+  (`validator/defect-vocabulary.json`) until a later phase admits it on a sized or coloured mark.
+- **The fields.** `yFields` is exactly `[rowField, valueField]`, and any other count is `FUARAN170`. The columns
+  are the distinct `xField` keys and the rows the distinct row-field keys, both in first-appearance order. A
+  cell's value is the value field of the FIRST row carrying that pair.
+
+**The lowering (normative for every host that lowers the subfamily below).**
+
+1. **The bin.** `Sequential`: `t = (v − lo) / (hi − lo)`, clamped to `[0, 1]`, or `0` when `hi <= lo`. The stop is
+   `floor(t · n)`. `Diverging`: `e = max(m − lo, hi − m)`; `t = (v − m) / e`, clamped to `[−1, 1]`, or `0` when
+   `e <= 0`. The stop is `floor((t + 1) / 2 · n)`. Both clamp to `n − 1`. `n` is the ramp's stop count, so the
+   ramp IS the declared bin count, and a host reproduces the bytes with IEEE arithmetic in this order.
+2. **The ramps** are the host's `ChartStyle`, gated at install (`ChartPalette.validateRamp` on the reference
+   host). Adjacent stops differ by an OKLab ΔE ×100 of at least 6 under full colour vision and under simulated
+   protanopia and deuteranopia. Every stop clears 4.5:1 contrast against the label tone. A diverging ramp has an
+   odd count. The shipped ramps are five sequential stops (`#e8f2f7` … `#2c92b9`) and seven diverging stops
+   (`#2c92b9` … `#f2f2f0` … `#b47803`). The label tone is `#1a1a19`.
+3. **An absent cell draws the surface, never a zero.** A pair no row carries, or a row whose value cell is empty,
+   text or non-finite, emits a `Rectangle` with `fill: "none"` under a `currentColor` outline at the gridline
+   opacity, and it carries no mark.
+4. **The geometry.** Cells are drawn column-major, inset by half the cell gap. Row labels are right-aligned in a
+   left margin autosized as the value axis's is. Column labels are centred under their column and truncated to
+   it. The axis titles fall back to the capitalised x field and row field. The legend ramp is a right-hand column
+   with one swatch per stop, the highest on top, labelled with the scale's ends and, when diverging, its midpoint.
+   `legendPosition: "None"` drops it; any other position is the column. `dataLabels: "Ends"` writes each present
+   cell's value at its centre in the label tone where it fits, and nothing where it does not. A present cell's
+   mark is `<valueField>|<x>|<row>`.
+5. **The cost.** The CELL GRID (columns × rows, present or not) is held to the lowering's point budget (10,000 by
+   default), after the row cap. A grid over it is the refusal drawing, whose description names the cell count and
+   the limit.
+
+**Vectors.** `chart-lowering/heatmap/`, a subfamily in the `derived-series/` shape: the top-level input contract
+with `kind: "Heatmap"`, `yFields` naming the row field and then the value field, and `scale` in canonical `$type`
+JSON. The cases are `heatmap-sequential` (no scale, labelled), `heatmap-sequential-bounds` (declared 0 to 100),
+`heatmap-diverging` (a correlation matrix, about zero), `heatmap-diverging-midpoint` (a declared midpoint of 50),
+`heatmap-missing-cells` (absent pairs and an empty value cell) and `heatmap-refusal-cell-cap` (101 × 101 cells).
+The vectors sit below the top level deliberately: a host that lowers or round-trips every top-level vector is not
+reddened before it adopts the arm. Adoption is recorded per host in §11.0.
+
 ## 4. Closure-bearing slots → `"<closure>"`
 
 Every function-typed payload the encoder cannot observe renders as the sentinel string `"<closure>"`. The decoder reconstructs each as a **placeholder** that re-encodes to the same `"<closure>"` sentinel, keeping the round-trip byte-stable. The slots are:
@@ -6162,6 +6216,20 @@ move (an empty list always decoded), so only a host that lowers a chart in-host 
 | `fuaran-py` | **pending** — lowers charts and does not yet derive series: an empty `yFields` lowers to a chart with no series |
 | `fuaran-rs` | **pending** — as `fuaran-py` |
 | `fuaran-go` | `n/a` — REQUIRE-PRE-LOWERED: a raw `Chart` is a typed passthrough, and the lowered `Drawing` it is handed renders as any other |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
+**Heatmap adoption (`ChartSpec.scale` and the `Heatmap` lowering, Phase 2655, §3.6.35).** A codec bar and a
+lowering bar. Every codec host owes the optional `scale` member, and a host that lowers a chart in-host owes the
+`chart-lowering/heatmap/` subfamily, which the hosts reading the top-level family enumerate past.
+
+| Host | Heatmap adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: `ChartScale`, the lowering, the ramp gate (`ChartPalette.validateRamp`), `FUARAN169` / `FUARAN170` and the AG adapter's colour range; generates the goldens |
+| `fuaran-ts` | **adopted** — the codec member and the lowering, byte-identical on every `heatmap` golden, the refusal included |
+| `fuaran-py` | **adopted** — as `fuaran-ts` |
+| `fuaran-rs` | **pending** — owes the codec member and the lowering (successor: Phase 2808) |
+| `fuaran-go` | **pending** — owes the codec member (successor: Phase 2808); lowering `n/a` (REQUIRE-PRE-LOWERED) |
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 
