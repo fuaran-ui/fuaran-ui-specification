@@ -48,6 +48,7 @@
     "SummaryList",
     "Switch",
     "Tabs",
+    "Text",
     "Toast",
     "Tree"
   ],
@@ -4176,6 +4177,15 @@
       "description": "Layout/Tabs (explicit headers + tags + activeTag)"
     },
     {
+      "id": "text-1",
+      "kind": "node-round-trip",
+      "since": "0.107.0",
+      "decoder": "node",
+      "inputFile": "nodes/text-1.json",
+      "expectedFile": "nodes/text-1.json",
+      "description": "Display/Text"
+    },
+    {
       "id": "text-i18n-bound-arg-1",
       "kind": "node-round-trip",
       "since": "0.81.0",
@@ -5877,6 +5887,16 @@
       "expectedErrorCode": "MISSING_FIELD",
       "expectedPath": "$.kind.stateKey",
       "description": "Switch missing stateKey"
+    },
+    {
+      "id": "reject-missing-text-text",
+      "kind": "reject",
+      "since": "0.107.0",
+      "decoder": "node",
+      "inputFile": "reject/reject-missing-text-text.json",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.text",
+      "description": "Text spec missing text"
     },
     {
       "id": "reject-modal-modality-blocking",
