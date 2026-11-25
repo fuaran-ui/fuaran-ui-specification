@@ -10496,7 +10496,7 @@ an accept-set question for §20, not a question about lists.
 Every `Action` arm (§3.3) has a meaning on the **bounded path**: a host that runs a decoded tree's
 actions without closures lowers each arm onto one arm of the bounded program core's action view and
 interprets that. The core is the `Fuaran.Program.Bounded` package (repository
-`Fuaran-Build/fuaran-program`, `docs/generic-tier.md` §3.2), whose `ActionView` names eight arms;
+`Fuaran-Core/fuaran-program-dotnet`, `docs/generic-tier.md` §3.2), whose `ActionView` names eight arms;
 six of them — `Sequence`, `Assign`, `Call`, `Leaf`, `Choose` (the `Choose` arm's own row, and the
 one round-trip arm's answer) and `Require` — are the targets below. Until this section
 the mapping was written down only in two hosts' code, so a third host running actions on the bounded
