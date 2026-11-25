@@ -5370,9 +5370,9 @@ wrote `{"$type":"Text"}` at a node position).
 - **One tag, two families, and a third.** `Text` is also the text-input form field (`FormFieldKind.Text`) and the
   plain cell kind of a `DataGrid` column. Each is read in the family its position names (§11.4): a node position
   reads the node kind, a `Form`'s `fields[]` and a `Filters`' `items[]` read the form field, a column's `kind` reads
-  the cell. So a `Text` inside `fields[]` written in the node's shape is the input with a member it does not declare,
-  dropped by §2 rule 2, and a `Text` at a node position written in the field's shape is the node missing its
-  `text`. A host's message for the second says that a text input belongs in a `Form`'s `fields[]`.
+  the cell. So a `Text` at a node position written in the field's shape is the node missing its `text`, and a
+  host's message for it says that a text input belongs in a `Form`'s `fields[]`; a `Text` inside `fields[]` written
+  in the node's shape is the input, carrying a member it does not declare.
 - **Versioning.** Additive: a new tag (§15.4). A behind reader meets `Text` at a node position as a kind it does not
   know and materialises the transport-only `Unknown` (§15.3), preserving the bytes. As with the tag additions before
   it, the profile step is the release act's (§15.7).
@@ -5380,11 +5380,18 @@ wrote `{"$type":"Text"}` at a node position).
 **Vectors.** `nodes/text-1.json` (words carrying every character Markdown or HTML would read as syntax, so a host
 that parses or fails to escape them fails the render byte-diff), `nodes/text-beside-text-field.json` (a `Form` whose
 `Text` field sits beside a `Text` node in one tree), `reject/reject-missing-text-text.json` and
-`reject/reject-text-node-shaped-as-field.json` (both `MISSING_FIELD` at `$.kind.text`) and
-`lenient/lenient-2536-text-field-shaped-as-node.json` (a field carrying `text`, accepted and re-encoded without it).
+`reject/reject-text-node-shaped-as-field.json` (both `MISSING_FIELD` at `$.kind.text`).
 `stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede` moves from `WRONG_NODE_KIND` to `MISSING_FIELD` at
 `…kind.text`; it keeps its sampled id. Every `WRONG_NODE_KIND` hint lists `Text` after `Markdown` in the Display group.
 Adoption is recorded per host in §11.0.
+
+**Open, and recorded as open: the undeclared member's re-encode.** A `Text` field written in the node's shape
+(`{"$type":"Text","text":…}` inside `fields[]`) is decoded as the form field on every codec host; none reads it as a
+node. What the re-encode does with its `text` is not pinned, because the hosts answer it two ways: the reference,
+TypeScript, Go and Rust hosts drop a member the case does not declare, and the Python host keeps it. That is not
+particular to `Text`; it is every undeclared member on every kind, and §2 rule 2 ("ignored on decode") and §15.3
+(must-ignore-but-preserve) are each read as the authority. The vector that would pin it was run on all five hosts
+and withheld; it lands with the ruling, and the hosts the ruling goes against move in that change-set.
 
 ## 4. Closure-bearing slots → `"<closure>"`
 
@@ -6802,8 +6809,8 @@ separate namespaces, so one tag may name a member of each (`Text` does, §3.6.38
 in a profile's `formFieldKinds` grants nothing in its `kinds`, nor the reverse. The reference host's
 leg pins the classification with a revision declaring `Text` in one family only, which must refuse a
 document carrying the other family's `Text`; the corpus pins the reading itself
-(`nodes/text-beside-text-field`, `reject/reject-text-node-shaped-as-field`,
-`lenient/lenient-2536-text-field-shaped-as-node`), so every codec host certifies it. Until Phase
+(`nodes/text-beside-text-field`, `reject/reject-text-node-shaped-as-field`), so every codec host
+certifies it. Until Phase
 2536 this paragraph required the two families to stay disjoint; positions already decided every
 reading, and a profile declares each family apart, so disjointness protected nothing the positions
 did not.
@@ -6977,11 +6984,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->784<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->783<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->290<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
 <!-- fuaran:count kind=reject -->245<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->93<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=lenient-accept -->92<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
