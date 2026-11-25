@@ -474,14 +474,14 @@
       "decoder": "node",
       "inputFile": "stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede.json",
       "verdict": "reject",
-      "expectedErrorCode": "WRONG_NODE_KIND",
-      "expectedPath": "$.kind.children[0].kind.children[0].kind.$type",
+      "expectedErrorCode": "MISSING_FIELD",
+      "expectedPath": "$.kind.children[0].kind.children[0].kind.text",
       "repair": {
         "outcome": "repaired",
         "applied": [],
         "repairedVerdict": {
-          "code": "WRONG_NODE_KIND",
-          "path": "$.kind.children[0].kind.children[0].kind.$type"
+          "code": "MISSING_FIELD",
+          "path": "$.kind.children[0].kind.children[0].kind.text"
         }
       }
     },

@@ -65,3 +65,13 @@ The sample is chosen, not generated: re-drawing it is a deliberate change to a c
 declaration. A regeneration re-measures the whole store on every host, keeps only emissions the
 hosts answer identically with their strict decoders (same code, same path), and records the new counts in
 `manifest.json` `snapshot`.
+
+## A verdict the vocabulary moved
+
+An entry's `id` names the verdict it was sampled under and is never renamed, because hosts and
+reports cite it. When a vocabulary change moves an emission's verdict, the entry's
+`expectedErrorCode`, `expectedPath` and `repairedVerdict` move with it and the change-set records
+the move. `stored-reject-wrong-node-kind-8dbdae822e31aede` is the one instance: the model wrote
+`{"$type":"Text"}` at a node position with no `text`. It was `WRONG_NODE_KIND` while no node kind
+was named `Text`; since Phase 2536 (WIRE_FORMAT.md 3.6.38) it is `MISSING_FIELD` at
+`…kind.text`, the node kind missing its words.

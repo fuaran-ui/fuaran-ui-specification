@@ -560,6 +560,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Progress` | _Display_ | `caveat?`, `fraction`, `indeterminate?=false`, `label?`, `tone?=Default` |  |
 | `Skeleton` | _Display_ | `rows` |  |
 | `Sparkline` | _Display_ | `source` |  |
+| `Text` | _Display_ | `text` | Running text with no parse: the parity-checked render is the resolved words, HTML-escaped, in one inline `<span>` (§3.6.38). The tag also names the text-input form field, read in a `Form`'s `fields[]` (§11.4). |
 | `Toast` | _Display_ | `dismissable?=true`, `message`, `open`, `tone?=Default` |  |
 | `Tree` | _Display_ | `expandedStateKey?`, `items`, `onSelect?`, `selectionStateKey?` | Rows are `TreeItem` records, not `Node`s, and `children` is a list of the SAME record — the format's first self-referential shape. `items` is required; a leaf omits `children` entirely. Both reader-driven behaviours are named State keys and there is no `expandable` boolean: the key IS the affordance. The slot shapes are fixed — `expandedStateKey` holds an array of row ids, `selectionStateKey` a bare row id — see §3.6.12, which also carries the render obligations (the full ARIA tree pattern, the roving tabindex and the six key bindings), none of which the bytes can carry. Item nesting is bounded on its own axis, per §21.5. |
 | `Button` | _Input_ | `affordance?`, `disabled?`, `icon?`, `label`, `onClick`, `variant?=Secondary` |  |
@@ -578,7 +579,7 @@ The `kind.$type` is one of – and **only** one of – the following primitives 
 | `Switch` | _Meta_ | `autoAdvanceMs?`, `cases`, `default`, `on?`, `stateKey?` | The declarative branch — `cases` are matched against `on`, `default` is taken when none matches. A `Switch` is resolved on the decoded tree, not by host code. |
 <!-- /fuaran:spec-kinds -->
 
-Every `kind.$type` is globally unique. The former `Grid` collision (a Layout grid and a Visualisation data-grid both once named `Grid`) is fully resolved: the CSS-grid container is now a **`Box`** with `layout: {"$type":"Grid",…}` (Phase 390 – see below), and the data-bound grid is **`DataGrid`** (payload `GridSpec`). This global uniqueness is what lets the wire be flat – a single discriminator unambiguously selects both the primitive and its category.
+Every `kind.$type` is unique among the node kinds. The former `Grid` collision (a Layout grid and a Visualisation data-grid both once named `Grid`) is fully resolved: the CSS-grid container is now a **`Box`** with `layout: {"$type":"Grid",…}` (Phase 390 – see below), and the data-bound grid is **`DataGrid`** (payload `GridSpec`). This uniqueness is what lets the wire be flat – a single discriminator unambiguously selects both the primitive and its category. It is uniqueness WITHIN the family, not across families: a `$type` is read in the family its position names (§11.4), so a node kind may share its tag with a member of another family. `Text` is the instance (Phase 2536, §3.6.38): at a node position it is the running-text node, inside a `Form`'s `fields[]` or a `Filters`' `items[]` the text-input form field, and in a `DataGrid` column's `kind` the plain cell.
 
 A primitive's spec fields are emitted **directly under `$type`**, with no `spec` wrapper (e.g. `Markdown` → `{"$type":"Markdown","text":…}`; `Box` → `{"$type":"Box","children":[…],"layout":…,"role":…}`). `Filters` carries an `"items"` array. The corpus is the exhaustive reference for each spec's field set – read `nodes/<id>.json` for the canonical shape of each.
 
@@ -811,6 +812,7 @@ The Wave-43 "last-10%" primitives, canonical shapes pinned by the named fixtures
 - **`Modal`** (Layout) – `{"$type":"Modal","anchor"?:<string>,"children":[<Node>,…],"dismissable":<bool>,"heading"?:<TextSource>,"modality"?:"Modal"|"Popover","onDismiss"?:<Action>,"open":<Binding>}`. `onDismiss` is a **wire-survivable `Action`** (like `FormSpec.onSubmit` – encoded as the action value, not a `<closure>` sentinel), OPTIONAL since Phase 426: omitted, a dismissable modal falls to the write-back default (dismiss writes `false` to a writable `open` slot). `heading` omitted when `None`. `modality` selects WHICH overlay the node is and is **omitted at `"Modal"`** (Phase 1119, §3.6.11), so every document written before that release is byte-unchanged; `anchor` is a NodeId meaningful for `"Popover"` only. See `nodes/modal-1.json`, `nodes/popover-anchored-1.json` and `nodes/popover-open-1.json`.
 - **`ScrollArea`** (Layout) – `{"$type":"ScrollArea","children":[<Node>,…],"orientation":"Vertical"|"Horizontal"|"Both","maxHeight"?:<int>,"maxWidth"?:<int>}`. The pixel bounds omit when `None`. See `nodes/scroll-1.json`.
 - **`CodeBlock`** (Display, Phase 290) – `{"$type":"CodeBlock","code":<string>,"copyable":<bool>,"highlightLines":[<int>,…],"language":<string>,"lineNumbers":<bool>}`. All five always present (`highlightLines` is an int array, possibly empty). The parity-checked render is a **deterministic `<pre><code>`** (HTML-escaped, no markdown library) identical across all hosts + SSR. **Phase 1854:** for a `language` with a grammar (F*: `fstar` / `fst`; F#: `fsharp` / `fs` / `f#`) the reference renderers emit a **deterministic highlighting tier** inside that `<code>` — class-only `tok-kw` / `tok-com` / `tok-str` / `tok-num` / `tok-op` / `tok-ty` spans around the escaped text, no span crossing a line break, the `<code>` marked `data-highlighted="deterministic"` — byte-exact per the reference implementation's fixture table, and inside the parity output. The tier is **optional** for every other host: one that implements it matches the fixture table byte for byte, and one that does not keeps the plain escaped `<code>` and is conformant (the `CodeBlock` row of `render-fidelity.json` says so). **Any richer syntax highlighting is a client-only post-hydration enhancement** that targets the `language-{x}` class – explicitly OUTSIDE the cross-host / SSR↔CSR byte-diff – and may skip or replace a `data-highlighted` element. See `nodes/code-1.json`.
+- **`Text`** (Display, Phase 2536) – `{"$type":"Text","text":<TextSource>}`. Running text with no parse: the parity-checked render is the resolved words, HTML-escaped, in one inline `<span>` inside the node wrapper, identical across all hosts + SSR, and no host reads `*`, `_`, `[`, `<` or `&` in them as markup. `Markdown` is the kind for text that carries formatting. See `nodes/text-1.json`, and §3.6.38.
 - **`Math`** (Display, Phase 293) – `{"$type":"Math","display":"Inline"|"Block","source":<string>}`. `source` is the LaTeX string. The parity-checked render is a **deterministic escaped-source fallback** in a known container; **KaTeX is a client-only post-hydration enhancement** (targets `.fuaran-math-source`), OUTSIDE the byte-diff – the no-JS / SSR reader sees the source, the JS reader sees rendered math. Inline `$…$` math in prose is a separate client-only pass over rendered markdown (soft-coordinated with the deterministic GFM markdown renderer), same pattern. **Mermaid is NOT a node** – a host registers it via the existing `Custom` escape (heavy JS-only library, non-deterministic SVG); promote to a first-class `Diagram` node only if demand warrants. See `nodes/math-1.json`.
 
 #### Link protection (Phase 812)
@@ -5341,6 +5343,49 @@ twins: `bar-channels-neutralised`, `line-interval-two-series-neutralised` and `l
 other golden moved. Horizontal orientation and facets are not channels of this section (D39). Adoption is
 recorded per host in §11.0.
 
+### 3.6.38 `Text` — running text with no parse (Phase 2536)
+
+A `Text` node shows its words exactly as written. It is the plain counterpart of `Markdown`: the same `TextSource`,
+no Markdown parse and no HTML in or out, so it is byte-identical on every host and costs a reader nothing but the
+escape. Demand: a consumer's table surface measured the Markdown parse at 3.3 ms of 8.5 ms for running text that
+carried no formatting at all, and models already reach for the name (`stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede`
+wrote `{"$type":"Text"}` at a node position).
+
+```json
+{"id":"search-hint","kind":{"$type":"Text","text":"Search by name or ID."}}
+```
+
+- **Shape.** One required member, `text`, a `TextSource` (§3.6's bare-string Literal form included). The node
+  envelope's ordinary traits (`id`, `style`, `accessibility`, `tooltip`, …) apply as on every kind. A `Text` with no
+  `text` is `MISSING_FIELD` at `…kind.text`.
+- **Rendering (normative for every host that renders HTML).** The resolved words, HTML-escaped by the host's ordinary
+  text encoder, as the only content of one `<span>` with no attribute, inside the node wrapper; the wrapper carries
+  the kind class `fuaran-kind-text`. No character is read as markup: `*`, `_`, `` ` ``, `[`, `<` and `&` are
+  text. The server and client renders are byte-identical, and there is no enhancement tier (`render-fidelity.json`).
+  A projection with no stylesheet (an email) draws the words in the `Markdown` cell's typography, escaped; speech
+  says the words as one utterance; a card is one literal text run.
+- **`Text` or `Markdown`.** `Text` for words with no formatting: a hint, a caption, a cell of running prose, a
+  sentence beside a control. `Markdown` when the text carries emphasis, a link, a list or a citation (§3.6.32):
+  `Text` renders `*4%*` as five characters.
+- **One tag, two families, and a third.** `Text` is also the text-input form field (`FormFieldKind.Text`) and the
+  plain cell kind of a `DataGrid` column. Each is read in the family its position names (§11.4): a node position
+  reads the node kind, a `Form`'s `fields[]` and a `Filters`' `items[]` read the form field, a column's `kind` reads
+  the cell. So a `Text` inside `fields[]` written in the node's shape is the input with a member it does not declare,
+  dropped by §2 rule 2, and a `Text` at a node position written in the field's shape is the node missing its
+  `text`. A host's message for the second says that a text input belongs in a `Form`'s `fields[]`.
+- **Versioning.** Additive: a new tag (§15.4). A behind reader meets `Text` at a node position as a kind it does not
+  know and materialises the transport-only `Unknown` (§15.3), preserving the bytes. As with the tag additions before
+  it, the profile step is the release act's (§15.7).
+
+**Vectors.** `nodes/text-1.json` (words carrying every character Markdown or HTML would read as syntax, so a host
+that parses or fails to escape them fails the render byte-diff), `nodes/text-beside-text-field.json` (a `Form` whose
+`Text` field sits beside a `Text` node in one tree), `reject/reject-missing-text-text.json` and
+`reject/reject-text-node-shaped-as-field.json` (both `MISSING_FIELD` at `$.kind.text`) and
+`lenient/lenient-2536-text-field-shaped-as-node.json` (a field carrying `text`, accepted and re-encoded without it).
+`stored-emissions/stored-reject-wrong-node-kind-8dbdae822e31aede` moves from `WRONG_NODE_KIND` to `MISSING_FIELD` at
+`…kind.text`; it keeps its sampled id. Every `WRONG_NODE_KIND` hint lists `Text` after `Markdown` in the Display group.
+Adoption is recorded per host in §11.0.
+
 ## 4. Closure-bearing slots → `"<closure>"`
 
 Every function-typed payload the encoder cannot observe renders as the sentinel string `"<closure>"`. The decoder reconstructs each as a **placeholder** that re-encodes to the same `"<closure>"` sentinel, keeping the round-trip byte-stable. The slots are:
@@ -5578,6 +5623,7 @@ longer exist; `NodeKind` is flat, and its 43 rows are below._
 | `NodeKind.ScrollArea` | survivable | – |
 | `NodeKind.Heading` | survivable | – |
 | `NodeKind.Markdown` | survivable | – |
+| `NodeKind.Text` | survivable | – |
 | `NodeKind.Metric` | survivable | – |
 | `NodeKind.Badge` | survivable | – |
 | `NodeKind.Sparkline` | survivable | – |
@@ -6000,7 +6046,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->243<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->245<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6406,6 +6452,20 @@ that lowers a chart in-host owes the `chart-lowering/channels/` subfamily.
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 
+**`Text` adoption (the plain running-text node, Phase 2536, §3.6.38).** A codec bar and a render bar: every codec
+host decodes and encodes the kind and reads the shared tag by position (§11.4), and every host that renders HTML owes
+the escaped `<span>`.
+
+| Host | `Text` adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: the kind, its builders and veneers, both renderers through one shared plan, the email, speech and card projections; generates the vectors |
+| `fuaran-ts` | **adopted** — the codec, the client and server renderers |
+| `fuaran-py` | **adopted** — the codec and the server renderer |
+| `fuaran-go` | **adopted** — the codec and the server renderer |
+| `fuaran-rs` | **adopted** — the codec and the server renderer |
+| `fuaran-swift` | **pending** — a render projection over the Rust core: owes a native arm for the kind |
+| `fuaran-kt` | **pending** — as above |
+
 **Upload-ceiling adoption (`FileUploadSpec.maxBytes` / `.maxFiles`, Phase 1548).** A SEVENTH bar, and
 the one where the codec leg is smallest and the ENFORCEMENT leg is owed by the most different kinds of
 host. Decoding is two optional positive integers with a shared floor, and every host owes it. What a
@@ -6736,8 +6796,17 @@ host reading the output is never put under them.
 
 The subset enumerates those three families and no other. Every other discriminated value a declared
 kind's fields carry (a binding, an action, a layout, a tone) is a FIELD of a declared kind, and §15.6
-protects it as one. The two node-side families must stay disjoint for a `kind.$type` to name one
-family, and the reference host's leg pins that they do.
+protects it as one. **A `$type` is read in the family its POSITION names**: a node position reads
+`kinds`, and a `Form`'s `fields[]` and a `Filters`' `items[]` read `formFieldKinds`. The families are
+separate namespaces, so one tag may name a member of each (`Text` does, §3.6.38), and a tag declared
+in a profile's `formFieldKinds` grants nothing in its `kinds`, nor the reverse. The reference host's
+leg pins the classification with a revision declaring `Text` in one family only, which must refuse a
+document carrying the other family's `Text`; the corpus pins the reading itself
+(`nodes/text-beside-text-field`, `reject/reject-text-node-shaped-as-field`,
+`lenient/lenient-2536-text-field-shaped-as-node`), so every codec host certifies it. Until Phase
+2536 this paragraph required the two families to stay disjoint; positions already decided every
+reading, and a profile declares each family apart, so disjointness protected nothing the positions
+did not.
 
 **A frame is an op document.** The unit an emitter streams after its first document is a `TreeOp`
 (§3, the `ops/` shapes). Any envelope a transport puts around a run of them (a sequence number, an
@@ -6908,11 +6977,11 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->779<!-- /fuaran:count --> fixtures in all —
-<!-- fuaran:count kind=node-round-trip -->288<!-- /fuaran:count --> `node-round-trip`,
+<!-- fuaran:count kind=total -->784<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=node-round-trip -->290<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->243<!-- /fuaran:count --> `reject`,
-<!-- fuaran:count kind=lenient-accept -->92<!-- /fuaran:count --> `lenient-accept`,
+<!-- fuaran:count kind=reject -->245<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=lenient-accept -->93<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
 <!-- fuaran:count kind=elicitation-round-trip -->7<!-- /fuaran:count --> `elicitation-round-trip`,
