@@ -266,7 +266,7 @@
       "spec": "27.8.2",
       "producer": {
         "repository": "Fuaran-Core/fuaran-core",
-        "emit": "dotnet run --project tests/Fuaran.Core.Tests -- --emit-laws <corpus dir>"
+        "emit": "dotnet run --project tools/Fuaran.Core.Tools -- render laws <corpus dir>"
       },
       "source": "kitVersion"
     },

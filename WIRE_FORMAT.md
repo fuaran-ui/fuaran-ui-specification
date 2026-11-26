@@ -10161,13 +10161,16 @@ and that no other section specifies.
   object `kind`). **A repeated id (§8.1) is one `FUARAN-DUP-ID` finding at EACH occurrence after the
   first, in document order, each naming the id**: the count of findings is the count of nodes to
   change, and the node to change is the later one, so two occurrences are one finding at the second
-  and three are two findings, at the second and the third. Any other finding on a repeated id is
+  and three are two findings, at the second and the third. Document order is the canonical
+  document's, positions compared as §29.3 orders paths: `children[2]` before `children[10]`, and a
+  node's envelope `fallback` before its `kind` (§2 member order), so an id held by a node's
+  fallback and by its child occurs first in the fallback. Any other finding on a repeated id is
   located at its first occurrence. A host that implements the pre-emit tier
   validates every tree with its own decoder and validator and asserts that its findings, restricted
   to the codes its `validator-coverage.json` declares `implemented`, are exactly the expected
   defects restricted to the same codes, each on the stated node. **A finding's location is a path in
-  the §29.3 grammar** — `$`-rooted, `.name` member segments, `['…']` for a key that is not a plain
-  identifier, and `[i]` for an array element, whatever the array holds (children, case arms, the
+  the §29.3 grammar** — `$`-rooted, `.name` member segments and `[i]` for an array element,
+  whatever the array holds (children, case arms, the
   entries of a `params` list); never an all-digit dotted segment (`$.kind.children.0`), an empty
   index (`params[]`), or an entry's `name` standing in for its index. A host whose finding carries a
   path asserts that the path is the stated one or extends it at a segment boundary (§6), so a finding
@@ -10519,6 +10522,11 @@ Defects are ordered by `Path`, then by `Code` (Ordinal). Paths compare **segment
 - **Segmentation.** After the leading `$`, a path is a sequence of segments: `.name` (the name runs
   to the next `.` or `[`) or `[digits]` (an index). A bracketed run that is not all digits is read
   as a name, bracket included. Every host splits the same string the same way.
+- **A member is `.name` however its key is spelled.** A key that is not an identifier is written as
+  it stands, unquoted: `$.accessibility.aria-hidden`, `$.kind.columns[2].kind.map.On time`
+  (`reject-nearmiss-a11y-aria-hidden` and `reject-multi-map-key-order` pin them). There is no
+  quoted form: `['…']` is not a segment of this grammar, and by the rule above it reads as a name
+  with the brackets and quotes in it.
 - **An index compares numerically** — `children[2]` before `children[10]`, which a string sort
   reverses. **A name compares Ordinally** (UTF-16 code units, the §2 rule 2 member order), so
   `$type` sorts first among a node's members and `Cancelled` before `On time` in a map, whatever
