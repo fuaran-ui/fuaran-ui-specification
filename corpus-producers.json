@@ -135,7 +135,7 @@
     },
     "devtools-relay": {
       "spec": "DEVTOOLS_RELAY.md 12",
-      "authored": "relay session transcripts authored against the relay specification; the reference relay suite reads them and no emitter writes them"
+      "authored": "relay session transcripts authored against the relay specification: a response is checked by its type and by the presence and JSON type of each declared payload field, never by its bytes, so there is no output for a producer to pin; the reference relay suite reads them"
     },
     "diff/treeDiff": {
       "spec": "27.8.2",
@@ -373,11 +373,11 @@
     },
     "teleport-decode": {
       "spec": "17.6",
-      "authored": "the bundles were produced by the reference teleport encoder and checked in; the root-manifest emitter preserves the rows verbatim and no emit command constructs them yet"
+      "authored": "the bundle is a frozen artefact of the reference teleport encoder at 0.78.0: its carried tree spells the decode-accepted envelope forms (a Literal TextSource, a Static activeStep) that the canonical encoder no longer writes, and that spelling is what the vector certifies, a bundle minted by an earlier encoder still decoding and normalising (17.6), so an emit from today's encoder would erase it; the root-manifest emitter preserves the row verbatim, and fuaran-dotnet's TeleportTests decode it and re-derive its digest, so a drift reddens the reference rather than rewriting the file"
     },
     "teleport-reject": {
       "spec": "17.6",
-      "authored": "the reference envelope re-stamped by hand with its digest recomputed, so the version refusal is what bites; preserved verbatim by the root emitter"
+      "authored": "each vector is the reference bundle with one stated defect (a character outside the alphabet, a member added or removed, a value rewritten, the envelope re-stamped teleport@2 with its digest recomputed, a deflate bomb, a limit below its size), and the defect is the specification of the refusal it pins (17.4); the perturbed payloads were deflated by a dynamic-Huffman compressor the reference never runs, so re-deflated by the reference every inflatable payload but the unperturbed one changes bytes, and an emit would drop the family's foreign-stream inflate coverage; preserved verbatim by the root emitter"
     },
     "validate": {
       "spec": "27.8.2",
