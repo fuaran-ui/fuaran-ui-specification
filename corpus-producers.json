@@ -394,7 +394,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-validate <corpus dir>"
       },
       "source": {
-        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
+        "commit": "60f505a45ca9218b8cdbdab7b78ccaa03ebe8438"
       }
     }
   }
