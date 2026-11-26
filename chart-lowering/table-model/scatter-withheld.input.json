@@ -1,0 +1,1 @@
+{"kind":"Scatter","xField":"fitted","yFields":["residual"],"title":"Residual against fitted","stacked":false,"withheldField":"withheld","data":[{"fitted":10,"residual":-1.5,"withheld":false},{"fitted":20,"residual":0.75,"withheld":false},{"fitted":30,"residual":2,"withheld":true},{"fitted":40,"residual":-0.5,"withheld":false}]}

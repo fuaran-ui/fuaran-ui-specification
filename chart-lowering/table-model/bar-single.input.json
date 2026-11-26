@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"quarter","yFields":["revenue"],"title":"Revenue by quarter","stacked":false,"data":[{"quarter":"Q1","revenue":120},{"quarter":"Q2","revenue":150},{"quarter":"Q3","revenue":90},{"quarter":"Q4","revenue":175}]}

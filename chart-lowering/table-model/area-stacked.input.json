@@ -1,0 +1,1 @@
+{"kind":"Area","xField":"month","yFields":["web","mobile"],"title":"Traffic (stacked)","stacked":true,"data":[{"month":"Jan","web":60,"mobile":35},{"month":"Feb","web":72,"mobile":44},{"month":"Mar","web":65,"mobile":58}]}

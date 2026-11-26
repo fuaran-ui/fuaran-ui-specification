@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"region","yFields":[],"title":"Orders and revenue","stacked":false,"data":[{"region":"East","label":"steady","revenue":52,"flagged":false,"orders":12},{"region":"Central","label":"rising","revenue":61,"flagged":true,"orders":null},{"region":"Coast","label":"flat","revenue":47,"flagged":false,"orders":9}]}

@@ -1,0 +1,1 @@
+{"kind":"Bar","xField":"sprint","yFields":["done","doing","blocked"],"title":"Tickets by status","stacked":true,"data":[{"sprint":"S1","done":12,"doing":5,"blocked":3},{"sprint":"S2","done":18,"doing":4,"blocked":0},{"sprint":"S3","done":9,"doing":7,"blocked":2}]}

@@ -1,0 +1,1 @@
+{"kind":"Pie","xField":"band","yFields":["count"],"title":"Respondents by age","stacked":false,"withheldField":"withheld","data":[{"band":"18-34","count":140,"withheld":false},{"band":"35-54","count":210,"withheld":false},{"band":"55+","count":4,"withheld":true}]}

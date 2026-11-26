@@ -1,0 +1,1 @@
+{"kind":"Scatter","xField":"height","yFields":["weight"],"title":"Height vs weight","stacked":false,"data":[{"height":150,"weight":52},{"height":162,"weight":61},{"height":171,"weight":68.5},{"height":180,"weight":74},{"height":195,"weight":88}]}

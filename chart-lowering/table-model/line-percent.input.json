@@ -1,0 +1,1 @@
+{"kind":"Line","xField":"week","yFields":["rate"],"title":"Conversion rate","stacked":false,"valueFormat":{"$type":"Percent"},"data":[{"week":"W1","rate":0.12},{"week":"W2","rate":0.35},{"week":"W3","rate":0.28},{"week":"W4","rate":0.44}]}
