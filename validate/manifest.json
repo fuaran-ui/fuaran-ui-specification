@@ -529,6 +529,58 @@
       ]
     },
     {
+      "id": "validate-state-seed-in-a-child-then-in-the-own-state-alternative",
+      "description": "The key k is declared 1 by the root's child and 2 by the root's own state.onEmpty alternative (FUARAN106). Document order puts a node's kind before its state, so the child's declaration is the first and the finding is at the alternative, $.state.onEmpty.",
+      "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"a1\",\"kind\":{\"$type\":\"Metric\",\"label\":\"a1\",\"value\":{\"$type\":\"State\",\"defaultValue\":1,\"key\":\"k\"}}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"},\"state\":{\"onEmpty\":{\"id\":\"a2\",\"kind\":{\"$type\":\"Metric\",\"label\":\"a2\",\"value\":{\"$type\":\"State\",\"defaultValue\":2,\"key\":\"k\"}}}}}",
+      "expected": [
+        {
+          "code": "FUARAN106",
+          "severity": "Error",
+          "node": "a2",
+          "path": "$.state.onEmpty"
+        }
+      ]
+    },
+    {
+      "id": "validate-state-seed-in-the-fallback-then-in-the-own-state-alternative",
+      "description": "The key k is declared 1 by the root's envelope fallback and 2 by its own state.onEmpty alternative (FUARAN106). The fallback comes first in document order, so the finding is at the alternative, $.state.onEmpty.",
+      "tree": "{\"fallback\":{\"id\":\"a1\",\"kind\":{\"$type\":\"Metric\",\"label\":\"a1\",\"value\":{\"$type\":\"State\",\"defaultValue\":1,\"key\":\"k\"}}},\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"c\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"t\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"},\"state\":{\"onEmpty\":{\"id\":\"a2\",\"kind\":{\"$type\":\"Metric\",\"label\":\"a2\",\"value\":{\"$type\":\"State\",\"defaultValue\":2,\"key\":\"k\"}}}}}",
+      "expected": [
+        {
+          "code": "FUARAN106",
+          "severity": "Error",
+          "node": "a2",
+          "path": "$.state.onEmpty"
+        }
+      ]
+    },
+    {
+      "id": "validate-inline-table-in-a-child-then-in-the-own-state-alternative",
+      "description": "The root's child and the root's own state.onEmpty alternative carry the same inline table (FUARAN107). Document order puts a node's kind before its state, so the copy is the alternative, $.state.onEmpty.",
+      "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"g1\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"},\"state\":{\"onEmpty\":{\"id\":\"g2\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}}}}",
+      "expected": [
+        {
+          "code": "FUARAN107",
+          "severity": "Warning",
+          "node": "g2",
+          "path": "$.state.onEmpty"
+        }
+      ]
+    },
+    {
+      "id": "validate-inline-table-in-the-fallback-then-in-the-own-state-alternative",
+      "description": "The root's envelope fallback and its own state.onEmpty alternative carry the same inline table (FUARAN107). The fallback comes first in document order, so the copy is the alternative, $.state.onEmpty.",
+      "tree": "{\"fallback\":{\"id\":\"g1\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}},\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"c\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"t\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"},\"state\":{\"onEmpty\":{\"id\":\"g2\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}}}}",
+      "expected": [
+        {
+          "code": "FUARAN107",
+          "severity": "Warning",
+          "node": "g2",
+          "path": "$.state.onEmpty"
+        }
+      ]
+    },
+    {
       "id": "validate-inline-table-repeated-three-times",
       "description": "Three DataGrids carry the same inline table (FUARAN107): x, x, x is two findings, at the second and the third copy ($.kind.children[1], $.kind.children[2]), each naming the first copy; never one per pair.",
       "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"g1\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}},{\"id\":\"g2\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}},{\"id\":\"g3\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}",
