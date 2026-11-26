@@ -10166,15 +10166,22 @@ and that no other section specifies.
   (`FragmentRef.args.<name>.tree`, `Mount.inputs.<name>.tree`) shares the referring document's ids
   or its pre-emit rules, and no vector depends on either. **A finding is located at the occurrence
   that raised it**: where two nodes share an id and the later one carries a defect, the finding is
-  at the later one. A finding judged across the whole tree rather than at one node names an id, not
-  an occurrence; where several nodes hold that id it carries no `path` (`null`), and a host asserts
-  its node alone. **A finding whose subject is a repetition is one finding at EACH occurrence after
-  the first, in document order, located at that occurrence** — a repeated node id (`FUARAN-DUP-ID`),
-  a repeated case `match` value (`FUARAN082`), a repeated tree row id (`FUARAN126`), a repeated
-  static token (`FUARAN136`), and every other code whose subject is a repeated thing. The count of
-  findings is the count of things to change, and the thing to change is the later one: `x, x, x` is
-  two findings and `x, x, y, y` is two, and an id held three times is two findings, at the second
-  and the third occurrence. Document order is the canonical document's, positions compared as §29.3
+  at the later one. That holds for a finding judged across the whole tree too: it is judged from a
+  binding, a form field or a declaration that one node holds, and it is located at that node, so
+  where two nodes share an id and the later one's binding raised it, it is at the later one. `path`
+  is `null` only where no node of the document raised the finding. **A finding whose subject is a
+  repetition is one finding at EACH occurrence after the first, in document order, located at that
+  occurrence** — a repeated node id (`FUARAN-DUP-ID`), a repeated case `match` value (`FUARAN082`), a
+  repeated tree row id (`FUARAN126`), a repeated static token (`FUARAN136`), a state key written
+  back by more than one handler-free form field (`FUARAN085`: at each writer after the first, on the
+  `Form` holding it), a state key declared again with a different seed (`FUARAN106`: at each later
+  declaration that disagrees with the first, which is the one that takes effect; a later one that
+  agrees changes nothing and is no finding), a repeated inline table (`FUARAN107`: at each later
+  copy, never one finding per pair of copies), and every other code whose subject is a repeated
+  thing. The count of findings is the count of things to change, and the thing to change is the
+  later one: `x, x, x` is two findings and `x, x, y, y` is two, and an id held three times is two
+  findings, at the second and the third occurrence. `expected` lists a vector's findings in document
+  order of their `path`. Document order is the canonical document's, positions compared as §29.3
   orders paths: `children[2]` before `children[10]`, and a node's envelope `fallback` before its
   `kind` and its `kind` before its `state` (§2 member order), so an id held by a node's fallback and
   by its child occurs first in the fallback. A host that implements the pre-emit tier
