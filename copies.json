@@ -10892,6 +10892,22 @@
       "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
     },
     {
+      "source": "reject/reject-map-key-all-digits.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-map-key-all-digits.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-py; python conformance/sync_corpus.py"
+    },
+    {
+      "source": "reject/reject-map-key-all-digits.json",
+      "consumers": [
+        "Fuaran/Fuaran-UI/fuaran-ts/packages/conformance/corpus/reject/reject-map-key-all-digits.json"
+      ],
+      "check": "fingerprint",
+      "regen": "cd Fuaran/Fuaran-UI/fuaran-ts; pnpm --filter @fuaran-ui/conformance sync-corpus"
+    },
+    {
       "source": "reject/reject-markdown-citation-name-empty.json",
       "consumers": [
         "Fuaran/Fuaran-UI/fuaran-py/conformance/corpus/reject/reject-markdown-citation-name-empty.json"
