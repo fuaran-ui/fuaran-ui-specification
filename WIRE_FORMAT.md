@@ -10100,7 +10100,13 @@ and that no other section specifies.
   reference evaluates them in and its cyclic groups, an incremental re-evaluation from a prior
   evaluation that equals a full one and recomputes exactly the stale set, and the refusals of a change
   the graph does not hold and of an undeclared read; a host whose bindings re-render on a write asserts
-  its own stale set against the `dirtySet` vectors, and its binding walk against `binding-propagation`; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
+  its own stale set against the `dirtySet` vectors, and its binding walk against `binding-propagation`; `canonicalFormLaws`
+  (Phase 2381, emitted by Fuaran-Core from `Fuaran.Core.Idl`) the three canonical-form declarations of an IDL
+  vocabulary over the fixture vocabulary the file carries as `vocabulary` — a member's aliases and an enum case's
+  aliases, a member's presence condition (a member whose condition fails is dropped unread, whatever its value), and
+  an empty-map or JSON default omitted at its default — each vector a `document` and the canonical bytes the
+  reference decodes and re-encodes it to; a host whose codec is driven by an IDL reads the file's vocabulary and
+  asserts those bytes, and §3.6 says why the UI vocabulary declares no presence condition or alias list yet; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
   evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
   table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
