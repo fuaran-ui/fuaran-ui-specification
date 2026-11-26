@@ -6053,7 +6053,7 @@ Every wire-shape violation surfaces a **structured, recoverable** error (never a
 | `LIMIT_EXCEEDED` | A **§21 resource limit** is breached – node depth, JSON depth, string length, array length, total node count, document bytes, or the expression-node count of §21.8. The input is well-formed JSON; it is refused for being structurally unbounded, which is why this is not `INVALID_JSON`. `Message` names the limit and the observed value. |
 | `KIND_NOT_ADMITTED` | The document names a kind that a **§23 host-declared admission policy** does not admit. UNREACHABLE unless a host declared one, so it is the only code in this table that says nothing about the document: the same bytes decode clean at the default. Deliberately distinct from `WRONG_NODE_KIND` — that one means the vocabulary has no such kind, this one means the kind exists and this deployment does not take it, and the author repairs them differently. `Message` names the kind and the policy; `ExpectedShape` carries the admitted vocabulary. |
 
-The <!-- fuaran:count kind=reject -->246<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is spelled `[i]` everywhere: a reported path carrying an all-digit dotted segment (`$.kind.children.0`) is malformed whatever its prefix, because a prefix comparison cannot see a misspelling below the prefix it was given, which is how ten error-path sites across two hosts spelled an index `.0` with every comparison green (Phase 1938). Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
+The <!-- fuaran:count kind=reject -->247<!-- /fuaran:count --> reject fixtures in the corpus exercise every code **except `KIND_NOT_ADMITTED`**, which cannot appear in this family at all: a reject fixture asserts what the bytes are worth, and that code is raised by a declaration the bytes do not carry. Its cases live in [`decode-policy/`](decode-policy/) (§23), where each one names the policy alongside the document. Each manifest entry pins the `expectedErrorCode` and an `expectedPath` prefix. The prefix is taken at a **segment boundary** — `$.kind.items` is a prefix of `$.kind.items[0]` and of `$.kind.items.text`, never of `$.kind.itemsX` — and an array index is ALWAYS spelled `[i]`, so a dotted segment is always a member name or a map key as written, digits included (§29.3): `$.kind.columns[2].kind.map.404` names the map key `404`, and `$.kind.children.0` names a member `0`, never the first child. An index spelled `.0` is therefore a path to a member the document does not have, and a prefix comparison cannot see it below the prefix it was given; a fixture whose `expectedPath` runs to the defect is what pins the spelling. Node-side rejects additionally populate `ExpectedShape`; op-side rejects assert Code + Path only. A node-side entry may also carry `expectedDefects`, the full list of independent defects the document holds (§29): a host that reports defect lists asserts exactly that list, and the single-error assertion above holds for every host.
 
 ---
 
@@ -6984,10 +6984,10 @@ is a host that reads it.
 
 Fixture counts are **not restated in prose** — `manifest.json` is the authoritative enumeration, and
 the counts drift where the manifest cannot. The current tallies, projected from it:
-<!-- fuaran:count kind=total -->786<!-- /fuaran:count --> fixtures in all —
+<!-- fuaran:count kind=total -->787<!-- /fuaran:count --> fixtures in all —
 <!-- fuaran:count kind=node-round-trip -->292<!-- /fuaran:count --> `node-round-trip`,
 <!-- fuaran:count kind=op-round-trip -->38<!-- /fuaran:count --> `op-round-trip`,
-<!-- fuaran:count kind=reject -->246<!-- /fuaran:count --> `reject`,
+<!-- fuaran:count kind=reject -->247<!-- /fuaran:count --> `reject`,
 <!-- fuaran:count kind=lenient-accept -->92<!-- /fuaran:count --> `lenient-accept`,
 <!-- fuaran:count kind=envelope-round-trip -->5<!-- /fuaran:count --> `envelope-round-trip`,
 <!-- fuaran:count kind=envelope-reject -->3<!-- /fuaran:count --> `envelope-reject`,
@@ -10157,22 +10157,35 @@ and that no other section specifies.
   them a given document raises. Each vector is `(tree, expected)`: `tree` is a canonical node
   document, and `expected` lists the defects the reference validator reports on it, each with its
   `code` and `severity`, the `node` id it is raised on (`null` where the defect names no node), and
-  `path`, the location of that node's object in `tree` (an object carrying a string `id` and an
-  object `kind`). **A repeated id (§8.1) is one `FUARAN-DUP-ID` finding at EACH occurrence after the
-  first, in document order, each naming the id**: the count of findings is the count of nodes to
-  change, and the node to change is the later one, so two occurrences are one finding at the second
-  and three are two findings, at the second and the third. Document order is the canonical
-  document's, positions compared as §29.3 orders paths: `children[2]` before `children[10]`, and a
-  node's envelope `fallback` before its `kind` (§2 member order), so an id held by a node's
-  fallback and by its child occurs first in the fallback. Any other finding on a repeated id is
-  located at its first occurrence. A host that implements the pre-emit tier
+  `path`, the location in `tree` of the node object (an object carrying a string `id` and an object
+  `kind`) whose occurrence raised it. Every node the document holds is judged (§8.1): the envelope
+  `fallback`, the kind's own positions, and the state alternatives `state.onEmpty` and
+  `state.onLoading`, which are members of the node object and so part of the document. An id held by
+  a state alternative and by the tree is a repeated id, and a defect on a node in a state alternative
+  is raised there. This section does not state whether a tree passed as a slot argument
+  (`FragmentRef.args.<name>.tree`, `Mount.inputs.<name>.tree`) shares the referring document's ids
+  or its pre-emit rules, and no vector depends on either. **A finding is located at the occurrence
+  that raised it**: where two nodes share an id and the later one carries a defect, the finding is
+  at the later one. A finding judged across the whole tree rather than at one node names an id, not
+  an occurrence; where several nodes hold that id it carries no `path` (`null`), and a host asserts
+  its node alone. **A finding whose subject is a repetition is one finding at EACH occurrence after
+  the first, in document order, located at that occurrence** — a repeated node id (`FUARAN-DUP-ID`),
+  a repeated case `match` value (`FUARAN082`), a repeated tree row id (`FUARAN126`), a repeated
+  static token (`FUARAN136`), and every other code whose subject is a repeated thing. The count of
+  findings is the count of things to change, and the thing to change is the later one: `x, x, x` is
+  two findings and `x, x, y, y` is two, and an id held three times is two findings, at the second
+  and the third occurrence. Document order is the canonical document's, positions compared as §29.3
+  orders paths: `children[2]` before `children[10]`, and a node's envelope `fallback` before its
+  `kind` and its `kind` before its `state` (§2 member order), so an id held by a node's fallback and
+  by its child occurs first in the fallback. A host that implements the pre-emit tier
   validates every tree with its own decoder and validator and asserts that its findings, restricted
   to the codes its `validator-coverage.json` declares `implemented`, are exactly the expected
   defects restricted to the same codes, each on the stated node. **A finding's location is a path in
   the §29.3 grammar** — `$`-rooted, `.name` member segments and `[i]` for an array element,
   whatever the array holds (children, case arms, the
-  entries of a `params` list); never an all-digit dotted segment (`$.kind.children.0`), an empty
-  index (`params[]`), or an entry's `name` standing in for its index. A host whose finding carries a
+  entries of a `params` list); never an empty index (`params[]`) or an entry's `name` standing in
+  for its index. An array element is always bracketed, so `$.kind.children.0` names a member `0`,
+  never the first child. A host whose finding carries a
   path asserts that the path is the stated one or extends it at a segment boundary (§6), so a finding
   located below the node (its `stateKey`, a case's `match`) still names the node's own spelling.
 
@@ -10543,10 +10556,9 @@ not be told apart and one entry per (`Code`, `Path`) would have merged them; the
 like every other array: a `Transform` / `Expr` binding's `params[i]`, a `Query` binding's
 `dependsOn[i]`, a hole value space's `choices[i]`, a fragment's `holes[i]`, a `Mount`'s
 `capabilities[i]`. Only the text of a refusal at those positions changed.
-The index is the element's ONLY name in a path, below it as at it: a defect inside a `params`
-entry's `from` binding is at `params[i].from.…`, never `params.<name>.from.…` — the entry's `name` is a
-member of the entry, not a segment of the list (Phase 2381, which found the reference decoder and
-fuaran-rs spelling the same position two other ways). The same grammar locates a pre-emit finding
+The index is the element's ONLY name in a path, below it as at it: a defect inside the `from` binding
+of an entry of a `params` LIST (the array form) is at `params[i].from.…`, never
+`params.<name>.from.…` — the entry's `name` is a member of the entry, not a segment of the list. The same grammar locates a pre-emit finding
 (§27.8.2, `validate`).
 
 ### 29.4 What is compared: `Code` and `Path`
