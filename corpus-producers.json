@@ -28,7 +28,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
       },
       "source": {
-        "commit": "0bc8b40802ad8d3efc0c781a097431096d83f43e"
+        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
       }
     },
     "apply/limitsApply": {
@@ -38,7 +38,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
       },
       "source": {
-        "commit": "0bc8b40802ad8d3efc0c781a097431096d83f43e"
+        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
       }
     },
     "apply/skeletonApply": {
@@ -58,7 +58,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
       },
       "source": {
-        "commit": "0bc8b40802ad8d3efc0c781a097431096d83f43e"
+        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
       }
     },
     "apply/updatePropApply": {
@@ -68,7 +68,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
       },
       "source": {
-        "commit": "0bc8b40802ad8d3efc0c781a097431096d83f43e"
+        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
       }
     },
     "binding-propagation": {
@@ -394,7 +394,7 @@
         "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-validate <corpus dir>"
       },
       "source": {
-        "commit": "0bc8b40802ad8d3efc0c781a097431096d83f43e"
+        "commit": "9602fee15f5e3864f53c505de8d3753432b6f376"
       }
     }
   }
