@@ -10151,8 +10151,12 @@ and that no other section specifies.
   them a given document raises. Each vector is `(tree, expected)`: `tree` is a canonical node
   document, and `expected` lists the defects the reference validator reports on it, each with its
   `code` and `severity`, the `node` id it is raised on (`null` where the defect names no node), and
-  `path`, the location of that node's object in `tree` — its first occurrence in document order, an
-  object carrying a string `id` and an object `kind`. A host that implements the pre-emit tier
+  `path`, the location of that node's object in `tree` (an object carrying a string `id` and an
+  object `kind`). **A repeated id (§8.1) is one `FUARAN-DUP-ID` finding at EACH occurrence after the
+  first, in document order, each naming the id**: the count of findings is the count of nodes to
+  change, and the node to change is the later one, so two occurrences are one finding at the second
+  and three are two findings, at the second and the third. Any other finding on a repeated id is
+  located at its first occurrence. A host that implements the pre-emit tier
   validates every tree with its own decoder and validator and asserts that its findings, restricted
   to the codes its `validator-coverage.json` declares `implemented`, are exactly the expected
   defects restricted to the same codes, each on the stated node. **A finding's location is a path in

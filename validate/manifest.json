@@ -1,7 +1,7 @@
 {
   "version": 1,
   "$id": "https://fuaran.dev/wire-format/v1/validate/manifest.json",
-  "description": "The Fuaran pre-emit VALIDATE conformance family (WIRE_FORMAT.md 27.8.2). Each vector is a document (`tree`, canonical wire bytes) and the pre-emit defects it carries (`expected`): each defect's `code` and `severity` from validator/defect-vocabulary.json, the `node` id it is raised on (null where the defect names none), and `path`, the JSONPath of that node's object in the tree (its first occurrence) in the section 29.3 grammar. A host that implements the pre-emit tier validates each tree and asserts that its findings, restricted to the codes its validator-coverage.json declares implemented, are exactly the expected defects restricted to the same codes, each on the stated node; a host whose finding carries a path asserts that the path is the stated one or extends it at a segment boundary. Generated from the reference host's own validator, through its decoder.",
+  "description": "The Fuaran pre-emit VALIDATE conformance family (WIRE_FORMAT.md 27.8.2). Each vector is a document (`tree`, canonical wire bytes) and the pre-emit defects it carries (`expected`): each defect's `code` and `severity` from validator/defect-vocabulary.json, the `node` id it is raised on (null where the defect names none), and `path`, the JSONPath of that node's object in the tree in the section 29.3 grammar: where several nodes hold the id, its first occurrence, except that FUARAN-DUP-ID is reported once at each occurrence after the first, in document order. A host that implements the pre-emit tier validates each tree and asserts that its findings, restricted to the codes its validator-coverage.json declares implemented, are exactly the expected defects restricted to the same codes, each on the stated node; a host whose finding carries a path asserts that the path is the stated one or extends it at a segment boundary. Generated from the reference host's own validator, through its decoder.",
   "vectors": [
     {
       "id": "validate-clean-nested",
@@ -62,20 +62,39 @@
     },
     {
       "id": "validate-duplicate-id-across-default-and-child",
-      "description": "One id held by a Box's child and by a Switch's default arm (FUARAN-DUP-ID). The defect is located at the id's FIRST node in document order, $.kind.children[0]. The Switch's state key has no writer, so the reference also warns FUARAN103 on it.",
+      "description": "One id held by a Box's child and by a Switch's default arm (FUARAN-DUP-ID). The defect is located at the id's SECOND node in document order, $.kind.children[1].kind.default: the node to change is the later one. The Switch's state key has no writer, so the reference also warns FUARAN103 on it.",
       "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"twice\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"First\"}},{\"id\":\"sw\",\"kind\":{\"$type\":\"Switch\",\"cases\":[{\"child\":{\"id\":\"sw-a\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"A\"}},\"match\":\"a\"}],\"default\":{\"id\":\"twice\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"Second\"}},\"stateKey\":\"view\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}",
       "expected": [
-        {
-          "code": "FUARAN-DUP-ID",
-          "severity": "Error",
-          "node": "twice",
-          "path": "$.kind.children[0]"
-        },
         {
           "code": "FUARAN103",
           "severity": "Warning",
           "node": "sw",
           "path": "$.kind.children[1]"
+        },
+        {
+          "code": "FUARAN-DUP-ID",
+          "severity": "Error",
+          "node": "twice",
+          "path": "$.kind.children[1].kind.default"
+        }
+      ]
+    },
+    {
+      "id": "validate-duplicate-id-three-times",
+      "description": "One id held by three nodes, the third one level down (FUARAN-DUP-ID). Three occurrences are TWO findings, one at each occurrence after the first, in document order: $.kind.children[1] and $.kind.children[2].kind.children[0]. The count of findings is the count of nodes to change.",
+      "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"thrice\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"One\"}},{\"id\":\"thrice\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"Two\"}},{\"id\":\"inner\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"thrice\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"Three\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}",
+      "expected": [
+        {
+          "code": "FUARAN-DUP-ID",
+          "severity": "Error",
+          "node": "thrice",
+          "path": "$.kind.children[1]"
+        },
+        {
+          "code": "FUARAN-DUP-ID",
+          "severity": "Error",
+          "node": "thrice",
+          "path": "$.kind.children[2].kind.children[0]"
         }
       ]
     }
