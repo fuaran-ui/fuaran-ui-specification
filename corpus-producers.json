@@ -23,11 +23,23 @@
   "families": {
     "apply/duplicateIdsApply": {
       "spec": "8.1",
-      "authored": "the wire specification states the uniqueness rule and these vectors with it; Core apply vectors cover the skeleton surface only, and no reference emitter writes host-tree apply vectors yet"
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
+      },
+      "source": {
+        "commit": "bc8b5b77418646e8afff737800468dd4833d3b78"
+      }
     },
     "apply/limitsApply": {
       "spec": "21",
-      "authored": "the wire specification states the apply-time limits and these vectors with it; no reference emitter writes host-tree apply vectors yet"
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
+      },
+      "source": {
+        "commit": "bc8b5b77418646e8afff737800468dd4833d3b78"
+      }
     },
     "apply/skeletonApply": {
       "spec": "27.8.2",
@@ -41,11 +53,23 @@
     },
     "apply/styleNormaliseApply": {
       "spec": "3.4",
-      "authored": "the wire specification states the normalisation rule and these vectors with it; no reference emitter writes host-tree apply vectors yet"
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
+      },
+      "source": {
+        "commit": "bc8b5b77418646e8afff737800468dd4833d3b78"
+      }
     },
     "apply/updatePropApply": {
       "spec": "3.4",
-      "authored": "the wire specification states the write-path rule and these vectors with it; no reference emitter writes host-tree apply vectors yet"
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-apply <corpus dir>"
+      },
+      "source": {
+        "commit": "bc8b5b77418646e8afff737800468dd4833d3b78"
+      }
     },
     "binding-propagation": {
       "spec": "27.8.2",
@@ -354,6 +378,16 @@
     "teleport-reject": {
       "spec": "17.6",
       "authored": "the reference envelope re-stamped by hand with its digest recomputed, so the version refusal is what bites; preserved verbatim by the root emitter"
+    },
+    "validate": {
+      "spec": "27.8.2",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.JsonDecode.Tests -- --emit-validate <corpus dir>"
+      },
+      "source": {
+        "commit": "bc8b5b77418646e8afff737800468dd4833d3b78"
+      }
     }
   }
 }

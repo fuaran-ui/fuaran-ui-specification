@@ -10145,6 +10145,23 @@ and that no other section specifies.
   well as sound, and `Conservative` otherwise, naming each such read in `expected.because`. The
   vectors pass through a tree, which `laws/propagationLaws` does not: they certify the walk that
   derives the dependency graph, where those certify the graph's closure.
+- **`validate`** (`validate/manifest.json`, Phase 2381) — which pre-emit defects a document carries,
+  and where. [`validator/`](validator/) fixes the defect vocabulary (each code's severity and the
+  concepts its message conveys) and says which codes each host implements; this family says which of
+  them a given document raises. Each vector is `(tree, expected)`: `tree` is a canonical node
+  document, and `expected` lists the defects the reference validator reports on it, each with its
+  `code` and `severity`, the `node` id it is raised on (`null` where the defect names no node), and
+  `path`, the location of that node's object in `tree` — its first occurrence in document order, an
+  object carrying a string `id` and an object `kind`. A host that implements the pre-emit tier
+  validates every tree with its own decoder and validator and asserts that its findings, restricted
+  to the codes its `validator-coverage.json` declares `implemented`, are exactly the expected
+  defects restricted to the same codes, each on the stated node. **A finding's location is a path in
+  the §29.3 grammar** — `$`-rooted, `.name` member segments, `['…']` for a key that is not a plain
+  identifier, and `[i]` for an array element, whatever the array holds (children, case arms, the
+  entries of a `params` list); never an all-digit dotted segment (`$.kind.children.0`), an empty
+  index (`params[]`), or an entry's `name` standing in for its index. A host whose finding carries a
+  path asserts that the path is the stated one or extends it at a segment boundary (§6), so a finding
+  located below the node (its `stateKey`, a case's `match`) still names the node's own spelling.
 
 **Forward coupling.** A new family's record lands in the same change-set as the family. A change to
 the record grammar updates this section, the check, and `corpus-producers.json` together.
@@ -10508,6 +10525,11 @@ not be told apart and one entry per (`Code`, `Path`) would have merged them; the
 like every other array: a `Transform` / `Expr` binding's `params[i]`, a `Query` binding's
 `dependsOn[i]`, a hole value space's `choices[i]`, a fragment's `holes[i]`, a `Mount`'s
 `capabilities[i]`. Only the text of a refusal at those positions changed.
+The index is the element's ONLY name in a path, below it as at it: a defect inside a `params`
+entry's `from` binding is at `params[i].from.…`, never `params.<name>.from.…` — the entry's `name` is a
+member of the entry, not a segment of the list (Phase 2381, which found the reference decoder and
+fuaran-rs spelling the same position two other ways). The same grammar locates a pre-emit finding
+(§27.8.2, `validate`).
 
 ### 29.4 What is compared: `Code` and `Path`
 
