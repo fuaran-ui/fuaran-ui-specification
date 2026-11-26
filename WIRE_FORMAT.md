@@ -10157,8 +10157,11 @@ and that no other section specifies.
   them a given document raises. Each vector is `(tree, expected)`: `tree` is a canonical node
   document, and `expected` lists the defects the reference validator reports on it, each with its
   `code` and `severity`, the `node` id it is raised on (`null` where the defect names no node), and
-  `path`, the location in `tree` of the node object (an object carrying a string `id` and an object
-  `kind`) whose occurrence raised it. Every node the document holds is judged (§8.1): the envelope
+  `path`, the location in `tree` of the node whose occurrence raised it. A node is an object at a
+  position the vocabulary (`idl.json`) declares to hold a node: the root; a node's envelope `fallback` and
+  its `state.onEmpty` and `state.onLoading`; and, in its kind, `children[i]`, `cases[i].child`, `child`,
+  `fallback`, `body`, `default` and a slot argument's `tree`. An object anywhere else is not a node though
+  it carries a string `id` and an object `kind`: a form field is located at the `Form` holding it. Every node the document holds is judged (§8.1): the envelope
   `fallback`, the kind's own positions, and the state alternatives `state.onEmpty` and
   `state.onLoading`, which are members of the node object and so part of the document. An id held by
   a state alternative and by the tree is a repeated id, and a defect on a node in a state alternative

@@ -626,6 +626,19 @@
       "expected": []
     },
     {
+      "id": "validate-form-field-finding-is-located-at-the-form",
+      "description": "A Checkbox field carries a format rule (FUARAN100). A form field carries a string id and an object kind, but it sits at no position the vocabulary declares to hold a node, so it is not a node: the finding is located at the Form holding it, $.kind.children[1].",
+      "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"c\",\"kind\":{\"$type\":\"Markdown\",\"text\":\"t\"}},{\"id\":\"signup\",\"kind\":{\"$type\":\"Form\",\"fields\":[{\"id\":\"f\",\"kind\":{\"$type\":\"Checkbox\",\"value\":{\"$type\":\"State\",\"key\":\"f\"}},\"label\":\"F\",\"rule\":{\"format\":\"email\"}}],\"onSubmit\":{\"$type\":\"Chain\",\"ops\":[]},\"submitLabel\":\"Go\"}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}",
+      "expected": [
+        {
+          "code": "FUARAN100",
+          "severity": "Warning",
+          "node": "signup",
+          "path": "$.kind.children[1]"
+        }
+      ]
+    },
+    {
       "id": "validate-inline-table-repeated-three-times",
       "description": "Three DataGrids carry the same inline table (FUARAN107): x, x, x is two findings, at the second and the third copy ($.kind.children[1], $.kind.children[2]), each naming the first copy; never one per pair.",
       "tree": "{\"id\":\"root\",\"kind\":{\"$type\":\"Box\",\"children\":[{\"id\":\"g1\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}},{\"id\":\"g2\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}},{\"id\":\"g3\",\"kind\":{\"$type\":\"DataGrid\",\"columns\":[{\"field\":\"a\",\"kind\":{\"$type\":\"Text\"},\"label\":\"a\"}],\"rowKeyField\":\"a\",\"source\":{\"$type\":\"Static\",\"value\":[{\"a\":1},{\"a\":2}]}}}],\"layout\":{\"$type\":\"Flex\",\"direction\":\"Vertical\"},\"role\":\"Group\"}}",
