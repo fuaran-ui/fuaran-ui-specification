@@ -254,6 +254,16 @@
       },
       "source": "kitVersion"
     },
+    "laws/derivationTraceLaws": {
+      "spec": "35",
+      "producer": {
+        "repository": "fuaran-ui/fuaran-dotnet",
+        "emit": "dotnet run --project src/Fuaran.UI.Tests -- --emit-derivation-trace <corpus dir>"
+      },
+      "source": {
+        "commit": "e4df7a646d222efa919e8f1c50558ce55f821063"
+      }
+    },
     "laws/fieldLaws": {
       "spec": "27.8.2",
       "producer": {

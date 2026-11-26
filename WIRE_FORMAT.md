@@ -10108,7 +10108,8 @@ and that no other section specifies.
   reference decodes and re-encodes it to; a host whose codec is driven by an IDL reads the file's vocabulary and
   asserts those bytes, and §3.6 says why the UI vocabulary declares no presence condition or alias list yet; `transformLaws` (a drawn sample) and `dataframeParity` (one authored case per
   evaluator feature) the reference evaluator's answer to a `(source, pipeline)` pair — the result
-  table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte.
+  table's canonical bytes, or the refusal — which a host with an evaluator reproduces byte for byte. `derivationTraceLaws` (Phase 2767, emitted by `fuaran-dotnet` from
+  `Fuaran.UI.Derivation`) is the derivation trace over those same pipelines, and §35 is its normative section.
 - **`apply/skeletonApply`** — over the skeleton witness surface, each op either applies, with the
   result's canonical bytes and hash, or is refused with the class the vector names; a `Batch` applies
   atomically.
@@ -11604,6 +11605,122 @@ A host that adds a precedence merge certifies the whole array in the same change
 there, and the host claims nothing about precedence. What the corpus certifies is the reference's precedence merge
 on the cases above and nothing wider: it does not certify that a host without one agrees with it, and it does not
 certify a precedence merge's minted node beyond the reference's own replay check.
+
+---
+
+## 35. The derivation trace (normative, Phase 2767)
+
+A `Binding.Transform` or a `Binding.Expr` carries its pipeline as data, so a host can say how the value it binds
+was computed without asking anything outside the tree. The **derivation trace** is that answer: one entry per
+step of the pipeline as written, with the step's verb, its canonical wire form, whether it ran, the output schema
+the static schema walk derives for it, and, when the caller asks, the table after it, bounded by a row limit the
+caller states. This section fixes the trace's canonical text (§35.1), what it computes (§35.2), and the law family
+that certifies a host's trace against the reference's (§35.3).
+
+**§11 status: certified on `fuaran-dotnet` only** (the reference, `Fuaran.UI.Derivation`). The other four codec
+hosts declare the family `pending` (§35.4).
+
+The trace reads **resolved sources**: the table the pipeline's first step reads, the bound scalar params, the bound
+list params, the names of the params no source bound, and a resolver for a `ref` source a `join` or a set
+operation names. How a host resolves a binding's `source` and `params` into those is the binding's own semantics
+and is not restated here.
+
+### 35.1 The canonical text
+
+A trace is one JSON object, written under the §2 rules (members sorted Ordinal, no `null`, an absent member is
+structural):
+
+```json
+{"input":{"schema":{…},"table":{…}},"steps":[{"index":0,"schema":{…},"status":"applied","step":{…},"table":{…},"verb":"filter"}],"subject":"transform"}
+```
+
+- `subject` — `"transform"` for a `Binding.Transform`, `"expr"` for a `Binding.Expr`.
+- `input` — the **stage** the first step reads.
+- `steps` — one entry per step as written, in order. Each is a stage with five members of its own:
+  - `index` — the step's position in the written pipeline, from `0`;
+  - `verb` — the step's wire `$type` (`filter`, `groupBy`, …), which is the `$type` of `step`;
+  - `step` — the step's canonical wire form in the dataframe codec, as written (before any list param is
+    substituted);
+  - `status` — `"applied"` when the step runs, `"pruned"` when it does not (§35.2);
+  - `unbound` — present exactly when `status` is `"pruned"`: the unbound params the step reads, in the order
+    its predicate reads them.
+
+A **stage** is what is known at one point of the derivation:
+
+- `schema` — the output schema the static walk derives: `closed` (`true` when the column set is exactly the
+  columns listed, `false` when the walk can name these columns and cannot rule out others), `columns` (each
+  `{"name": …}` with `type`, the column type's wire tag, where the walk decides it), and `reason` — present
+  exactly when `closed` is `false` — the walk's own sentence for what cost it its certainty. A column's unit,
+  label and description are not carried.
+- `table` — present when the caller asked for tables and the evaluation at this point succeeded:
+  `{"rowCount": n, "rows": …}`, where `rowCount` is the table's full row count and `rows` is the table's first
+  rows, at most the caller's limit, as an embedded table in the columnar codec's form.
+- `refusal` — present instead of `table` when the evaluation at this point was refused: one sentence.
+
+A stage carries `table` or `refusal` or neither (a trace taken without tables), never both. A decoder MUST
+refuse a member the form does not define, a `verb` that is not its `step`'s `$type`, an `index` that is not the
+step's position, a `status` and `unbound` that disagree, a `closed` and `reason` that disagree, and an unknown
+column type tag, and it accepts any member order (§2 rule 2).
+
+### 35.2 What the trace computes
+
+1. **The effective pipeline.** The list params are substituted into the written pipeline. Then every `filter`
+   whose predicate reads a param no source bound is **pruned**: it does not run, because an unset filter is no
+   constraint. A pruned step is reported, not removed; its output stage is the stage before it, byte for byte.
+2. **The prefix of a step.** The prefix of step *i* is every applied step from `0` to *i*, followed by every
+   `define` step of the whole pipeline after *i*: a definition is pipeline-wide and changes no frame.
+3. **The input stage.** Its schema is the input table's schema, closed. With tables, its table is the input.
+4. **An applied step.** Its schema is the walk over its prefix from the input's schema, a `ref` source whose schema
+   the resolver does not declare opening it. With tables, its table is the reference evaluation of its prefix over
+   the input under the bound scalar params, bounded to the caller's limit. Evaluating the prefix, rather than
+   feeding one step's table to the next, makes the last step's table the binding's value by construction.
+5. **After a refusal.** Once the evaluation at step *k* is refused, every later applied step's schema is still
+   walked, and its table is the refusal `not evaluated: step k was refused`.
+6. **An `Expr`.** It evaluates over the one-row frame — a single `bool` column `__unit` holding one `true` — and its
+   pipeline is a `derive` of the expression into `__value` followed by a `project` of `__value` alone, so its last
+   table is 1×1.
+
+A binding that carries no pipeline (any other `Binding` case) has no trace, and a host refuses it rather than
+writing one.
+
+### 35.3 The law family: `laws/derivationTraceLaws`
+
+`laws/derivation-trace-laws.json` carries `(input, expected)` pairs the reference computes (§27.8.2's `laws/`
+sentence governs the framing). Each vector's `input` is a binding's pipeline and its resolved sources:
+
+- `subject` — `"transform"` or `"expr"`;
+- `pipeline` and `source` (a `transform`) — the pipeline's and the input table's canonical wire texts in the
+  dataframe and columnar codecs, as the `transformLaws` vectors carry them; or `expr` (an `expr`) — the
+  expression's canonical wire text;
+- `env` — the bound scalar params, each a `lit` expression in the dataframe codec's form; `lists` — the bound list
+  params, each an array of them; `unbound` — the params no source bound. Each is absent when empty;
+- `rows` — the caller's row limit; absent, the trace is taken without tables.
+
+No `ref` source resolves in this family. `expected.trace` is the reference trace's canonical text (§35.1).
+
+A host that implements the trace decodes each input with its own codecs, traces it, writes its canonical text and
+compares it with `expected.trace` byte for byte, **with the value of every `refusal` and every `reason` member
+compared by presence alone**: their wording is the reference evaluator's and the reference walk's, which no other
+family pins, exactly as `transformLaws` leaves a refusal unnamed. A host that implements the codec alone asserts
+that every `expected.trace` decodes and re-encodes to itself byte for byte.
+
+The drawn vectors (ids `transformLaws/…` and `dataframeParity/…`) are every `evalPipeline` vector of those two
+families, their `source` and `pipeline` texts carried verbatim and traced at `rows` 3, so a vector's last table is
+that family's expected table bounded to three rows; a re-emit of either family moves this one with it. The authored
+vectors (`authored-…`) reach what no drawn pipeline does: bound scalar and list params beside a pruned filter, an
+`expr`, an open schema whose evaluation is refused, and a trace taken without tables.
+
+### 35.4 Adoption
+
+| Host | Answer |
+|---|---|
+| `fuaran-dotnet` | covered — the reference; `src/Fuaran.UI.Tests/DerivationTests.fs` holds the file to a fresh emission, traces every vector from the file and round-trips every expected text |
+| `fuaran-ts` | pending — no derivation trace yet; its evaluator runs `transformLaws`, the vectors this family is drawn from |
+| `fuaran-py` | pending — as `fuaran-ts` |
+| `fuaran-go` | pending — as `fuaran-ts` |
+| `fuaran-rs` | pending — as `fuaran-ts` |
+
+A host that implements the trace certifies the whole family in the same change and declares it `covered` (§27.7).
 
 ---
 
