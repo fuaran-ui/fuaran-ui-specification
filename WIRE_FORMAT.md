@@ -6459,6 +6459,24 @@ that lowers a chart in-host owes the `chart-lowering/channels/` subfamily.
 | `fuaran-swift` | inherited — a render projection over the Rust core |
 | `fuaran-kt` | inherited — as above |
 
+**Data-table adoption (a lowered chart's data-table alternative and the `chartTable` accessibility rules, Phase
+2776, Phase 2804).** A lowering bar and a render bar; the wire did not move. A host that lowers a chart in-host owes
+the table model, pinned by the `chart-lowering/table-model/` subfamily (a byte copy of an existing input beside
+`<name>.table.json`, `null` where the cost caps refuse the chart), which the hosts reading the top-level family
+enumerate past; a host that renders a lowered chart owes the "View as table" disclosure the drawing names in
+`aria-details`, its markup the reference server renderer's, and the eight `chartTable` rules of `a11y-contract.json`,
+which hold vacuously on a host that offers no table. Whether a table is offered is host policy, on by default.
+
+| Host | Data-table adoption |
+|---|---|
+| `fuaran` (F#) | **adopted** — the reference: `Charts.tableModel`, `ElementPlan.ChartTablePlan` on both renderers, `RenderPolicy.ChartTable`; generates the goldens |
+| `fuaran-ts` | **adopted** — the table model, byte-identical on every `table-model` golden; both renderers emit the reference server renderer's markup, the client's held to the server's; the policy switch (`chartTable`) and the `chartTable` rules on both |
+| `fuaran-py` | **adopted** — the table model, byte-identical on every `table-model` golden but the two `derived-*` cases (derived-series adoption is pending); the server renderer's markup, the policy switch and the `chartTable` rules |
+| `fuaran-rs` | **adopted, bounded by its lowering** — the table model, byte-identical on every `table-model` golden whose chart declares nothing the lowering does not yet read; a chart that does (derived series, heatmap, withheld, channels: all pending above) offers no table rather than one that disagrees with its drawing. The server renderer's disclosure, the policy switch and the `chartTable` rules |
+| `fuaran-go` | `n/a` — REQUIRE-PRE-LOWERED: a pre-lowered chart arrives as a `Drawing`, which carries no rows, and a raw `Chart` is the typed passthrough; pinned by `TestChartDataTableIsADeclaredGap` |
+| `fuaran-swift` | inherited — a render projection over the Rust core |
+| `fuaran-kt` | inherited — as above |
+
 **`Text` adoption (the plain running-text node, Phase 2536, §3.6.38).** A codec bar and a render bar: every codec
 host decodes and encodes the kind and reads the shared tag by position (§11.4), and every host that renders HTML owes
 the escaped `<span>`.
